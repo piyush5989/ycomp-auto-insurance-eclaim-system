@@ -1,0 +1,140 @@
+{
+  "realm": "eclaims",
+  "enabled": true,
+  "displayName": "eClaims",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 3600,
+  "refreshTokenMaxReuse": 0,
+  "ssoSessionIdleTimeout": 1800,
+  "roles": {
+    "realm": [
+      { "name": "customer",       "description": "Policyholder — submit claims, track status, initiate payments" },
+      { "name": "surveyor",       "description": "Field surveyor — conduct damage assessment" },
+      { "name": "adjustor",       "description": "Insurance adjustor — adjudicate claims, approve/reject" },
+      { "name": "case_manager",   "description": "Case manager — delegate, escalate, oversee claims" },
+      { "name": "auditor",        "description": "Read-only auditor — full audit trail access" },
+      { "name": "workshop",       "description": "Partner workshop — work orders, repair status, billing" },
+      { "name": "regional_mgr",   "description": "Regional manager — regional reporting and KPIs" },
+      { "name": "top_management", "description": "Executive — full reporting, all regions" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "eclaims-web",
+      "name": "eClaims Web Application",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": [
+        "http://localhost:5173/*",
+        "http://localhost:3000/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173",
+        "http://localhost:3000"
+      ],
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "eclaims-api",
+      "name": "eClaims Backend API",
+      "enabled": true,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect",
+      "secret": "eclaims-api-secret-dev"
+    }
+  ],
+  "users": [
+    {
+      "username": "customer1",
+      "email": "customer1@eclaims.test",
+      "firstName": "John",
+      "lastName": "Customer",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "Test@1234", "temporary": false }],
+      "realmRoles": ["customer"],
+      "attributes": { "customerId": ["customer1-uuid"] }
+    },
+    {
+      "username": "surveyor1",
+      "email": "surveyor1@eclaims.test",
+      "firstName": "Alice",
+      "lastName": "Surveyor",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "Test@1234", "temporary": false }],
+      "realmRoles": ["surveyor"]
+    },
+    {
+      "username": "adjustor1",
+      "email": "adjustor1@eclaims.test",
+      "firstName": "Bob",
+      "lastName": "Adjustor",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "Test@1234", "temporary": false }],
+      "realmRoles": ["adjustor"]
+    },
+    {
+      "username": "casemanager1",
+      "email": "casemanager1@eclaims.test",
+      "firstName": "Carol",
+      "lastName": "Manager",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "Test@1234", "temporary": false }],
+      "realmRoles": ["case_manager"]
+    },
+    {
+      "username": "auditor1",
+      "email": "auditor1@eclaims.test",
+      "firstName": "David",
+      "lastName": "Auditor",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "Test@1234", "temporary": false }],
+      "realmRoles": ["auditor"]
+    },
+    {
+      "username": "workshop1",
+      "email": "workshop1@eclaims.test",
+      "firstName": "Eve",
+      "lastName": "Workshop",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "Test@1234", "temporary": false }],
+      "realmRoles": ["workshop"]
+    },
+    {
+      "username": "regionalmgr1",
+      "email": "regionalmgr1@eclaims.test",
+      "firstName": "Frank",
+      "lastName": "RegionalMgr",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "Test@1234", "temporary": false }],
+      "realmRoles": ["regional_mgr"]
+    },
+    {
+      "username": "topmanagement1",
+      "email": "topmanagement1@eclaims.test",
+      "firstName": "Grace",
+      "lastName": "Executive",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "Test@1234", "temporary": false }],
+      "realmRoles": ["top_management"]
+    }
+  ]
+}

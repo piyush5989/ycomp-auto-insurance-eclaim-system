@@ -1,0 +1,80 @@
+groups:
+  - name: eclaims.rules
+    rules:
+
+      # ─── Response Time ────────────────────────────────────────────────
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.99, rate(http_server_requests_seconds_bucket[5m])) > 5
+        for: 2m
+        labels:
+          severity: warning
+          team: eclaims-backend
+        annotations:
+          summary: "p99 response time exceeds 5 seconds"
+          description: "99th percentile response time is {{ $value }}s. SLA: < 5s."
+
+      - alert: ClaimSubmissionResponseTime
+        expr: histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{uri=~"/api/v1/claims.*", method="POST"}[5m])) > 1.5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Claim submission p95 exceeds 1.5s target"
+
+      - alert: ClaimViewResponseTime
+        expr: histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{uri=~"/api/v1/claims/.*", method="GET"}[5m])) > 0.8
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Claim view p95 exceeds 800ms target"
+
+      # ─── Error Rate ───────────────────────────────────────────────────
+      - alert: HighErrorRate
+        expr: rate(http_server_requests_seconds_count{status=~"5.."}[5m]) > 0.05
+        for: 1m
+        labels:
+          severity: critical
+          team: eclaims-backend
+        annotations:
+          summary: "HTTP 5xx error rate > 5% over last minute"
+          description: "Error rate: {{ $value | humanizePercentage }}"
+
+      # ─── Cache Hit Ratio ──────────────────────────────────────────────
+      - alert: LowCacheHitRatio
+        expr: redis_cache_hit_ratio < 0.75
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis cache hit ratio below 75% threshold"
+          description: "Current hit ratio: {{ $value | humanizePercentage }}. Target: > 85%."
+
+      # ─── Kafka Consumer Lag ───────────────────────────────────────────
+      - alert: KafkaConsumerLag
+        expr: kafka_consumer_lag_sum > 1000
+        for: 3m
+        labels:
+          severity: warning
+          team: eclaims-backend
+        annotations:
+          summary: "Kafka consumer lag exceeding 1000 messages"
+          description: "Consumer lag: {{ $value }} messages. Notification delivery may be delayed."
+
+      # ─── JVM Health ───────────────────────────────────────────────────
+      - alert: JvmHeapUsageHigh
+        expr: (jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"}) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM heap usage > 85%"
+
+      # ─── Application Health ───────────────────────────────────────────
+      - alert: ApplicationDown
+        expr: up{job="eclaims-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "eClaims API is down"

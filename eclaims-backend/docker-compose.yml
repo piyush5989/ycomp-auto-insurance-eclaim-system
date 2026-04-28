@@ -1,0 +1,133 @@
+version: "3.9"
+
+services:
+
+  # ─── PostgreSQL ──────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: eclaims-postgres
+    environment:
+      POSTGRES_DB: eclaims
+      POSTGRES_USER: eclaims
+      POSTGRES_PASSWORD: eclaims_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/db/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eclaims"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - eclaims-net
+
+  # ─── Redpanda (Kafka-compatible, no ZooKeeper) ───────────────────────────
+  redpanda:
+    image: redpandadata/redpanda:latest
+    container_name: eclaims-redpanda
+    command:
+      - redpanda start
+      - --overprovisioned
+      - --smp 1
+      - --memory 512M
+      - --reserve-memory 0M
+      - --node-id 0
+      - --kafka-addr PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr PLAINTEXT://localhost:9092
+      - --pandaproxy-addr PLAINTEXT://0.0.0.0:8082
+      - --advertise-pandaproxy-addr PLAINTEXT://localhost:8082
+    ports:
+      - "9092:9092"    # Kafka API
+      - "9644:9644"    # Redpanda Admin API
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true' || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - eclaims-net
+
+  # ─── Redpanda Console (Kafka Topic UI) ──────────────────────────────────
+  redpanda-console:
+    image: redpandadata/console:latest
+    container_name: eclaims-redpanda-console
+    ports:
+      - "8082:8080"    # localhost:8082 — watch live claim.created events in browser
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    networks:
+      - eclaims-net
+
+  # ─── Redis ──────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: eclaims-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass redis_dev
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_dev", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - eclaims-net
+
+  # ─── Mailhog (local SMTP catcher) ───────────────────────────────────────
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: eclaims-mailhog
+    ports:
+      - "8025:8025"    # Web UI — open localhost:8025 to see notification emails arrive live
+      - "1025:1025"    # SMTP — Spring Mail points here
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8025"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - eclaims-net
+
+  # ─── Keycloak ────────────────────────────────────────────────────────────
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: eclaims-keycloak
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/eclaims
+      KC_DB_USERNAME: eclaims
+      KC_DB_PASSWORD: eclaims_dev
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "8080:8080"    # Keycloak Admin: localhost:8080/admin (admin/admin)
+    volumes:
+      - ./infra/keycloak/eclaims-realm.json:/opt/keycloak/data/import/eclaims-realm.json
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - eclaims-net
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  eclaims-net:
+    driver: bridge
