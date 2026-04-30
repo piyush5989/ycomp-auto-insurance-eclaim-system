@@ -8,7 +8,8 @@ import type { ClaimStatus } from '@/shared/utils/claimStatusLabel';
 import { formatCurrency } from '@/shared/utils/formatCurrency';
 import { useAuth } from '@/shared/auth/KeycloakProvider';
 import { hasRole } from '@/shared/auth/roleUtils';
-import { ArrowLeft, CheckCircle, XCircle, UserCheck } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, UserCheck, Users } from 'lucide-react';
+import { ReassignModal } from '../components/ReassignModal';
 
 export default function ClaimDetailPage() {
   const { claimId } = useParams<{ claimId: string }>();
@@ -17,6 +18,9 @@ export default function ClaimDetailPage() {
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
+  const [showReassignModal, setShowReassignModal] = useState<'surveyor' | 'adjustor' | null>(null);
+  const [overrideAmount, setOverrideAmount] = useState('');
+  const [overrideReason, setOverrideReason] = useState('');
 
   const updateStatus = useMutation({
     mutationFn: (body: { targetStatus: string; amount?: number; reason?: string }) =>
@@ -27,11 +31,26 @@ export default function ClaimDetailPage() {
     },
   });
 
+  const overrideDecision = useMutation({
+    mutationFn: () =>
+      httpClient.post(`/claims/${claimId}/override`, {
+        newAmount: parseFloat(overrideAmount),
+        reason: overrideReason,
+      }).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['claim', claimId] });
+      queryClient.invalidateQueries({ queryKey: ['internal-claims'] });
+      setOverrideAmount('');
+      setOverrideReason('');
+    },
+  });
+
   if (isLoading) return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-800" /></div>;
 
   if (!claim) return <div className="card text-center py-12">Claim not found</div>;
 
   const canAdjudicate = hasRole(roles, 'ROLE_ADJUSTOR') || hasRole(roles, 'ROLE_CASE_MANAGER');
+  const canReassign = hasRole(roles, 'ROLE_CASE_MANAGER');
 
   return (
     <div className="space-y-6">
@@ -74,6 +93,81 @@ export default function ClaimDetailPage() {
         </div>
       )}
 
+      {/* Reassignment Actions */}
+      {canReassign && (
+        <div className="card bg-gray-50">
+          <div className="flex items-center gap-3 mb-4">
+            <Users className="w-5 h-5 text-gray-700" />
+            <h2 className="text-sm font-semibold text-gray-900">Case Manager Actions</h2>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowReassignModal('surveyor')}
+              className="btn-secondary text-sm"
+              disabled={!claim.assignedSurveyorId}
+            >
+              Reassign Surveyor
+            </button>
+            <button
+              onClick={() => setShowReassignModal('adjustor')}
+              className="btn-secondary text-sm"
+              disabled={!claim.assignedAdjustorId}
+            >
+              Reassign Adjustor
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Case Manager Override */}
+      {canReassign && (claim.status === 'APPROVED' || claim.status === 'UNDER_ADJUDICATION') && (
+        <div className="card border-t-4 border-t-orange-500">
+          <h2 className="text-sm font-semibold text-gray-900 mb-4">Override Adjudication Decision</h2>
+          {claim.approvedAmount && (
+            <div className="bg-orange-50 border border-orange-200 rounded p-3 mb-4">
+              <p className="text-sm text-orange-800">
+                <strong>Current approved amount:</strong> {formatCurrency(claim.approvedAmount)}
+              </p>
+            </div>
+          )}
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                New Approved Amount (USD)
+              </label>
+              <input
+                type="number"
+                value={overrideAmount}
+                onChange={(e) => setOverrideAmount(e.target.value)}
+                placeholder="0.00"
+                step="0.01"
+                min="0"
+                className="input max-w-xs"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Override Reason (Required)
+              </label>
+              <textarea
+                value={overrideReason}
+                onChange={(e) => setOverrideReason(e.target.value)}
+                rows={3}
+                placeholder="Provide detailed justification for overriding the decision..."
+                className="input resize-none"
+              />
+            </div>
+            <button
+              onClick={() => overrideDecision.mutate()}
+              disabled={!overrideAmount || !overrideReason || overrideDecision.isPending}
+              className="btn-primary bg-orange-600 hover:bg-orange-700"
+            >
+              Override Decision
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Adjudication Panel */}
       {canAdjudicate && claim.status === 'UNDER_ADJUDICATION' && (
         <div className="card border-t-4 border-t-primary-800">
@@ -105,6 +199,19 @@ export default function ClaimDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Reassignment Modal */}
+      {showReassignModal && (
+        <ReassignModal
+          claimId={claimId!}
+          type={showReassignModal}
+          currentAssignee={
+            showReassignModal === 'surveyor' ? claim.assignedSurveyorId : claim.assignedAdjustorId
+          }
+          region={claim.region}
+          onClose={() => setShowReassignModal(null)}
+        />
       )}
     </div>
   );

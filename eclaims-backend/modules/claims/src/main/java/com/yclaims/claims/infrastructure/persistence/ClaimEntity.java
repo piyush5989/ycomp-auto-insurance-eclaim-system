@@ -25,12 +25,6 @@ import java.util.UUID;
 @Table(
     name = "claims",
     schema = "claims",
-    uniqueConstraints = {
-        @UniqueConstraint(
-            name = "uq_claim_natural_key",
-            columnNames = {"policy_number", "incident_date", "vehicle_registration"}
-        )
-    },
     indexes = {
         @Index(name = "idx_claims_customer_id", columnList = "customer_id"),
         @Index(name = "idx_claims_status_date", columnList = "status, created_at"),
@@ -56,6 +50,9 @@ public class ClaimEntity {
 
     @Column(name = "vehicle_registration", nullable = false, length = 20)
     private String vehicleRegistration;
+
+    @Column(name = "idempotency_key", length = 120, unique = true)
+    private String idempotencyKey;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "claim_type", nullable = false, length = 30)
@@ -104,6 +101,18 @@ public class ClaimEntity {
     @Column(name = "fraud_reason", length = 500)
     private String fraudReason;
 
+    @Column(name = "region", length = 50)
+    private String region;
+
+    @Column(name = "override_by_user_id", length = 100)
+    private String overrideByUserId;
+
+    @Column(name = "override_reason", columnDefinition = "TEXT")
+    private String overrideReason;
+
+    @Column(name = "override_at")
+    private Instant overrideAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -137,6 +146,7 @@ public class ClaimEntity {
     // Builder-style factory for persistence adapter
     public static ClaimEntity create(UUID id, String policyNumber, String customerId,
                                       String customerEmail, String vehicleRegistration,
+                                      String idempotencyKey,
                                       ClaimType claimType, ClaimStatus status,
                                       LocalDate incidentDate, String incidentLocation,
                                       String description, boolean policeReportFiled,
@@ -147,6 +157,7 @@ public class ClaimEntity {
         e.customerId = customerId;
         e.customerEmail = customerEmail;
         e.vehicleRegistration = vehicleRegistration;
+        e.idempotencyKey = idempotencyKey;
         e.claimType = claimType;
         e.status = status;
         e.incidentDate = incidentDate;
@@ -160,7 +171,9 @@ public class ClaimEntity {
     public void updateFromDomain(ClaimStatus status, String assignedSurveyorId,
                                   String assignedAdjustorId, BigDecimal assessedAmount,
                                   BigDecimal approvedAmount, String workshopId,
-                                  String rejectionReason, boolean fraudFlag, String fraudReason) {
+                                  String rejectionReason, boolean fraudFlag, String fraudReason,
+                                  String region, String overrideByUserId, String overrideReason,
+                                  Instant overrideAt) {
         this.status = status;
         this.assignedSurveyorId = assignedSurveyorId;
         this.assignedAdjustorId = assignedAdjustorId;
@@ -170,5 +183,9 @@ public class ClaimEntity {
         this.rejectionReason = rejectionReason;
         this.fraudFlag = fraudFlag;
         this.fraudReason = fraudReason;
+        this.region = region;
+        this.overrideByUserId = overrideByUserId;
+        this.overrideReason = overrideReason;
+        this.overrideAt = overrideAt;
     }
 }

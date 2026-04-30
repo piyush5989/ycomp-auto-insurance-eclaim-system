@@ -1,0 +1,9 @@
+com\yclaims\reporting\presentation\dto\FraudAgeingResponse$FraudAgeingResponseBuilder.class
+com\yclaims\reporting\presentation\dto\ClaimsKpiResponse$ClaimsKpiResponseBuilder.class
+com\yclaims\reporting\presentation\ReportingController.class
+com\yclaims\reporting\presentation\dto\FraudAgeingResponse.class
+com\yclaims\reporting\presentation\dto\RegionalKpiResponse$RegionalKpiResponseBuilder.class
+com\yclaims\reporting\application\ReportingApplicationService.class
+com\yclaims\reporting\infrastructure\persistence\ClaimKpiSnapshotRepository.class
+com\yclaims\reporting\presentation\dto\ClaimsKpiResponse.class
+com\yclaims\reporting\presentation\dto\RegionalKpiResponse.class

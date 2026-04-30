@@ -1,0 +1,6 @@
+C:\Data\Codebase\sse\eclaims-backend\modules\reporting\src\main\java\com\yclaims\reporting\application\ReportingApplicationService.java
+C:\Data\Codebase\sse\eclaims-backend\modules\reporting\src\main\java\com\yclaims\reporting\infrastructure\persistence\ClaimKpiSnapshotRepository.java
+C:\Data\Codebase\sse\eclaims-backend\modules\reporting\src\main\java\com\yclaims\reporting\presentation\dto\ClaimsKpiResponse.java
+C:\Data\Codebase\sse\eclaims-backend\modules\reporting\src\main\java\com\yclaims\reporting\presentation\dto\FraudAgeingResponse.java
+C:\Data\Codebase\sse\eclaims-backend\modules\reporting\src\main\java\com\yclaims\reporting\presentation\dto\RegionalKpiResponse.java
+C:\Data\Codebase\sse\eclaims-backend\modules\reporting\src\main\java\com\yclaims\reporting\presentation\ReportingController.java

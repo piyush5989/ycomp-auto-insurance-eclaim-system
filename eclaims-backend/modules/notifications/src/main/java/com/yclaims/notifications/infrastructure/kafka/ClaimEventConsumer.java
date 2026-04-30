@@ -4,6 +4,7 @@ import com.yclaims.contracts.events.DomainEvent;
 import com.yclaims.contracts.events.v1.ClaimCreatedPayload;
 import com.yclaims.contracts.events.v1.ClaimStatusChangedPayload;
 import com.yclaims.contracts.events.v1.PaymentSettledPayload;
+import com.yclaims.contracts.events.v1.RepairStatusUpdatedPayload;
 import com.yclaims.notifications.application.NotificationApplicationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,9 +16,9 @@ import java.time.Duration;
 
 /**
  * Kafka consumers for the notifications module.
- * Subscribes to claim-events and payment-events topics.
+ * Subscribes to claim-events, payment-events, and repair-events topics.
  *
- * Idempotent consumer pattern: every event is deduplicated via Redis SETNX on eventId.
+ * Idempotent consumer: every event deduplicated via Redis SETNX on eventId.
  * Duplicate delivery (Kafka at-least-once) is silently skipped — no duplicate notifications.
  */
 @Component
@@ -53,7 +54,7 @@ public class ClaimEventConsumer {
                     notificationService.sendStatusChangeNotification(payload, event.correlationId());
                 }
             }
-            default -> log.debug("No notification handler for event type: {}", event.eventType());
+            default -> log.debug("No notification handler for claim event type: {}", event.eventType());
         }
     }
 
@@ -68,6 +69,22 @@ public class ClaimEventConsumer {
         if ("payment.settled".equals(event.eventType()) &&
                 event.payload() instanceof PaymentSettledPayload payload) {
             notificationService.sendPaymentConfirmation(payload, event.correlationId());
+        }
+    }
+
+    @KafkaListener(
+        topics = "repair-events",
+        groupId = "notification-service",
+        containerFactory = "kafkaListenerContainerFactory"
+    )
+    public void handleRepairEvent(DomainEvent<?> event) {
+        if (!deduplicate(event.eventId())) return;
+
+        log.info("Processing repair event [{}] type={}", event.eventId(), event.eventType());
+
+        if ("repair.status.updated".equals(event.eventType()) &&
+                event.payload() instanceof RepairStatusUpdatedPayload payload) {
+            notificationService.sendRepairStatusNotification(payload, event.correlationId());
         }
     }
 

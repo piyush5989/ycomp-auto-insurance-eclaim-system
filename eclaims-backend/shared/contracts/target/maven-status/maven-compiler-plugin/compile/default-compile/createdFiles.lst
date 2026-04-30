@@ -1,0 +1,12 @@
+com\yclaims\contracts\events\v1\PaymentSettledPayload.class
+com\yclaims\contracts\events\v1\ClaimStatusChangedPayload.class
+com\yclaims\contracts\events\v1\ClaimApprovedPayload.class
+com\yclaims\contracts\events\v1\NotificationRequestedPayload.class
+com\yclaims\contracts\events\DomainEvent.class
+com\yclaims\contracts\events\v1\RentalVehicleReservedPayload.class
+com\yclaims\contracts\api\ClaimStatusDto.class
+com\yclaims\contracts\events\v1\RepairStatusUpdatedPayload.class
+com\yclaims\contracts\api\UserRole.class
+com\yclaims\contracts\events\v1\ClaimCreatedPayload.class
+com\yclaims\contracts\events\v1\VehicleDroppedOffPayload.class
+com\yclaims\contracts\events\v1\WorkshopSelectedPayload.class

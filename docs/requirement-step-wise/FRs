@@ -1,0 +1,16 @@
+5
+Promotion Case Study - Assessment for Senior Staff Engineer 
+.1 Functional Requirements 
+1. The proposed system shall be based on well-defined data and interface 
+standards. 
+2. Proposed system should utilize an identity management system with role
+based user authentication and authorization. 
+3. Actions the different roles can perform within the system must be 
+configurable without code changes. 
+4. The proposed system should be able to store, backup, and recover 
+system data in a distributed environment. 
+5.  The system should enforce encryption strategies for sensitive data at 
+rest. Security of confidential business data should be in compliance with 
+the industry standards. 
+6. The System should be able to take care of no repudiation and also should 
+consider fraudulent claims. 

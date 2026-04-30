@@ -1,0 +1,11 @@
+C:\Data\Codebase\sse\eclaims-backend\app\eclaims-api\src\main\java\com\yclaims\app\audit\KafkaAuditPublisher.java
+C:\Data\Codebase\sse\eclaims-backend\app\eclaims-api\src\main\java\com\yclaims\app\config\AsyncConfig.java
+C:\Data\Codebase\sse\eclaims-backend\app\eclaims-api\src\main\java\com\yclaims\app\config\KafkaConfig.java
+C:\Data\Codebase\sse\eclaims-backend\app\eclaims-api\src\main\java\com\yclaims\app\config\RedisConfig.java
+C:\Data\Codebase\sse\eclaims-backend\app\eclaims-api\src\main\java\com\yclaims\app\config\SecurityConfig.java
+C:\Data\Codebase\sse\eclaims-backend\app\eclaims-api\src\main\java\com\yclaims\app\EClaimsApplication.java
+C:\Data\Codebase\sse\eclaims-backend\app\eclaims-api\src\main\java\com\yclaims\app\onboarding\dto\RegisterRequest.java
+C:\Data\Codebase\sse\eclaims-backend\app\eclaims-api\src\main\java\com\yclaims\app\onboarding\dto\RegisterResponse.java
+C:\Data\Codebase\sse\eclaims-backend\app\eclaims-api\src\main\java\com\yclaims\app\onboarding\KeycloakAdminConfig.java
+C:\Data\Codebase\sse\eclaims-backend\app\eclaims-api\src\main\java\com\yclaims\app\onboarding\OnboardingApplicationService.java
+C:\Data\Codebase\sse\eclaims-backend\app\eclaims-api\src\main\java\com\yclaims\app\onboarding\OnboardingController.java

@@ -1,0 +1,17 @@
+com\yclaims\workflow\application\AutoAssignmentService$1AdjustorAssignedPayload.class
+com\yclaims\workflow\infrastructure\persistence\AdjustorJpaRepository.class
+com\yclaims\workflow\infrastructure\persistence\AdjustorEntity.class
+com\yclaims\workflow\infrastructure\persistence\AssignmentJpaRepository.class
+com\yclaims\workflow\infrastructure\persistence\AssignmentEntity.class
+com\yclaims\workflow\application\AutoAssignmentService$1NotificationPayload.class
+com\yclaims\workflow\presentation\WorkflowController$SurveyorResponse.class
+com\yclaims\workflow\presentation\WorkflowController.class
+com\yclaims\workflow\application\AutoAssignmentService$1SurveyorAssignedPayload.class
+com\yclaims\workflow\application\AutoAssignmentService$1ClaimAssignedPayload.class
+com\yclaims\workflow\application\AutoAssignmentService$2NotificationPayload.class
+com\yclaims\workflow\infrastructure\persistence\SurveyorJpaRepository.class
+com\yclaims\workflow\application\AutoAssignmentService$2EscalationPayload.class
+com\yclaims\workflow\application\AutoAssignmentService$3EscalationPayload.class
+com\yclaims\workflow\application\AutoAssignmentService$1EscalationPayload.class
+com\yclaims\workflow\infrastructure\persistence\SurveyorEntity.class
+com\yclaims\workflow\application\AutoAssignmentService.class

@@ -1,0 +1,7 @@
+C:\Data\Codebase\sse\eclaims-backend\modules\customers\src\main\java\com\yclaims\customers\application\CustomerProfileApplicationService.java
+C:\Data\Codebase\sse\eclaims-backend\modules\customers\src\main\java\com\yclaims\customers\infrastructure\persistence\CustomerProfileEntity.java
+C:\Data\Codebase\sse\eclaims-backend\modules\customers\src\main\java\com\yclaims\customers\infrastructure\persistence\CustomerProfileJpaRepository.java
+C:\Data\Codebase\sse\eclaims-backend\modules\customers\src\main\java\com\yclaims\customers\presentation\CustomerProfileController.java
+C:\Data\Codebase\sse\eclaims-backend\modules\customers\src\main\java\com\yclaims\customers\presentation\dto\CustomerProfileResponse.java
+C:\Data\Codebase\sse\eclaims-backend\modules\customers\src\main\java\com\yclaims\customers\presentation\dto\UpdateAddressRequest.java
+C:\Data\Codebase\sse\eclaims-backend\modules\customers\src\main\java\com\yclaims\customers\presentation\dto\UpdateBillingCycleRequest.java

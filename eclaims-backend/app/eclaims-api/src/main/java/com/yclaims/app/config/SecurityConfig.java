@@ -47,7 +47,8 @@ public class SecurityConfig {
                             "/swagger-ui/**", "/swagger-ui.html",
                             "/v3/api-docs/**", "/api-docs/**",
                             "/actuator/health/**",
-                            "/actuator/info"
+                            "/actuator/info",
+                            "/api/v1/onboarding/**"   // Public: customer self-registration
                     ).permitAll()
                     // All other endpoints require valid JWT
                     .anyRequest().authenticated()

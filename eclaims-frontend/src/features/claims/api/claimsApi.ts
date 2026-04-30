@@ -1,6 +1,9 @@
 import { httpClient } from '@/shared/api/httpClient';
 import type { ApiResponse } from '@/shared/types/ApiResponse';
-import type { ClaimSubmissionRequest, ClaimResponse, ClaimStatusUpdateRequest } from './claimsApi.types';
+import type {
+  ClaimSubmissionRequest, ClaimResponse, ClaimStatusUpdateRequest,
+  PotentialDuplicate, UpdateIncidentDetailsRequest, ClaimEndorsement,
+} from './claimsApi.types';
 
 /**
  * Claims API service layer.
@@ -21,4 +24,28 @@ export const claimsApi = {
 
   withdraw: (claimId: string) =>
     httpClient.delete<ApiResponse<ClaimResponse>>(`/claims/${claimId}`).then((r) => r.data),
+
+  checkDuplicates: (vehicleRegistration: string, incidentDate: string, policyNumber: string) =>
+    httpClient
+      .post<ApiResponse<PotentialDuplicate[]>>('/claims/check-duplicates', {
+        vehicleRegistration,
+        incidentDate,
+        policyNumber,
+      })
+      .then((r) => r.data),
+
+  updateIncidentDetails: (claimId: string, payload: UpdateIncidentDetailsRequest) =>
+    httpClient
+      .patch<ApiResponse<ClaimResponse>>(`/claims/${claimId}/incident-details`, payload)
+      .then((r) => r.data),
+
+  getEndorsements: (claimId: string) =>
+    httpClient
+      .get<ApiResponse<ClaimEndorsement[]>>(`/claims/${claimId}/endorsements`)
+      .then((r) => r.data),
+
+  addEndorsement: (claimId: string, note: string) =>
+    httpClient
+      .post<ApiResponse<ClaimEndorsement>>(`/claims/${claimId}/endorsements`, { note })
+      .then((r) => r.data),
 };

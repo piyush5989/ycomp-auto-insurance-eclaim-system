@@ -1,0 +1,10 @@
+com\yclaims\documents\application\DocumentApplicationService.class
+com\yclaims\documents\presentation\dto\DocumentMetadataResponse$DocumentMetadataResponseBuilder.class
+com\yclaims\documents\infrastructure\storage\LocalFileSystemStorageAdapter.class
+com\yclaims\documents\presentation\DocumentController.class
+com\yclaims\documents\domain\port\out\DocumentStoragePort.class
+com\yclaims\documents\infrastructure\persistence\DocumentJpaRepository.class
+com\yclaims\documents\presentation\dto\DocumentMetadataResponse.class
+com\yclaims\documents\config\StorageProperties.class
+com\yclaims\documents\domain\model\DocumentType.class
+com\yclaims\documents\infrastructure\persistence\DocumentEntity.class

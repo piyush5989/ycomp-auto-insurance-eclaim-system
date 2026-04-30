@@ -1,0 +1,9 @@
+C:\Data\Codebase\sse\eclaims-backend\modules\documents\src\main\java\com\yclaims\documents\application\DocumentApplicationService.java
+C:\Data\Codebase\sse\eclaims-backend\modules\documents\src\main\java\com\yclaims\documents\config\StorageProperties.java
+C:\Data\Codebase\sse\eclaims-backend\modules\documents\src\main\java\com\yclaims\documents\domain\model\DocumentType.java
+C:\Data\Codebase\sse\eclaims-backend\modules\documents\src\main\java\com\yclaims\documents\domain\port\out\DocumentStoragePort.java
+C:\Data\Codebase\sse\eclaims-backend\modules\documents\src\main\java\com\yclaims\documents\infrastructure\persistence\DocumentEntity.java
+C:\Data\Codebase\sse\eclaims-backend\modules\documents\src\main\java\com\yclaims\documents\infrastructure\persistence\DocumentJpaRepository.java
+C:\Data\Codebase\sse\eclaims-backend\modules\documents\src\main\java\com\yclaims\documents\infrastructure\storage\LocalFileSystemStorageAdapter.java
+C:\Data\Codebase\sse\eclaims-backend\modules\documents\src\main\java\com\yclaims\documents\presentation\DocumentController.java
+C:\Data\Codebase\sse\eclaims-backend\modules\documents\src\main\java\com\yclaims\documents\presentation\dto\DocumentMetadataResponse.java

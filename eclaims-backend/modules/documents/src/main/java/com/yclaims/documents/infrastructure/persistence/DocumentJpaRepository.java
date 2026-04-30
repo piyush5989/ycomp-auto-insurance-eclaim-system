@@ -7,4 +7,5 @@ import java.util.UUID;
 
 public interface DocumentJpaRepository extends JpaRepository<DocumentEntity, UUID> {
     List<DocumentEntity> findByClaimId(UUID claimId);
+    long countByClaimId(UUID claimId);
 }

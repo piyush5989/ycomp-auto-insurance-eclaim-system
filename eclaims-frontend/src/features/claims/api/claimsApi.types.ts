@@ -46,3 +46,28 @@ export interface ClaimStatusUpdateRequest {
   reason?: string;
   workshopId?: string;
 }
+
+export interface PotentialDuplicate {
+  claimId: string;
+  policyNumber: string;
+  vehicleRegistration: string;
+  claimType: ClaimType;
+  status: ClaimStatus;
+  incidentDate: string;
+  incidentLocation?: string;
+  createdAt: string;
+}
+
+export interface UpdateIncidentDetailsRequest {
+  incidentLocation?: string;
+  description?: string;
+}
+
+export interface ClaimEndorsement {
+  endorsementId: string;
+  claimId: string;
+  note: string;
+  addedBy: string;
+  endorsementType: string;
+  createdAt: string;
+}

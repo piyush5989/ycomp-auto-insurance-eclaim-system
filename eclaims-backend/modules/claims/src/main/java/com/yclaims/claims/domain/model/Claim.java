@@ -23,7 +23,7 @@ public class Claim extends AggregateRoot {
     private final String customerEmail;
     private final String vehicleRegistration;
     private final ClaimType claimType;
-    private final AccidentDetails accidentDetails;
+    private AccidentDetails accidentDetails;
 
     private ClaimStatus status;
     private String assignedSurveyorId;
@@ -34,6 +34,10 @@ public class Claim extends AggregateRoot {
     private String rejectionReason;
     private boolean fraudFlag;
     private String fraudReason;
+    private String region;
+    private String overrideByUserId;
+    private String overrideReason;
+    private Instant overrideAt;
 
     private final Instant createdAt;
     private Instant updatedAt;
@@ -99,6 +103,10 @@ public class Claim extends AggregateRoot {
                                      String rejectionReason,
                                      boolean fraudFlag,
                                      String fraudReason,
+                                     String region,
+                                     String overrideByUserId,
+                                     String overrideReason,
+                                     Instant overrideAt,
                                      Instant createdAt,
                                      Instant updatedAt) {
         Claim claim = new Claim(id, policyNumber, customerId, customerEmail,
@@ -112,6 +120,10 @@ public class Claim extends AggregateRoot {
         claim.rejectionReason = rejectionReason;
         claim.fraudFlag = fraudFlag;
         claim.fraudReason = fraudReason;
+        claim.region = region;
+        claim.overrideByUserId = overrideByUserId;
+        claim.overrideReason = overrideReason;
+        claim.overrideAt = overrideAt;
         // Override timestamps from DB
         return claim;
     }
@@ -187,6 +199,27 @@ public class Claim extends AggregateRoot {
         registerEvent(new ClaimStatusChangedEvent(id, previous, ClaimStatus.WITHDRAWN, customerId, correlationId));
     }
 
+    /**
+     * Allows the customer to correct incident description and location while the claim is
+     * still in SUBMITTED state (i.e. before a surveyor has been assigned).
+     * Once ASSIGNED or beyond, changes must be recorded as endorsements.
+     */
+    public void updateIncidentDetails(String incidentLocation, String description) {
+        if (this.status != ClaimStatus.SUBMITTED) {
+            throw new InvalidClaimStateException(id,
+                    "Incident details can only be edited when the claim is in SUBMITTED status. " +
+                    "Current status: " + this.status + ". Please add an endorsement instead.");
+        }
+        this.accidentDetails = new AccidentDetails(
+                accidentDetails.incidentDate(),
+                incidentLocation,
+                description,
+                accidentDetails.policeReportFiled(),
+                accidentDetails.policeReportNumber()
+        );
+        this.updatedAt = Instant.now();
+    }
+
     public void flagFraud(String reason) {
         this.fraudFlag = true;
         this.fraudReason = reason;
@@ -199,6 +232,39 @@ public class Claim extends AggregateRoot {
                     "Cannot " + operation + " when claim is in status " + this.status +
                     ". Expected: " + expected);
         }
+    }
+
+    public void setRegion(String region) {
+        this.region = region;
+        this.updatedAt = Instant.now();
+    }
+
+    public void markOverridden(String overrideByUserId, String overrideReason, BigDecimal newAmount) {
+        this.overrideByUserId = overrideByUserId;
+        this.overrideReason = overrideReason;
+        this.overrideAt = Instant.now();
+        if (newAmount != null) {
+            this.approvedAmount = newAmount;
+        }
+        this.updatedAt = Instant.now();
+    }
+
+    public void reassignSurveyor(String newSurveyorId, String reassignedBy, String reason) {
+        if (this.status.isTerminal()) {
+            throw new InvalidClaimStateException(id, 
+                "Cannot reassign surveyor for claim in terminal status: " + this.status);
+        }
+        this.assignedSurveyorId = newSurveyorId;
+        this.updatedAt = Instant.now();
+    }
+
+    public void reassignAdjustor(String newAdjustorId, String reassignedBy, String reason) {
+        if (this.status.isTerminal()) {
+            throw new InvalidClaimStateException(id, 
+                "Cannot reassign adjustor for claim in terminal status: " + this.status);
+        }
+        this.assignedAdjustorId = newAdjustorId;
+        this.updatedAt = Instant.now();
     }
 
     // Getters (Lombok @Getter not used on Aggregate — explicit control)
@@ -218,6 +284,10 @@ public class Claim extends AggregateRoot {
     public String getRejectionReason() { return rejectionReason; }
     public boolean isFraudFlag() { return fraudFlag; }
     public String getFraudReason() { return fraudReason; }
+    public String getRegion() { return region; }
+    public String getOverrideByUserId() { return overrideByUserId; }
+    public String getOverrideReason() { return overrideReason; }
+    public Instant getOverrideAt() { return overrideAt; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

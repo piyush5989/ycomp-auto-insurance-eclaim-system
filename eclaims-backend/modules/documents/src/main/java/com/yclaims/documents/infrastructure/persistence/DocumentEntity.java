@@ -20,7 +20,7 @@ import java.util.UUID;
 )
 @Getter
 @Setter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 public class DocumentEntity {
 
     @Id
@@ -54,8 +54,6 @@ public class DocumentEntity {
 
     @Column(name = "archived")
     private boolean archived = false;
-
-    public DocumentEntity() {}
 
     @Override
     public boolean equals(Object o) {

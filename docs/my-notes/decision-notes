@@ -1,0 +1,45 @@
+The One Genuine Limitation of Modular Monolith
+Be honest about this one thing — don't pretend it doesn't exist:
+
+Independent deployability and independent scaling are not demonstrated at runtime.
+
+In a monolith, if the reporting module has a memory leak, it affects claims. In microservices, they're isolated. This is a real operational advantage of microservices.
+
+How to address this in your POC:
+
+Acknowledge it explicitly in your README.md and solution approach.
+Show the extraction path (module → service = change only the adapter wiring).
+Show that module boundaries prevent cascading failures at the design level (circuit breaker interface, bulkhead pattern documented).
+
+
+-----------
+
+The Real Decision Matrix
+Evaluation Criterion	Modular Monolith	Microservices (Small Scale)
+Layers (presentation/business/data)
+✅ Clearly visible per module
+✅ Clearly visible per service
+Modules/bounded contexts
+✅ All 7 present and complete
+⚠️ 3 real + 4 stubs
+Folder structure
+✅ One clean repo to navigate
+⚠️ Multiple repos/subfolders to navigate
+Design considerations
+✅ Full — ports, events, state machine, RBAC
+✅ Full — plus real network separation
+Working features to demo
+✅ End-to-end claim lifecycle works
+⚠️ Partial — stops at notification
+Complexity to build
+✅ Lower — no inter-service wiring
+❌ Higher — service discovery, retries, auth propagation
+Risk of "it doesn't run"
+✅ Low
+❌ Higher — one broken service breaks demo
+Impresses on architecture
+✅ Strong if well-structured
+✅✅ Strongest if it runs cleanly
+Camunda / Workflow demo
+✅ Yes, fully embedded
+⚠️ Only if you build the service

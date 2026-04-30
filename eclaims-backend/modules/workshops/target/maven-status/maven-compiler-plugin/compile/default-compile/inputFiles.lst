@@ -1,0 +1,12 @@
+C:\Data\Codebase\sse\eclaims-backend\modules\workshops\src\main\java\com\yclaims\workshops\application\WorkshopApplicationService.java
+C:\Data\Codebase\sse\eclaims-backend\modules\workshops\src\main\java\com\yclaims\workshops\infrastructure\persistence\WorkOrderEntity.java
+C:\Data\Codebase\sse\eclaims-backend\modules\workshops\src\main\java\com\yclaims\workshops\infrastructure\persistence\WorkOrderJpaRepository.java
+C:\Data\Codebase\sse\eclaims-backend\modules\workshops\src\main\java\com\yclaims\workshops\infrastructure\persistence\WorkshopEntity.java
+C:\Data\Codebase\sse\eclaims-backend\modules\workshops\src\main\java\com\yclaims\workshops\infrastructure\persistence\WorkshopJpaRepository.java
+C:\Data\Codebase\sse\eclaims-backend\modules\workshops\src\main\java\com\yclaims\workshops\presentation\dto\SelectWorkshopRequest.java
+C:\Data\Codebase\sse\eclaims-backend\modules\workshops\src\main\java\com\yclaims\workshops\presentation\dto\VehicleDropOffRequest.java
+C:\Data\Codebase\sse\eclaims-backend\modules\workshops\src\main\java\com\yclaims\workshops\presentation\dto\WorkOrderRequest.java
+C:\Data\Codebase\sse\eclaims-backend\modules\workshops\src\main\java\com\yclaims\workshops\presentation\dto\WorkOrderResponse.java
+C:\Data\Codebase\sse\eclaims-backend\modules\workshops\src\main\java\com\yclaims\workshops\presentation\dto\WorkshopListResponse.java
+C:\Data\Codebase\sse\eclaims-backend\modules\workshops\src\main\java\com\yclaims\workshops\presentation\dto\WorkshopResponse.java
+C:\Data\Codebase\sse\eclaims-backend\modules\workshops\src\main\java\com\yclaims\workshops\presentation\WorkshopController.java

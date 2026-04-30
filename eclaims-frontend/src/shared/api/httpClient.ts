@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import { getToken } from '@/shared/auth/KeycloakProvider';
+import { getToken } from '@/shared/auth/keycloakInstance';
 
 /**
  * Shared Axios instance for all API calls.

@@ -2,9 +2,8 @@ package com.yclaims.workshops.presentation;
 
 import com.yclaims.kernel.web.ApiResponse;
 import com.yclaims.workshops.application.WorkshopApplicationService;
-import com.yclaims.workshops.presentation.dto.WorkOrderRequest;
-import com.yclaims.workshops.presentation.dto.WorkOrderResponse;
-import com.yclaims.workshops.presentation.dto.WorkshopResponse;
+import com.yclaims.workshops.presentation.dto.*;
+import com.yclaims.kernel.security.UserContextHolder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -21,18 +20,38 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor
-@Tag(name = "Workshops", description = "Workshop search and work order management")
+@Tag(name = "Workshops", description = "Partner service provider search and work order management")
 public class WorkshopController {
 
     private final WorkshopApplicationService workshopService;
 
     @GetMapping("/workshops")
     @PreAuthorize("hasAnyRole('CUSTOMER','CASE_MANAGER')")
-    @Operation(summary = "Search partner workshops — cached by zip code (p95 < 500ms)")
+    @Operation(
+        summary = "Search partner service providers",
+        description = "Filter by providerType (REPAIR_WORKSHOP | AUTH_SERVICE_STATION | CAR_RENTAL), " +
+                      "zip code, or city name. Results cached 30 min. " +
+                      "FR8: Customer can check Partner Service providers by location or zip."
+    )
     public ResponseEntity<ApiResponse<List<WorkshopResponse>>> searchWorkshops(
-            @RequestParam(required = false) String location) {
-        List<WorkshopResponse> workshops = workshopService.searchWorkshops(location, correlationId());
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) String zip,
+            @RequestParam(required = false) String providerType) {
+        List<WorkshopResponse> workshops = workshopService.searchWorkshops(
+                location, zip, providerType, correlationId());
         return ResponseEntity.ok(ApiResponse.success(workshops, correlationId()));
+    }
+
+    @GetMapping("/claims/{claimId}/work-order")
+    @PreAuthorize("hasAnyRole('CUSTOMER','CASE_MANAGER','AUDITOR')")
+    @Operation(
+        summary = "Get the current work order for a claim",
+        description = "FR9: Customer can track repair progress based on the work order submitted by the repair agency."
+    )
+    public ResponseEntity<ApiResponse<WorkOrderResponse>> getWorkOrderForClaim(
+            @PathVariable UUID claimId) {
+        WorkOrderResponse response = workshopService.getWorkOrderByClaimId(claimId, correlationId());
+        return ResponseEntity.ok(ApiResponse.success(response, correlationId()));
     }
 
     @PostMapping("/work-orders")
@@ -47,13 +66,37 @@ public class WorkshopController {
 
     @PatchMapping("/work-orders/{workOrderId}/repair-status")
     @PreAuthorize("hasRole('WORKSHOP')")
-    @Operation(summary = "Update repair status for a work order")
+    @Operation(summary = "Update repair status for a work order — publishes repair.status.updated event")
     public ResponseEntity<ApiResponse<WorkOrderResponse>> updateRepairStatus(
             @PathVariable UUID workOrderId,
             @RequestParam String status,
             @RequestParam(required = false) String note) {
-        WorkOrderResponse response = workshopService.updateRepairStatus(workOrderId, status, note, correlationId());
+        WorkOrderResponse response = workshopService.updateRepairStatus(
+                workOrderId, status, note, correlationId());
         return ResponseEntity.ok(ApiResponse.success(response, correlationId()));
+    }
+
+    @PostMapping("/claims/{claimId}/select-workshop")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    @Operation(summary = "Customer selects workshop for repairs - triggers surveyor assignment")
+    public ResponseEntity<ApiResponse<Void>> selectWorkshop(
+            @PathVariable UUID claimId,
+            @Valid @RequestBody SelectWorkshopRequest request) {
+        workshopService.selectWorkshopForClaim(
+                claimId, request.workshopId(), UserContextHolder.currentUserId(), correlationId());
+        return ResponseEntity.ok(ApiResponse.success(null, correlationId()));
+    }
+
+    @PostMapping("/claims/{claimId}/vehicle-dropoff")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    @Operation(summary = "Confirm vehicle drop-off at workshop")
+    public ResponseEntity<ApiResponse<UUID>> confirmVehicleDropOff(
+            @PathVariable UUID claimId,
+            @Valid @RequestBody VehicleDropOffRequest request) {
+        UUID dropOffId = workshopService.confirmVehicleDropOff(
+                claimId, request, UserContextHolder.currentUserId(), correlationId());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(dropOffId, correlationId()));
     }
 
     private String correlationId() {

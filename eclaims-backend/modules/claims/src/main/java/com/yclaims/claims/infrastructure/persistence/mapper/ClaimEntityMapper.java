@@ -21,6 +21,7 @@ public class ClaimEntityMapper {
                 claim.getCustomerId(),
                 claim.getCustomerEmail(),
                 claim.getVehicleRegistration(),
+                null,
                 claim.getClaimType(),
                 claim.getStatus(),
                 claim.getAccidentDetails().incidentDate(),
@@ -38,7 +39,11 @@ public class ClaimEntityMapper {
                 claim.getWorkshopId(),
                 claim.getRejectionReason(),
                 claim.isFraudFlag(),
-                claim.getFraudReason()
+                claim.getFraudReason(),
+                claim.getRegion(),
+                claim.getOverrideByUserId(),
+                claim.getOverrideReason(),
+                claim.getOverrideAt()
         );
         return entity;
     }
@@ -69,6 +74,10 @@ public class ClaimEntityMapper {
                 entity.getRejectionReason(),
                 entity.isFraudFlag(),
                 entity.getFraudReason(),
+                entity.getRegion(),
+                entity.getOverrideByUserId(),
+                entity.getOverrideReason(),
+                entity.getOverrideAt(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );

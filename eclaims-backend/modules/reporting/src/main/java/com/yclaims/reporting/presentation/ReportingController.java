@@ -4,6 +4,7 @@ import com.yclaims.kernel.web.ApiResponse;
 import com.yclaims.reporting.application.ReportingApplicationService;
 import com.yclaims.reporting.presentation.dto.ClaimsKpiResponse;
 import com.yclaims.reporting.presentation.dto.FraudAgeingResponse;
+import com.yclaims.reporting.presentation.dto.RegionalKpiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +44,23 @@ public class ReportingController {
     @Operation(summary = "Fraud ageing report — claims flagged for fraud by age bucket")
     public ResponseEntity<ApiResponse<List<FraudAgeingResponse>>> getFraudAgeing() {
         List<FraudAgeingResponse> response = reportingService.getFraudAgeing(correlationId());
+        return ResponseEntity.ok(ApiResponse.success(response, correlationId()));
+    }
+
+    @GetMapping("/regional")
+    @PreAuthorize("hasAnyRole('REGIONAL_MGR','TOP_MANAGEMENT','AUDITOR')")
+    @Operation(summary = "Get regional KPI summary for a specific region")
+    public ResponseEntity<ApiResponse<RegionalKpiResponse>> getRegionalKpi(
+            @RequestParam String region) {
+        RegionalKpiResponse response = reportingService.getRegionalKpi(region, correlationId());
+        return ResponseEntity.ok(ApiResponse.success(response, correlationId()));
+    }
+
+    @GetMapping("/regional/all")
+    @PreAuthorize("hasAnyRole('TOP_MANAGEMENT','AUDITOR')")
+    @Operation(summary = "Get KPI comparison across all regions for top management")
+    public ResponseEntity<ApiResponse<List<RegionalKpiResponse>>> getAllRegionalKpis() {
+        List<RegionalKpiResponse> response = reportingService.getAllRegionalKpis(correlationId());
         return ResponseEntity.ok(ApiResponse.success(response, correlationId()));
     }
 

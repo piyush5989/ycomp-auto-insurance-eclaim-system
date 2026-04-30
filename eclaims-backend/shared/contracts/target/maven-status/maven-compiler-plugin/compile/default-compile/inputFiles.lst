@@ -1,0 +1,12 @@
+C:\Data\Codebase\sse\eclaims-backend\shared\contracts\src\main\java\com\yclaims\contracts\api\ClaimStatusDto.java
+C:\Data\Codebase\sse\eclaims-backend\shared\contracts\src\main\java\com\yclaims\contracts\api\UserRole.java
+C:\Data\Codebase\sse\eclaims-backend\shared\contracts\src\main\java\com\yclaims\contracts\events\DomainEvent.java
+C:\Data\Codebase\sse\eclaims-backend\shared\contracts\src\main\java\com\yclaims\contracts\events\v1\ClaimApprovedPayload.java
+C:\Data\Codebase\sse\eclaims-backend\shared\contracts\src\main\java\com\yclaims\contracts\events\v1\ClaimCreatedPayload.java
+C:\Data\Codebase\sse\eclaims-backend\shared\contracts\src\main\java\com\yclaims\contracts\events\v1\ClaimStatusChangedPayload.java
+C:\Data\Codebase\sse\eclaims-backend\shared\contracts\src\main\java\com\yclaims\contracts\events\v1\NotificationRequestedPayload.java
+C:\Data\Codebase\sse\eclaims-backend\shared\contracts\src\main\java\com\yclaims\contracts\events\v1\PaymentSettledPayload.java
+C:\Data\Codebase\sse\eclaims-backend\shared\contracts\src\main\java\com\yclaims\contracts\events\v1\RentalVehicleReservedPayload.java
+C:\Data\Codebase\sse\eclaims-backend\shared\contracts\src\main\java\com\yclaims\contracts\events\v1\RepairStatusUpdatedPayload.java
+C:\Data\Codebase\sse\eclaims-backend\shared\contracts\src\main\java\com\yclaims\contracts\events\v1\VehicleDroppedOffPayload.java
+C:\Data\Codebase\sse\eclaims-backend\shared\contracts\src\main\java\com\yclaims\contracts\events\v1\WorkshopSelectedPayload.java

@@ -1,0 +1,33 @@
+ Incident Management 
+o Case Management team should be automatically assigned based on 
+the availability of the Surveyor, Adjustor, Case Management also 
+keeping in mind the Surveyor field office covers the area where 
+vehicle is for repairs. 
+o Surveyor should be able to submit their assessment online  via 
+website or app and once the surveyor assignment is submitted the 
+adjustor should be notified. 
+o Adjustor should be able to view the claim, supporting document, 
+assessment report online and should be able to adjudicate the claim 
+based on policy coverage. 
+Promotion Case Study - Assessment for Senior Staff Engineer 
+o In case Surveyor or Adjustor is not available for claims processing 
+the case manager should be able to delegate the claim processing 
+to other Surveyor or Adjustor. 
+o Case Manager should be able to view the complete details of the 
+case and make adjustment to claims which can override the 
+Adjustor and surveyor. 
+o Auditor can look at all the details pertaining to the claims and any 
+processing.
+• Internal Users Reporting 
+o Internal user should be able to login to the portal. 
+o Only Authorized Case Managers should be able to generate reports 
+with respect to the claims they have received. 
+o Regional Manager should be able to see the details with respect to 
+claims received in their region with details like 
+▪ Claims Processing Time 
+▪ Claims amount paid out 
+▪ Number of claims with respect to geography. 
+o Top management should be able to generate reports based on how 
+each region is processing with respect to claims, which region more 
+claims are being received, which region has higher claims amount 
+paid out. 

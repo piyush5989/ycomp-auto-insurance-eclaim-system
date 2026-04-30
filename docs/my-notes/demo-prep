@@ -1,0 +1,24 @@
+What the evaluator will see — end to end:
+Customer submits claim (React UI)
+        ↓
+claims-module  →  saves to Postgres (claims schema)
+               →  publishes ClaimSubmittedEvent  →  Kafka topic: claim-events
+                                                          ↓
+                                              notification-module (Kafka consumer)
+                                                  → sends email (Mailhog)
+                                                  → writes to notification_log
+                                                          ↓
+                                              reporting-module (Kafka consumer)
+                                                  → updates KPI snapshot
+                                                          ↓
+                                              audit-module (Kafka consumer)
+                                                  → appends to audit_log (immutable)
+This is genuine event-driven architecture:
+
+Real Kafka broker (Redpanda in Docker)
+Real topics (claim-events, audit-events, payment-events)
+Real producer/consumer separation (publisher doesn't know who consumes)
+Real fan-out (one event → multiple consumers)
+Real async (claim submission returns immediately; notification happens after)
+Redpanda Console UI showing messages flowing through topics in real time
+The evaluator can open the Redpanda Console at localhost:8082, submit a claim, and watch the event appear in the topic. That's more convincing than most microservices POCs.

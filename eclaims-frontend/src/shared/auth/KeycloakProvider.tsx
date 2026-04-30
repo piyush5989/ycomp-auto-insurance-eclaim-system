@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import Keycloak from 'keycloak-js';
+import keycloak from './keycloakInstance';
 
 interface AuthContextValue {
   keycloak: Keycloak | null;
@@ -21,16 +22,10 @@ const AuthContext = createContext<AuthContextValue>({
   logout: () => {},
 });
 
-const keycloak = new Keycloak({
-  url: import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080',
-  realm: import.meta.env.VITE_KEYCLOAK_REALM || 'eclaims',
-  clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'eclaims-web',
-});
-
 /**
  * Keycloak auth provider.
  * Initialises Keycloak on mount. Token stored in memory (not localStorage — OWASP XSS mitigation).
- * Axios interceptor picks up the token via getToken().
+ * Axios interceptor picks up the token via getToken() from keycloakInstance.ts.
  */
 export function KeycloakProvider({ children }: { children: React.ReactNode }) {
   const [authState, setAuthState] = useState<AuthContextValue>({
@@ -44,8 +39,17 @@ export function KeycloakProvider({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
-    keycloak
-      .init({ onLoad: 'check-sso', silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html' })
+    // React 18 StrictMode + Vite HMR can mount/unmount twice in dev.
+    // Keycloak can only be initialised once per instance — memoize init globally.
+    const initPromise: Promise<boolean> =
+      (window as any).__eclaimsKeycloakInitPromise ??
+      ((window as any).__eclaimsKeycloakInitPromise = keycloak.init({
+        onLoad: 'check-sso',
+        silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
+        checkLoginIframe: false,
+      }));
+
+    initPromise
       .then((authenticated) => {
         setAuthState({
           keycloak,
@@ -59,14 +63,19 @@ export function KeycloakProvider({ children }: { children: React.ReactNode }) {
       })
       .catch(console.error);
 
-    // Token refresh — keep JWT fresh
-    keycloak.onTokenExpired = () => {
-      keycloak.updateToken(60).then((refreshed) => {
-        if (refreshed) {
-          setAuthState((prev) => ({ ...prev, token: keycloak.token ?? null }));
-        }
-      }).catch(() => keycloak.logout());
-    };
+    if (!(window as any).__eclaimsKeycloakTokenHandlerAttached) {
+      (window as any).__eclaimsKeycloakTokenHandlerAttached = true;
+      keycloak.onTokenExpired = () => {
+        keycloak
+          .updateToken(60)
+          .then((refreshed) => {
+            if (refreshed) {
+              setAuthState((prev) => ({ ...prev, token: keycloak.token ?? null }));
+            }
+          })
+          .catch(() => keycloak.logout());
+      };
+    }
   }, []);
 
   return <AuthContext.Provider value={authState}>{children}</AuthContext.Provider>;
@@ -74,10 +83,6 @@ export function KeycloakProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   return useContext(AuthContext);
-}
-
-export function getToken(): string | null {
-  return keycloak.token ?? null;
 }
 
 function extractRoles(kc: Keycloak): string[] {

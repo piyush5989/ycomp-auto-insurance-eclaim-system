@@ -1,17 +1,24 @@
 package com.yclaims.documents.application;
 
+import com.yclaims.documents.config.StorageProperties;
 import com.yclaims.documents.domain.model.DocumentType;
 import com.yclaims.documents.domain.port.out.DocumentStoragePort;
 import com.yclaims.documents.infrastructure.persistence.DocumentEntity;
 import com.yclaims.documents.infrastructure.persistence.DocumentJpaRepository;
 import com.yclaims.documents.presentation.dto.DocumentMetadataResponse;
+import com.yclaims.kernel.exception.DomainException;
 import com.yclaims.kernel.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.net.MalformedURLException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -23,11 +30,14 @@ public class DocumentApplicationService {
 
     private final DocumentStoragePort storagePort;
     private final DocumentJpaRepository documentRepository;
+    private final StorageProperties storageProperties;
 
     @Transactional
     public DocumentMetadataResponse uploadDocument(UUID claimId, String documentType,
                                                     MultipartFile file, String userId,
                                                     String correlationId) throws Exception {
+        validateFile(claimId, file, correlationId);
+
         UUID documentId = UUID.randomUUID();
         String storageKey = storagePort.store(documentId, file.getOriginalFilename(),
                 file.getContentType(), file.getInputStream(), file.getSize());
@@ -44,9 +54,39 @@ public class DocumentApplicationService {
         entity.setUploadedAt(Instant.now());
 
         documentRepository.save(entity);
-        log.info("[{}] Document {} uploaded for claim {}", correlationId, documentId, claimId);
+        log.info("[{}] Document {} ({} bytes, {}) uploaded for claim {}",
+                correlationId, documentId, file.getSize(), file.getContentType(), claimId);
 
         return toResponse(entity);
+    }
+
+    private void validateFile(UUID claimId, MultipartFile file, String correlationId) {
+        if (file == null || file.isEmpty()) {
+            throw new DomainException("DOC_EMPTY", "Uploaded file is empty.");
+        }
+
+        if (file.getSize() > storageProperties.getMaxFileSizeBytes()) {
+            long limitMb = storageProperties.getMaxFileSizeBytes() / (1024 * 1024);
+            throw new DomainException("DOC_TOO_LARGE",
+                    "File size exceeds the maximum allowed limit of " + limitMb + " MB.");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || !storageProperties.getAllowedContentTypes().contains(contentType)) {
+            throw new DomainException("DOC_INVALID_TYPE",
+                    "File type '" + contentType + "' is not allowed. " +
+                    "Accepted types: JPEG, PNG, WebP, PDF, DOC, DOCX.");
+        }
+
+        long existingCount = documentRepository.countByClaimId(claimId);
+        if (existingCount >= storageProperties.getMaxDocumentsPerClaim()) {
+            throw new DomainException("DOC_LIMIT_REACHED",
+                    "Maximum of " + storageProperties.getMaxDocumentsPerClaim() +
+                    " documents per claim has been reached.");
+        }
+
+        log.debug("[{}] File validation passed: {} ({} bytes, {})",
+                correlationId, file.getOriginalFilename(), file.getSize(), contentType);
     }
 
     @Transactional(readOnly = true)
@@ -61,6 +101,29 @@ public class DocumentApplicationService {
         DocumentEntity entity = documentRepository.findById(documentId)
                 .orElseThrow(() -> new NotFoundException("Document", documentId.toString()));
         return storagePort.generateDownloadUrl(entity.getStorageKey());
+    }
+
+    @Transactional(readOnly = true)
+    public Resource loadAsResource(String storageKey, String correlationId) {
+        try {
+            Path file = Paths.get("./uploads").resolve(storageKey).normalize();
+            Resource resource = new UrlResource(file.toUri());
+            if (resource.exists() && resource.isReadable()) {
+                return resource;
+            }
+            throw new NotFoundException("Document file", storageKey);
+        } catch (MalformedURLException e) {
+            throw new NotFoundException("Document file", storageKey);
+        }
+    }
+
+    @Transactional
+    public void deleteDocument(UUID documentId, String requestingUserId, String correlationId) {
+        DocumentEntity entity = documentRepository.findById(documentId)
+                .orElseThrow(() -> new NotFoundException("Document", documentId.toString()));
+        storagePort.delete(entity.getStorageKey());
+        documentRepository.deleteById(documentId);
+        log.info("[{}] Document {} deleted by user {}", correlationId, documentId, requestingUserId);
     }
 
     private DocumentMetadataResponse toResponse(DocumentEntity entity) {
