@@ -1,11 +1,14 @@
 export type ClaimStatus =
-  | 'DRAFT' | 'SUBMITTED' | 'ASSIGNED' | 'UNDER_SURVEY' | 'SURVEYED'
+  | 'DRAFT' | 'SUBMITTED' | 'WORKSHOP_SELECTED' | 'VEHICLE_AT_WORKSHOP'
+  | 'ASSIGNED' | 'UNDER_SURVEY' | 'SURVEYED'
   | 'UNDER_ADJUDICATION' | 'APPROVED' | 'REJECTED' | 'PAYMENT_INITIATED'
   | 'SETTLED' | 'WITHDRAWN' | 'ARCHIVED';
 
 export const CLAIM_STATUS_LABELS: Record<ClaimStatus, string> = {
   DRAFT:               'Draft',
   SUBMITTED:           'Submitted',
+  WORKSHOP_SELECTED:   'Workshop Selected',
+  VEHICLE_AT_WORKSHOP: 'Vehicle at Workshop',
   ASSIGNED:            'Surveyor Assigned',
   UNDER_SURVEY:        'Under Survey',
   SURVEYED:            'Surveyed',
@@ -21,6 +24,8 @@ export const CLAIM_STATUS_LABELS: Record<ClaimStatus, string> = {
 export const CLAIM_STATUS_COLORS: Record<ClaimStatus, string> = {
   DRAFT:               'bg-gray-100 text-gray-700',
   SUBMITTED:           'bg-blue-100 text-blue-700',
+  WORKSHOP_SELECTED:   'bg-indigo-100 text-indigo-700',
+  VEHICLE_AT_WORKSHOP: 'bg-purple-100 text-purple-700',
   ASSIGNED:            'bg-violet-100 text-violet-700',
   UNDER_SURVEY:        'bg-amber-100 text-amber-700',
   SURVEYED:            'bg-orange-100 text-orange-700',

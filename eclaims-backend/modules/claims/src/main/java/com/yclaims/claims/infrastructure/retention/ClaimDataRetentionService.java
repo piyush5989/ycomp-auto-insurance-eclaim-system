@@ -99,7 +99,9 @@ public class ClaimDataRetentionService {
                 claim.getRegion(),
                 claim.getOverrideByUserId(),
                 claim.getOverrideReason(),
-                claim.getOverrideAt()
+                claim.getOverrideAt(),
+                claim.getRentalReservationId(),
+                claim.getRentalStatus()
         );
         // PII fields are anonymised at the entity level via direct update query to avoid
         // loading domain model which enforces state machine rules

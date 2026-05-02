@@ -14,14 +14,14 @@
   "ssoSessionIdleTimeout": 1800,
   "roles": {
     "realm": [
-      { "name": "customer",       "description": "Policyholder — submit claims, track status, initiate payments" },
-      { "name": "surveyor",       "description": "Field surveyor — conduct damage assessment" },
-      { "name": "adjustor",       "description": "Insurance adjustor — adjudicate claims, approve/reject" },
-      { "name": "case_manager",   "description": "Case manager — delegate, escalate, oversee claims" },
-      { "name": "auditor",        "description": "Read-only auditor — full audit trail access" },
-      { "name": "workshop",       "description": "Partner workshop — work orders, repair status, billing" },
-      { "name": "regional_mgr",   "description": "Regional manager — regional reporting and KPIs" },
-      { "name": "top_management", "description": "Executive — full reporting, all regions" }
+      { "name": "customer",       "description": "Policyholder - submit claims, track status, initiate payments" },
+      { "name": "surveyor",       "description": "Field surveyor - conduct damage assessment" },
+      { "name": "adjustor",       "description": "Insurance adjustor - adjudicate claims, approve/reject" },
+      { "name": "case_manager",   "description": "Case manager - delegate, escalate, oversee claims" },
+      { "name": "auditor",        "description": "Read-only auditor - full audit trail access" },
+      { "name": "workshop",       "description": "Partner workshop - work orders, repair status, billing" },
+      { "name": "regional_mgr",   "description": "Regional manager - regional reporting and KPIs" },
+      { "name": "top_management", "description": "Executive - full reporting, all regions" }
     ]
   },
   "clients": [
@@ -48,14 +48,142 @@
       "enabled": true,
       "publicClient": false,
       "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
       "standardFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "protocol": "openid-connect",
-      "secret": "eclaims-api-secret-dev"
+      "secret": "eclaims-api-secret-dev",
+      "authorizationSettings": {
+        "allowRemoteResourceManagement": false,
+        "policyEnforcementMode": "ENFORCING",
+        "decisionStrategy": "AFFIRMATIVE",
+        "resources": [
+          {
+            "name": "claim", "displayName": "Claim Resource",
+            "type": "urn:eclaims:resources:claim",
+            "scopes": [
+              {"name": "submit"}, {"name": "read"}, {"name": "list-own"}, {"name": "list-all"},
+              {"name": "update-status"}, {"name": "check-duplicates"}, {"name": "update-incident"},
+              {"name": "read-endorsements"}, {"name": "add-endorsement"}, {"name": "withdraw"},
+              {"name": "reassign-surveyor"}, {"name": "reassign-adjustor"}, {"name": "override"}
+            ]
+          },
+          {
+            "name": "document", "displayName": "Document Resource",
+            "type": "urn:eclaims:resources:document",
+            "scopes": [
+              {"name": "upload"}, {"name": "list"}, {"name": "download"}, {"name": "delete"}
+            ]
+          },
+          {
+            "name": "report", "displayName": "Report Resource",
+            "type": "urn:eclaims:resources:report",
+            "scopes": [
+              {"name": "kpi"}, {"name": "fraud-ageing"}, {"name": "kpi-regional"}, {"name": "all-regions"}
+            ]
+          },
+          {
+            "name": "workflow", "displayName": "Workflow Resource",
+            "type": "urn:eclaims:resources:workflow",
+            "scopes": [{"name": "list-surveyors"}]
+          },
+          {
+            "name": "payment", "displayName": "Payment Resource",
+            "type": "urn:eclaims:resources:payment",
+            "scopes": [{"name": "initiate"}, {"name": "read"}]
+          },
+          {
+            "name": "workshop", "displayName": "Workshop Resource",
+            "type": "urn:eclaims:resources:workshop",
+            "scopes": [
+              {"name": "search"}, {"name": "work-order-read"}, {"name": "work-order-submit"},
+              {"name": "repair-status-update"}, {"name": "select"}, {"name": "vehicle-dropoff"}
+            ]
+          },
+          {
+            "name": "notification", "displayName": "Notification Resource",
+            "type": "urn:eclaims:resources:notification",
+            "scopes": [{"name": "list-own"}, {"name": "mark-read"}]
+          },
+          {
+            "name": "customer", "displayName": "Customer Resource",
+            "type": "urn:eclaims:resources:customer",
+            "scopes": [
+              {"name": "read-profile"}, {"name": "update-address"}, {"name": "update-billing"}
+            ]
+          },
+          {
+            "name": "rental", "displayName": "Rental Resource",
+            "type": "urn:eclaims:resources:rental",
+            "scopes": [
+              {"name": "list-vehicles"}, {"name": "reserve"}, {"name": "skip"}, {"name": "get-reservation"}
+            ]
+          }
+        ],
+        "policies": [
+          { "name": "customer-policy",     "type": "role", "logic": "POSITIVE", "decisionStrategy": "UNANIMOUS", "config": { "roles": "[{\"id\":\"customer\",\"required\":false}]" } },
+          { "name": "surveyor-policy",     "type": "role", "logic": "POSITIVE", "decisionStrategy": "UNANIMOUS", "config": { "roles": "[{\"id\":\"surveyor\",\"required\":false}]" } },
+          { "name": "adjustor-policy",     "type": "role", "logic": "POSITIVE", "decisionStrategy": "UNANIMOUS", "config": { "roles": "[{\"id\":\"adjustor\",\"required\":false}]" } },
+          { "name": "case-manager-policy", "type": "role", "logic": "POSITIVE", "decisionStrategy": "UNANIMOUS", "config": { "roles": "[{\"id\":\"case_manager\",\"required\":false}]" } },
+          { "name": "auditor-policy",      "type": "role", "logic": "POSITIVE", "decisionStrategy": "UNANIMOUS", "config": { "roles": "[{\"id\":\"auditor\",\"required\":false}]" } },
+          { "name": "workshop-policy",     "type": "role", "logic": "POSITIVE", "decisionStrategy": "UNANIMOUS", "config": { "roles": "[{\"id\":\"workshop\",\"required\":false}]" } },
+          { "name": "regional-mgr-policy", "type": "role", "logic": "POSITIVE", "decisionStrategy": "UNANIMOUS", "config": { "roles": "[{\"id\":\"regional_mgr\",\"required\":false}]" } },
+          { "name": "top-management-policy","type": "role", "logic": "POSITIVE", "decisionStrategy": "UNANIMOUS", "config": { "roles": "[{\"id\":\"top_management\",\"required\":false}]" } },
+
+          { "name": "perm:claim:submit",            "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"claim\"]", "scopes": "[\"submit\"]",             "applyPolicies": "[\"customer-policy\"]" } },
+          { "name": "perm:claim:read",              "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"claim\"]", "scopes": "[\"read\"]",               "applyPolicies": "[\"customer-policy\",\"surveyor-policy\",\"adjustor-policy\",\"case-manager-policy\",\"auditor-policy\",\"top-management-policy\"]" } },
+          { "name": "perm:claim:list-own",          "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"claim\"]", "scopes": "[\"list-own\"]",            "applyPolicies": "[\"customer-policy\"]" } },
+          { "name": "perm:claim:list-all",          "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"claim\"]", "scopes": "[\"list-all\"]",            "applyPolicies": "[\"surveyor-policy\",\"adjustor-policy\",\"case-manager-policy\",\"auditor-policy\",\"regional-mgr-policy\",\"top-management-policy\"]" } },
+          { "name": "perm:claim:update-status",     "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"claim\"]", "scopes": "[\"update-status\"]",      "applyPolicies": "[\"surveyor-policy\",\"adjustor-policy\",\"case-manager-policy\"]" } },
+          { "name": "perm:claim:check-duplicates",  "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"claim\"]", "scopes": "[\"check-duplicates\"]",   "applyPolicies": "[\"customer-policy\"]" } },
+          { "name": "perm:claim:update-incident",   "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"claim\"]", "scopes": "[\"update-incident\"]",    "applyPolicies": "[\"customer-policy\"]" } },
+          { "name": "perm:claim:read-endorsements", "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"claim\"]", "scopes": "[\"read-endorsements\"]",  "applyPolicies": "[\"customer-policy\",\"surveyor-policy\",\"adjustor-policy\",\"case-manager-policy\",\"auditor-policy\"]" } },
+          { "name": "perm:claim:add-endorsement",   "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"claim\"]", "scopes": "[\"add-endorsement\"]",    "applyPolicies": "[\"customer-policy\",\"surveyor-policy\",\"adjustor-policy\",\"case-manager-policy\"]" } },
+          { "name": "perm:claim:withdraw",          "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"claim\"]", "scopes": "[\"withdraw\"]",            "applyPolicies": "[\"customer-policy\"]" } },
+          { "name": "perm:claim:reassign-surveyor", "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"claim\"]", "scopes": "[\"reassign-surveyor\"]",   "applyPolicies": "[\"case-manager-policy\"]" } },
+          { "name": "perm:claim:reassign-adjustor", "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"claim\"]", "scopes": "[\"reassign-adjustor\"]",   "applyPolicies": "[\"case-manager-policy\"]" } },
+          { "name": "perm:claim:override",          "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"claim\"]", "scopes": "[\"override\"]",            "applyPolicies": "[\"case-manager-policy\"]" } },
+
+          { "name": "perm:document:upload",   "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"document\"]", "scopes": "[\"upload\"]",   "applyPolicies": "[\"customer-policy\",\"surveyor-policy\",\"adjustor-policy\"]" } },
+          { "name": "perm:document:list",     "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"document\"]", "scopes": "[\"list\"]",     "applyPolicies": "[\"customer-policy\",\"surveyor-policy\",\"adjustor-policy\",\"case-manager-policy\",\"auditor-policy\"]" } },
+          { "name": "perm:document:download", "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"document\"]", "scopes": "[\"download\"]", "applyPolicies": "[\"customer-policy\",\"surveyor-policy\",\"adjustor-policy\",\"case-manager-policy\",\"auditor-policy\"]" } },
+          { "name": "perm:document:delete",   "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"document\"]", "scopes": "[\"delete\"]",   "applyPolicies": "[\"customer-policy\",\"surveyor-policy\",\"adjustor-policy\"]" } },
+
+          { "name": "perm:report:kpi",         "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"report\"]", "scopes": "[\"kpi\"]",         "applyPolicies": "[\"regional-mgr-policy\",\"top-management-policy\",\"auditor-policy\"]" } },
+          { "name": "perm:report:fraud-ageing","type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"report\"]", "scopes": "[\"fraud-ageing\"]", "applyPolicies": "[\"auditor-policy\",\"top-management-policy\"]" } },
+          { "name": "perm:report:kpi-regional","type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"report\"]", "scopes": "[\"kpi-regional\"]", "applyPolicies": "[\"regional-mgr-policy\",\"top-management-policy\",\"auditor-policy\"]" } },
+          { "name": "perm:report:all-regions", "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"report\"]", "scopes": "[\"all-regions\"]",  "applyPolicies": "[\"top-management-policy\",\"auditor-policy\"]" } },
+
+          { "name": "perm:workflow:list-surveyors", "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"workflow\"]", "scopes": "[\"list-surveyors\"]", "applyPolicies": "[\"case-manager-policy\",\"surveyor-policy\",\"auditor-policy\"]" } },
+
+          { "name": "perm:payment:initiate", "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"payment\"]", "scopes": "[\"initiate\"]", "applyPolicies": "[\"customer-policy\"]" } },
+          { "name": "perm:payment:read",     "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"payment\"]", "scopes": "[\"read\"]",     "applyPolicies": "[\"customer-policy\",\"case-manager-policy\",\"auditor-policy\"]" } },
+
+          { "name": "perm:workshop:search",               "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"workshop\"]", "scopes": "[\"search\"]",               "applyPolicies": "[\"customer-policy\",\"case-manager-policy\"]" } },
+          { "name": "perm:workshop:work-order-read",      "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"workshop\"]", "scopes": "[\"work-order-read\"]",      "applyPolicies": "[\"customer-policy\",\"case-manager-policy\",\"auditor-policy\"]" } },
+          { "name": "perm:workshop:work-order-submit",    "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"workshop\"]", "scopes": "[\"work-order-submit\"]",    "applyPolicies": "[\"workshop-policy\"]" } },
+          { "name": "perm:workshop:repair-status-update", "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"workshop\"]", "scopes": "[\"repair-status-update\"]", "applyPolicies": "[\"workshop-policy\"]" } },
+          { "name": "perm:workshop:select",               "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"workshop\"]", "scopes": "[\"select\"]",               "applyPolicies": "[\"customer-policy\"]" } },
+          { "name": "perm:workshop:vehicle-dropoff",      "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"workshop\"]", "scopes": "[\"vehicle-dropoff\"]",      "applyPolicies": "[\"customer-policy\"]" } },
+
+          { "name": "perm:notification:list-own",  "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"notification\"]", "scopes": "[\"list-own\"]",  "applyPolicies": "[\"customer-policy\"]" } },
+          { "name": "perm:notification:mark-read", "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"notification\"]", "scopes": "[\"mark-read\"]", "applyPolicies": "[\"customer-policy\"]" } },
+
+          { "name": "perm:customer:read-profile",    "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"customer\"]", "scopes": "[\"read-profile\"]",    "applyPolicies": "[\"customer-policy\"]" } },
+          { "name": "perm:customer:update-address",  "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"customer\"]", "scopes": "[\"update-address\"]",  "applyPolicies": "[\"customer-policy\"]" } },
+          { "name": "perm:customer:update-billing",  "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"customer\"]", "scopes": "[\"update-billing\"]",  "applyPolicies": "[\"customer-policy\"]" } },
+
+          { "name": "perm:rental:list-vehicles",   "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"rental\"]", "scopes": "[\"list-vehicles\"]",   "applyPolicies": "[\"customer-policy\",\"case-manager-policy\",\"auditor-policy\"]" } },
+          { "name": "perm:rental:reserve",         "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"rental\"]", "scopes": "[\"reserve\"]",         "applyPolicies": "[\"customer-policy\"]" } },
+          { "name": "perm:rental:skip",            "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"rental\"]", "scopes": "[\"skip\"]",            "applyPolicies": "[\"customer-policy\"]" } },
+          { "name": "perm:rental:get-reservation", "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"rental\"]", "scopes": "[\"get-reservation\"]", "applyPolicies": "[\"customer-policy\"]" } }
+        ]
+      }
     }
   ],
   "users": [
     {
+      "id": "10000000-0000-0000-0000-000000000001",
       "username": "customer1",
       "email": "customer1@eclaims.test",
       "firstName": "John",
@@ -67,6 +195,7 @@
       "attributes": { "customerId": ["customer1-uuid"] }
     },
     {
+      "id": "20000000-0000-0000-0000-000000000001",
       "username": "surveyor1",
       "email": "surveyor1@eclaims.test",
       "firstName": "Alice",
@@ -77,6 +206,18 @@
       "realmRoles": ["surveyor"]
     },
     {
+      "id": "20000000-0000-0000-0000-000000000002",
+      "username": "surveyor2",
+      "email": "surveyor2@eclaims.test",
+      "firstName": "Steve",
+      "lastName": "Surveyor",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "Test@1234", "temporary": false }],
+      "realmRoles": ["surveyor"]
+    },
+    {
+      "id": "30000000-0000-0000-0000-000000000001",
       "username": "adjustor1",
       "email": "adjustor1@eclaims.test",
       "firstName": "Bob",
@@ -87,6 +228,18 @@
       "realmRoles": ["adjustor"]
     },
     {
+      "id": "30000000-0000-0000-0000-000000000002",
+      "username": "adjustor2",
+      "email": "adjustor2@eclaims.test",
+      "firstName": "Betty",
+      "lastName": "Adjustor",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "Test@1234", "temporary": false }],
+      "realmRoles": ["adjustor"]
+    },
+    {
+      "id": "40000000-0000-0000-0000-000000000001",
       "username": "casemanager1",
       "email": "casemanager1@eclaims.test",
       "firstName": "Carol",
@@ -97,6 +250,7 @@
       "realmRoles": ["case_manager"]
     },
     {
+      "id": "50000000-0000-0000-0000-000000000001",
       "username": "auditor1",
       "email": "auditor1@eclaims.test",
       "firstName": "David",
@@ -107,6 +261,7 @@
       "realmRoles": ["auditor"]
     },
     {
+      "id": "60000000-0000-0000-0000-000000000001",
       "username": "workshop1",
       "email": "workshop1@eclaims.test",
       "firstName": "Eve",
@@ -117,6 +272,7 @@
       "realmRoles": ["workshop"]
     },
     {
+      "id": "70000000-0000-0000-0000-000000000001",
       "username": "regionalmgr1",
       "email": "regionalmgr1@eclaims.test",
       "firstName": "Frank",
@@ -127,6 +283,7 @@
       "realmRoles": ["regional_mgr"]
     },
     {
+      "id": "80000000-0000-0000-0000-000000000001",
       "username": "topmanagement1",
       "email": "topmanagement1@eclaims.test",
       "firstName": "Grace",

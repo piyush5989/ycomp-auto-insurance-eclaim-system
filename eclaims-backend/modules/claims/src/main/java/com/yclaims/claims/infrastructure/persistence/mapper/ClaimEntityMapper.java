@@ -43,7 +43,9 @@ public class ClaimEntityMapper {
                 claim.getRegion(),
                 claim.getOverrideByUserId(),
                 claim.getOverrideReason(),
-                claim.getOverrideAt()
+                claim.getOverrideAt(),
+                claim.getRentalReservationId(),
+                claim.getRentalStatus()
         );
         return entity;
     }
@@ -78,6 +80,8 @@ public class ClaimEntityMapper {
                 entity.getOverrideByUserId(),
                 entity.getOverrideReason(),
                 entity.getOverrideAt(),
+                entity.getRentalReservationId(),
+                entity.getRentalStatus(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );

@@ -33,7 +33,7 @@ public class NotificationController {
     private final CustomerNotificationJpaRepository notificationRepository;
 
     @GetMapping("/me")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("@authz.isAllowed('notification', 'list-own')")
     @Operation(summary = "Get notifications for the authenticated customer (last 20)")
     public ResponseEntity<ApiResponse<List<CustomerNotificationResponse>>> getMyNotifications(
             @RequestParam(defaultValue = "false") boolean unreadOnly) {
@@ -52,7 +52,7 @@ public class NotificationController {
     }
 
     @PatchMapping("/{notificationId}/read")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("@authz.isAllowed('notification', 'mark-read')")
     @Transactional
     @Operation(summary = "Mark a notification as read")
     public ResponseEntity<ApiResponse<Void>> markAsRead(@PathVariable UUID notificationId) {

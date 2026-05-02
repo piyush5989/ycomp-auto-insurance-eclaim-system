@@ -11,6 +11,8 @@ import RegionalReportPage from './pages/reporting/RegionalReportPage';
 import ManagementReportPage from './pages/reporting/ManagementReportPage';
 import MyAssignmentsPage from './pages/surveyor/MyAssignmentsPage';
 import AssessClaimPage from './pages/surveyor/AssessClaimPage';
+import AdjustorMyClaimsPage from './pages/adjustor/MyClaimsPage';
+import AdjudicateClaimPage from './pages/adjustor/AdjudicateClaimPage';
 
 export default function InternalPortalRoutes() {
   return (
@@ -27,6 +29,8 @@ export default function InternalPortalRoutes() {
         <Route path="reports/management"  element={<ManagementReportPage />} />
         <Route path="surveyor/my-assignments" element={<MyAssignmentsPage />} />
         <Route path="surveyor/assess/:claimId" element={<AssessClaimPage />} />
+        <Route path="adjustor/my-claims" element={<AdjustorMyClaimsPage />} />
+        <Route path="adjustor/adjudicate/:claimId" element={<AdjudicateClaimPage />} />
       </Routes>
     </InternalLayout>
   );

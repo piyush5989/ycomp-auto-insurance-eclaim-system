@@ -38,6 +38,8 @@ public class Claim extends AggregateRoot {
     private String overrideByUserId;
     private String overrideReason;
     private Instant overrideAt;
+    private UUID rentalReservationId;
+    private String rentalStatus; // NOT_SELECTED, RESERVED, SKIPPED
 
     private final Instant createdAt;
     private Instant updatedAt;
@@ -107,6 +109,8 @@ public class Claim extends AggregateRoot {
                                      String overrideByUserId,
                                      String overrideReason,
                                      Instant overrideAt,
+                                     UUID rentalReservationId,
+                                     String rentalStatus,
                                      Instant createdAt,
                                      Instant updatedAt) {
         Claim claim = new Claim(id, policyNumber, customerId, customerEmail,
@@ -124,6 +128,8 @@ public class Claim extends AggregateRoot {
         claim.overrideByUserId = overrideByUserId;
         claim.overrideReason = overrideReason;
         claim.overrideAt = overrideAt;
+        claim.rentalReservationId = rentalReservationId;
+        claim.rentalStatus = rentalStatus;
         // Override timestamps from DB
         return claim;
     }
@@ -288,6 +294,8 @@ public class Claim extends AggregateRoot {
     public String getOverrideByUserId() { return overrideByUserId; }
     public String getOverrideReason() { return overrideReason; }
     public Instant getOverrideAt() { return overrideAt; }
+    public UUID getRentalReservationId() { return rentalReservationId; }
+    public String getRentalStatus() { return rentalStatus; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

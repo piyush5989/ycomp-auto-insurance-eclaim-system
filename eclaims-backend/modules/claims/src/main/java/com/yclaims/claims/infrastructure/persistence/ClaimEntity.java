@@ -113,6 +113,12 @@ public class ClaimEntity {
     @Column(name = "override_at")
     private Instant overrideAt;
 
+    @Column(name = "rental_reservation_id", columnDefinition = "uuid")
+    private UUID rentalReservationId;
+
+    @Column(name = "rental_status", length = 20)
+    private String rentalStatus; // NOT_SELECTED, RESERVED, SKIPPED
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -173,7 +179,7 @@ public class ClaimEntity {
                                   BigDecimal approvedAmount, String workshopId,
                                   String rejectionReason, boolean fraudFlag, String fraudReason,
                                   String region, String overrideByUserId, String overrideReason,
-                                  Instant overrideAt) {
+                                  Instant overrideAt, UUID rentalReservationId, String rentalStatus) {
         this.status = status;
         this.assignedSurveyorId = assignedSurveyorId;
         this.assignedAdjustorId = assignedAdjustorId;
@@ -187,5 +193,7 @@ public class ClaimEntity {
         this.overrideByUserId = overrideByUserId;
         this.overrideReason = overrideReason;
         this.overrideAt = overrideAt;
+        this.rentalReservationId = rentalReservationId;
+        this.rentalStatus = rentalStatus;
     }
 }

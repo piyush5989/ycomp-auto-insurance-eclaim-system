@@ -100,3 +100,5 @@ eclaims:
     realm: ${KEYCLOAK_REALM:eclaims}
     admin-username: ${KEYCLOAK_ADMIN_USER:admin}
     admin-password: ${KEYCLOAK_ADMIN_PASSWORD:admin}
+    authz:
+      audience: ${KEYCLOAK_AUTHZ_AUDIENCE:eclaims-api}

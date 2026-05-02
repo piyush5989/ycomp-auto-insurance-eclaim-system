@@ -307,6 +307,71 @@ public class ClaimApplicationService {
                 payload
         );
         eventPublisher.publish("claim-events", event);
+
+        // If surveyor submitted assessment, also publish assessment.submitted event
+        if (claim.getStatus() == ClaimStatus.SURVEYED && previous != ClaimStatus.SURVEYED) {
+            publishAssessmentSubmittedEvent(claim, cmd);
+        }
+
+        // If adjustor adjudicated claim, also publish claim.adjudicated event
+        if ((claim.getStatus() == ClaimStatus.APPROVED || claim.getStatus() == ClaimStatus.REJECTED) 
+                && (previous != ClaimStatus.APPROVED && previous != ClaimStatus.REJECTED)) {
+            publishClaimAdjudicatedEvent(claim, cmd);
+        }
+    }
+
+    private void publishAssessmentSubmittedEvent(Claim claim, UpdateClaimStatusCommand cmd) {
+        var payload = new com.yclaims.contracts.events.v1.AssessmentSubmittedPayload(
+                claim.getId().getValue(),
+                UUID.fromString(claim.getAssignedSurveyorId()),
+                claim.getAssessedAmount(),
+                cmd.reason(),  // damage notes
+                java.util.Collections.emptyList(),  // documentIds - frontend uploads separately
+                Instant.now()
+        );
+        var event = new DomainEvent<>(
+                UUID.randomUUID().toString(),
+                "assessment.submitted",
+                cmd.correlationId(),
+                null,
+                claim.getId().toString(),
+                "Claim",
+                "v1",
+                Instant.now(),
+                payload
+        );
+        eventPublisher.publish("claim-events", event);
+        log.info("[{}] 📋 Assessment submitted | Claim: {} | Surveyor: {} | Amount: ${}", 
+                cmd.correlationId(), claim.getId().getValue(), claim.getAssignedSurveyorId(), claim.getAssessedAmount());
+    }
+
+    private void publishClaimAdjudicatedEvent(Claim claim, UpdateClaimStatusCommand cmd) {
+        var payload = new com.yclaims.contracts.events.v1.ClaimAdjudicatedPayload(
+                claim.getId().getValue(),
+                UUID.fromString(claim.getAssignedAdjustorId()),
+                claim.getStatus().name(),  // APPROVED or REJECTED
+                claim.getApprovedAmount(),
+                claim.getRejectionReason(),
+                UUID.fromString(claim.getCustomerId()),
+                claim.getCustomerEmail(),
+                claim.getWorkshopId() != null ? UUID.fromString(claim.getWorkshopId()) : null,
+                null,  // workshopName - would need join query
+                Instant.now()
+        );
+        var event = new DomainEvent<>(
+                UUID.randomUUID().toString(),
+                "claim.adjudicated",
+                cmd.correlationId(),
+                null,
+                claim.getId().toString(),
+                "Claim",
+                "v1",
+                Instant.now(),
+                payload
+        );
+        eventPublisher.publish("claim-events", event);
+        log.info("[{}] ⚖️  Claim adjudicated | Claim: {} | Decision: {} | Adjustor: {}", 
+                cmd.correlationId(), claim.getId().getValue(), claim.getStatus(), claim.getAssignedAdjustorId());
     }
 
     @Transactional

@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -75,7 +76,7 @@ public class DocumentApplicationService {
         if (contentType == null || !storageProperties.getAllowedContentTypes().contains(contentType)) {
             throw new DomainException("DOC_INVALID_TYPE",
                     "File type '" + contentType + "' is not allowed. " +
-                    "Accepted types: JPEG, PNG, WebP, PDF, DOC, DOCX.");
+                    "Accepted types: JPEG, PNG, WebP, GIF, MP4, MOV, PDF, DOC, DOCX.");
         }
 
         long existingCount = documentRepository.countByClaimId(claimId);
@@ -105,11 +106,34 @@ public class DocumentApplicationService {
 
     @Transactional(readOnly = true)
     public Resource loadAsResource(String storageKey, String correlationId) {
+        return resolveFileByStorageKey(storageKey).resource();
+    }
+
+    /**
+     * Stream a document by id — use this from the API so clients send a Bearer token (SPA-friendly).
+     * Raw {@code /download/{storageKey}} URLs fail in a new browser tab because no JWT is attached.
+     */
+    @Transactional(readOnly = true)
+    public DocumentFileStream streamDocumentById(UUID documentId, String correlationId) {
+        DocumentEntity entity = documentRepository.findById(documentId)
+                .orElseThrow(() -> new NotFoundException("Document", documentId.toString()));
+        DocumentFileStream stream = resolveFileByStorageKey(entity.getStorageKey());
+        String contentType = entity.getContentType() != null && !entity.getContentType().isBlank()
+                ? entity.getContentType()
+                : MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        return new DocumentFileStream(stream.resource(), contentType, entity.getFilename());
+    }
+
+    private DocumentFileStream resolveFileByStorageKey(String storageKey) {
+        Path root = Paths.get(storageProperties.getPath()).toAbsolutePath().normalize();
+        Path file = root.resolve(storageKey).normalize();
+        if (!file.startsWith(root)) {
+            throw new DomainException("DOC_INVALID_PATH", "Resolved path escapes storage root.");
+        }
         try {
-            Path file = Paths.get("./uploads").resolve(storageKey).normalize();
             Resource resource = new UrlResource(file.toUri());
             if (resource.exists() && resource.isReadable()) {
-                return resource;
+                return new DocumentFileStream(resource, MediaType.APPLICATION_OCTET_STREAM_VALUE, storageKey);
             }
             throw new NotFoundException("Document file", storageKey);
         } catch (MalformedURLException e) {

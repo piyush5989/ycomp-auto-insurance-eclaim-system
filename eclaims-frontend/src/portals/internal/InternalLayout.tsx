@@ -1,6 +1,6 @@
 import React from 'react';
 import { Sidebar } from '@/shared/components/layout/Sidebar';
-import { Home, List, Shield, BarChart2, AlertTriangle, ClipboardList, MapPin, TrendingUp } from 'lucide-react';
+import { Home, List, Shield, BarChart2, AlertTriangle, ClipboardList, MapPin, TrendingUp, ClipboardCheck } from 'lucide-react';
 import { useAuth } from '@/shared/auth/KeycloakProvider';
 import { hasRole } from '@/shared/auth/roleUtils';
 
@@ -11,6 +11,10 @@ const getNavItems = (roles: string[]) => {
 
   if (hasRole(roles, 'ROLE_SURVEYOR')) {
     items.push({ label: 'My Assignments', path: '/internal/surveyor/my-assignments', icon: <ClipboardList size={16} /> });
+  }
+
+  if (hasRole(roles, 'ROLE_ADJUSTOR')) {
+    items.push({ label: 'My Claims Queue', path: '/internal/adjustor/my-claims', icon: <ClipboardCheck size={16} /> });
   }
 
   items.push({ label: 'Claims Queue',    path: '/internal/claims-queue',   icon: <List size={16} /> });

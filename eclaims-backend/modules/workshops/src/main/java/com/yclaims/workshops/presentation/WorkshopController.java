@@ -26,7 +26,7 @@ public class WorkshopController {
     private final WorkshopApplicationService workshopService;
 
     @GetMapping("/workshops")
-    @PreAuthorize("hasAnyRole('CUSTOMER','CASE_MANAGER')")
+    @PreAuthorize("@authz.isAllowed('workshop', 'search')")
     @Operation(
         summary = "Search partner service providers",
         description = "Filter by providerType (REPAIR_WORKSHOP | AUTH_SERVICE_STATION | CAR_RENTAL), " +
@@ -43,7 +43,7 @@ public class WorkshopController {
     }
 
     @GetMapping("/claims/{claimId}/work-order")
-    @PreAuthorize("hasAnyRole('CUSTOMER','CASE_MANAGER','AUDITOR')")
+    @PreAuthorize("@authz.isAllowed('workshop', 'work-order-read')")
     @Operation(
         summary = "Get the current work order for a claim",
         description = "FR9: Customer can track repair progress based on the work order submitted by the repair agency."
@@ -55,7 +55,7 @@ public class WorkshopController {
     }
 
     @PostMapping("/work-orders")
-    @PreAuthorize("hasRole('WORKSHOP')")
+    @PreAuthorize("@authz.isAllowed('workshop', 'work-order-submit')")
     @Operation(summary = "Submit a work order estimate for an approved claim")
     public ResponseEntity<ApiResponse<WorkOrderResponse>> submitWorkOrder(
             @Valid @RequestBody WorkOrderRequest request) {
@@ -65,7 +65,7 @@ public class WorkshopController {
     }
 
     @PatchMapping("/work-orders/{workOrderId}/repair-status")
-    @PreAuthorize("hasRole('WORKSHOP')")
+    @PreAuthorize("@authz.isAllowed('workshop', 'repair-status-update')")
     @Operation(summary = "Update repair status for a work order — publishes repair.status.updated event")
     public ResponseEntity<ApiResponse<WorkOrderResponse>> updateRepairStatus(
             @PathVariable UUID workOrderId,
@@ -77,7 +77,7 @@ public class WorkshopController {
     }
 
     @PostMapping("/claims/{claimId}/select-workshop")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("@authz.isAllowed('workshop', 'select')")
     @Operation(summary = "Customer selects workshop for repairs - triggers surveyor assignment")
     public ResponseEntity<ApiResponse<Void>> selectWorkshop(
             @PathVariable UUID claimId,
@@ -88,7 +88,7 @@ public class WorkshopController {
     }
 
     @PostMapping("/claims/{claimId}/vehicle-dropoff")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("@authz.isAllowed('workshop', 'vehicle-dropoff')")
     @Operation(summary = "Confirm vehicle drop-off at workshop")
     public ResponseEntity<ApiResponse<UUID>> confirmVehicleDropOff(
             @PathVariable UUID claimId,

@@ -37,18 +37,14 @@ ALTER TABLE workflow.surveyors
 ADD COLUMN IF NOT EXISTS field_office VARCHAR(100),
 ADD COLUMN IF NOT EXISTS service_areas TEXT; -- JSON array of regions, e.g. '["EAST", "NORTHEAST"]'
 
--- Update existing surveyor data with field office locations
+-- Update existing surveyor data with field office locations (using real Keycloak IDs)
 UPDATE workflow.surveyors 
 SET field_office = 'Boston Office', service_areas = '["EAST", "NORTHEAST"]'
-WHERE id = 'a1b2c3d4-0000-0000-0000-000000000001';
+WHERE id = '20000000-0000-0000-0000-000000000001';
 
 UPDATE workflow.surveyors 
 SET field_office = 'San Francisco Office', service_areas = '["WEST", "SOUTHWEST"]'
-WHERE id = 'a1b2c3d4-0000-0000-0000-000000000002';
-
-UPDATE workflow.surveyors 
-SET field_office = 'New York Office', service_areas = '["EAST", "CENTRAL"]'
-WHERE id = 'a1b2c3d4-0000-0000-0000-000000000003';
+WHERE id = '20000000-0000-0000-0000-000000000002';
 
 -- Add adjustors table for delegation feature
 CREATE TABLE IF NOT EXISTS workflow.adjustors (
@@ -61,12 +57,11 @@ CREATE TABLE IF NOT EXISTS workflow.adjustors (
     service_areas TEXT
 );
 
--- Seed test adjustors for demo
+-- Seed adjustors using real Keycloak user IDs from eclaims-realm.json
 INSERT INTO workflow.adjustors (id, name, email, region, active, field_office, service_areas)
 VALUES
-    ('b2c3d4e5-0000-0000-0000-000000000001', 'David Adjustor',   'adjustor1@eclaims.test', 'EAST', TRUE, 'Boston Office', '["EAST", "NORTHEAST"]'),
-    ('b2c3d4e5-0000-0000-0000-000000000002', 'Emma Adjustor',    'adjustor2@eclaims.test', 'WEST', TRUE, 'San Francisco Office', '["WEST", "SOUTHWEST"]'),
-    ('b2c3d4e5-0000-0000-0000-000000000003', 'Frank Adjustor',   'adjustor3@eclaims.test', 'EAST', TRUE, 'New York Office', '["EAST", "CENTRAL"]')
+    ('30000000-0000-0000-0000-000000000001', 'Bob Adjustor',   'adjustor1@eclaims.test', 'EAST', TRUE, 'Boston Office', '["EAST", "NORTHEAST"]'),
+    ('30000000-0000-0000-0000-000000000002', 'Betty Adjustor', 'adjustor2@eclaims.test', 'WEST', TRUE, 'San Francisco Office', '["WEST", "SOUTHWEST"]')
 ON CONFLICT DO NOTHING;
 
 -- Reassignment history tracking

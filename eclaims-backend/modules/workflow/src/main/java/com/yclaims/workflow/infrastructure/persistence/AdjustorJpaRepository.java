@@ -10,4 +10,5 @@ import java.util.UUID;
 public interface AdjustorJpaRepository extends JpaRepository<AdjustorEntity, UUID> {
     List<AdjustorEntity> findByActiveTrue();
     List<AdjustorEntity> findByActiveTrueAndRegion(String region);
+    java.util.Optional<AdjustorEntity> findByEmail(String email);
 }

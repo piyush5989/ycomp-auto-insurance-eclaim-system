@@ -1,7 +1,10 @@
 package com.yclaims.workflow.application;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yclaims.contracts.events.DomainEvent;
 import com.yclaims.contracts.events.v1.ClaimCreatedPayload;
+import com.yclaims.contracts.events.v1.AdjustorAssignedPayload;
+import com.yclaims.contracts.events.v1.SurveyorAssignedPayload;
 import com.yclaims.workflow.infrastructure.persistence.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +41,8 @@ public class AutoAssignmentService {
     private final AdjustorJpaRepository adjustorRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final RedisTemplate<String, String> stringRedisTemplate;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    private final ObjectMapper objectMapper;
 
     @KafkaListener(
         topics = "claim-events",
@@ -46,25 +51,35 @@ public class AutoAssignmentService {
     )
     @Transactional
     public void handleClaimEvents(DomainEvent<?> event) {
-        if (!deduplicate(event.eventId())) return;
+        log.info("[{}] 📨 AutoAssignmentService received event: {} (type: {})", 
+                event.correlationId(), event.eventId(), event.eventType());
+        
+        if (!deduplicate(event.eventId())) {
+            log.debug("[{}] ⚠️  Event {} already processed (duplicate), skipping", event.correlationId(), event.eventId());
+            return;
+        }
 
         // Handle vehicle drop-off → Assign surveyor
         if ("vehicle.droppedoff".equals(event.eventType())) {
-            if (event.payload() instanceof com.yclaims.contracts.events.v1.VehicleDroppedOffPayload payload) {
+            com.yclaims.contracts.events.v1.VehicleDroppedOffPayload payload = 
+                    convertPayload(event.payload(), com.yclaims.contracts.events.v1.VehicleDroppedOffPayload.class, event.correlationId());
+            if (payload != null) {
                 log.info("[{}] 🚗 Vehicle dropped off for claim {} - NOW triggering surveyor auto-assignment for workshop inspection",
                         event.correlationId(), payload.claimId());
                 autoAssignBasedOnDropOff(payload, event.correlationId());
+            } else {
+                log.warn("[{}] vehicle.droppedoff payload conversion failed", event.correlationId());
             }
         }
 
         // Handle survey completed → Assign adjustor
         if ("claim.status.changed".equals(event.eventType())) {
-            if (event.payload() instanceof com.yclaims.contracts.events.v1.ClaimStatusChangedPayload payload) {
-                if ("SURVEYED".equals(payload.newStatus())) {
-                    log.info("[{}] 📋 Survey completed for claim {} - NOW triggering adjustor auto-assignment",
-                            event.correlationId(), payload.claimId());
-                    autoAssignAdjustor(payload.claimId(), event.correlationId());
-                }
+            com.yclaims.contracts.events.v1.ClaimStatusChangedPayload payload = 
+                    convertPayload(event.payload(), com.yclaims.contracts.events.v1.ClaimStatusChangedPayload.class, event.correlationId());
+            if (payload != null && "SURVEYED".equals(payload.newStatus())) {
+                log.info("[{}] 📋 Survey completed for claim {} - NOW triggering adjustor auto-assignment",
+                        event.correlationId(), payload.claimId());
+                autoAssignAdjustor(payload.claimId(), event.correlationId());
             }
         }
     }
@@ -158,8 +173,15 @@ public class AutoAssignmentService {
         }
         
         if (candidatesInZip.isEmpty()) {
-            log.error("[{}] ❌ No surveyors available covering workshop location (ZIP: {}, State: {}) — escalating to case managers",
-                    correlationId, workshopZip, workshopState);
+            // Final fallback: any active surveyor (ensures assignment always succeeds in demo)
+            log.warn("[{}] ⚠️  No ZIP coverage match — using global fallback across all active surveyors",
+                    correlationId);
+            candidatesInZip = surveyorRepository.findByActiveTrue();
+        }
+
+        if (candidatesInZip.isEmpty()) {
+            log.error("[{}] ❌ No surveyors available at all — escalating to case managers",
+                    correlationId);
             publishEscalationEventForDropOff(claimId, workshopId, workshopZip, correlationId);
             return;
         }
@@ -204,7 +226,14 @@ public class AutoAssignmentService {
                 workshopZip,
                 currentLoad);
         
-        // Phase 4: Publish events
+        // Phase 4: Update claim status to ASSIGNED in DB (cross-schema write — same DB in modular monolith)
+        jdbcTemplate.update(
+                "UPDATE claims.claims SET status = 'ASSIGNED', assigned_surveyor_id = ?, updated_at = NOW() WHERE id = ?",
+                assignee.get().getId().toString(), claimId);
+        log.info("[{}] 📝 Updated claim {} status → ASSIGNED (assignedSurveyorId: {})",
+                correlationId, claimId, assignee.get().getId());
+
+        // Phase 5: Publish events
         publishSurveyorAssignedEventForDropOff(claimId, workshopId, workshopZip, assignee.get(), correlationId);
         publishNotificationForSurveyorDropOff(claimId, workshopId, workshopZip, assignee.get(), correlationId);
     }
@@ -239,8 +268,6 @@ public class AutoAssignmentService {
 
     private void publishSurveyorAssignedEventForDropOff(UUID claimId, UUID workshopId, String workshopZip,
                                                         SurveyorEntity surveyor, String correlationId) {
-        record SurveyorAssignedPayload(UUID claimId, UUID surveyorId, String surveyorName, 
-                                        UUID workshopId, String workshopZipCode, String assignmentTrigger) {}
         var event = new DomainEvent<>(
                 UUID.randomUUID().toString(), "surveyor.assigned",
                 correlationId, null,
@@ -378,8 +405,6 @@ public class AutoAssignmentService {
     }
 
     private void publishAdjustorAssignedEvent(UUID claimId, AdjustorEntity adjustor, String correlationId) {
-        record AdjustorAssignedPayload(UUID claimId, UUID adjustorId, String adjustorName,
-                                        String assignmentTrigger) {}
         var event = new DomainEvent<>(
                 UUID.randomUUID().toString(), "adjustor.assigned",
                 correlationId, null,
@@ -435,5 +460,18 @@ public class AutoAssignmentService {
         Boolean isNew = stringRedisTemplate.opsForValue()
                 .setIfAbsent(key, "1", Duration.ofHours(24));
         return Boolean.TRUE.equals(isNew);
+    }
+
+    /**
+     * Helper method to convert payload from LinkedHashMap (Kafka deserialization) to proper type.
+     */
+    private <T> T convertPayload(Object payload, Class<T> targetClass, String correlationId) {
+        try {
+            return objectMapper.convertValue(payload, targetClass);
+        } catch (IllegalArgumentException e) {
+            log.error("[{}] Failed to convert payload to {} | payload type: {} | error: {}", 
+                    correlationId, targetClass.getSimpleName(), payload.getClass().getName(), e.getMessage());
+            return null;
+        }
     }
 }

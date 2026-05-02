@@ -26,7 +26,7 @@ public class WorkflowController {
     private final SurveyorJpaRepository surveyorRepository;
 
     @GetMapping("/surveyors")
-    @PreAuthorize("hasAnyRole('CASE_MANAGER','SURVEYOR','AUDITOR')")
+    @PreAuthorize("@authz.isAllowed('workflow', 'list-surveyors')")
     @Operation(summary = "List all active surveyors")
     public ResponseEntity<ApiResponse<List<SurveyorResponse>>> listSurveyors(
             @RequestParam(required = false) String region,

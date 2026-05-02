@@ -31,7 +31,7 @@ public class CustomerProfileController {
     private final CustomerProfileApplicationService profileService;
 
     @GetMapping("/me")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("@authz.isAllowed('customer', 'read-profile')")
     @Operation(summary = "Get current customer profile (address, billing cycle)")
     public ResponseEntity<ApiResponse<CustomerProfileResponse>> getMyProfile() {
         String customerId = UserContextHolder.currentUserId();
@@ -39,7 +39,7 @@ public class CustomerProfileController {
     }
 
     @PutMapping("/me/address")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("@authz.isAllowed('customer', 'update-address')")
     @Operation(summary = "Update correspondence address")
     public ResponseEntity<ApiResponse<CustomerProfileResponse>> updateAddress(
             @Valid @RequestBody UpdateAddressRequest request) {
@@ -48,7 +48,7 @@ public class CustomerProfileController {
     }
 
     @PutMapping("/me/billing-cycle")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("@authz.isAllowed('customer', 'update-billing')")
     @Operation(summary = "Update billing cycle preference — MONTHLY | QUARTERLY | ANNUALLY")
     public ResponseEntity<ApiResponse<CustomerProfileResponse>> updateBillingCycle(
             @Valid @RequestBody UpdateBillingCycleRequest request) {

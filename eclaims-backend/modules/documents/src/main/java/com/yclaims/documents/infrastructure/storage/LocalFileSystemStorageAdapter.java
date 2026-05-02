@@ -1,5 +1,6 @@
 package com.yclaims.documents.infrastructure.storage;
 
+import com.yclaims.documents.config.StorageProperties;
 import com.yclaims.documents.domain.port.out.DocumentStoragePort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,14 +31,14 @@ public class LocalFileSystemStorageAdapter implements DocumentStoragePort {
     private final String baseDownloadUrl;
 
     public LocalFileSystemStorageAdapter(
-            @Value("${eclaims.storage.path:./uploads}") String storagePath,
+            StorageProperties storageProperties,
             @Value("${eclaims.api.base-url:http://localhost:8090}") String baseUrl) {
-        this.storageRoot = Paths.get(storagePath);
+        this.storageRoot = Paths.get(storageProperties.getPath());
         this.baseDownloadUrl = baseUrl + "/api/v1/documents/download/";
         try {
             Files.createDirectories(this.storageRoot);
         } catch (IOException e) {
-            throw new RuntimeException("Cannot create document storage directory: " + storagePath, e);
+            throw new RuntimeException("Cannot create document storage directory: " + this.storageRoot, e);
         }
     }
 

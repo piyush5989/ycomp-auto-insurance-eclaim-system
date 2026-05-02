@@ -30,7 +30,7 @@ public class PaymentController {
     private final PaymentApplicationService paymentService;
 
     @PostMapping
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("@authz.isAllowed('payment', 'initiate')")
     @Operation(
         summary = "Initiate a payment for an approved claim",
         description = "Idempotent — supply an Idempotency-Key header. Duplicate requests return the cached result."
@@ -49,7 +49,7 @@ public class PaymentController {
     }
 
     @GetMapping("/{paymentId}")
-    @PreAuthorize("hasAnyRole('CUSTOMER','CASE_MANAGER','AUDITOR')")
+    @PreAuthorize("@authz.isAllowed('payment', 'read')")
     @Operation(summary = "Get payment status by ID")
     public ResponseEntity<ApiResponse<PaymentResponse>> getPayment(@PathVariable UUID paymentId) {
         PaymentResponse response = paymentService.getPayment(paymentId, correlationId());

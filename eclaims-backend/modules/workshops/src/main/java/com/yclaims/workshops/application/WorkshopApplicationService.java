@@ -2,6 +2,7 @@ package com.yclaims.workshops.application;
 
 import com.yclaims.contracts.events.DomainEvent;
 import com.yclaims.contracts.events.v1.RepairStatusUpdatedPayload;
+import com.yclaims.contracts.events.v1.VehicleDroppedOffPayload;
 import com.yclaims.kernel.exception.NotFoundException;
 import com.yclaims.workshops.infrastructure.persistence.*;
 import com.yclaims.workshops.presentation.dto.*;
@@ -102,29 +103,118 @@ public class WorkshopApplicationService {
 
     /**
      * Customer selects a workshop for a claim.
-     *
-     * Note: The current workshops module doesn't persist this selection yet (no table/entity).
-     * This method exists to support the API contract and can be extended later to publish an
-     * event or persist in a dedicated selection table.
+     * Updates claim status to WORKSHOP_SELECTED and stores workshopId on the claim.
      */
     @Transactional
     public void selectWorkshopForClaim(UUID claimId, UUID workshopId, String customerId, String correlationId) {
-        log.info("[{}] Customer {} selected workshop {} for claim {}",
-                correlationId, customerId, workshopId, claimId);
+        // Validate workshop exists
+        WorkshopEntity workshop = workshopRepository.findById(workshopId)
+                .orElseThrow(() -> new NotFoundException("Workshop", workshopId.toString()));
+
+        // Update claim status to WORKSHOP_SELECTED and record workshopId (cross-schema write in modular monolith)
+        int updated = jdbcTemplate.update(
+                "UPDATE claims.claims SET status = 'WORKSHOP_SELECTED', workshop_id = ?, updated_at = NOW() WHERE id = ? AND status = 'SUBMITTED'",
+                workshopId.toString(), claimId);
+
+        if (updated == 0) {
+            // Claim may already be past SUBMITTED — check current status
+            String currentStatus = jdbcTemplate.queryForObject(
+                    "SELECT status FROM claims.claims WHERE id = ?", String.class, claimId);
+            log.warn("[{}] Workshop selection: claim {} not updated (current status: {}). Requires SUBMITTED.",
+                    correlationId, claimId, currentStatus);
+            throw new IllegalStateException(
+                    "Cannot select workshop: claim is not in SUBMITTED status (current: " + currentStatus + ")");
+        }
+
+        log.info("[{}] 🏪 Workshop selected | Claim: {} | Workshop: {} ({}) | Status → WORKSHOP_SELECTED",
+                correlationId, claimId, workshopId, workshop.getName());
+
+        // Publish workshop.selected event
+        record WorkshopSelectedPayload(UUID claimId, UUID workshopId, String workshopName,
+                String workshopZipCode, String workshopState, boolean isPartnerWorkshop) {}
+        var event = new DomainEvent<>(
+                UUID.randomUUID().toString(), "workshop.selected",
+                correlationId, null,
+                claimId.toString(), "Claim",
+                "v1", Instant.now(),
+                new WorkshopSelectedPayload(claimId, workshopId, workshop.getName(),
+                        workshop.getZipCode(), null, true));
+        kafkaTemplate.send("claim-events", claimId.toString(), event);
     }
 
     /**
      * Customer confirms vehicle drop-off at workshop.
-     *
-     * Note: The current workshops module doesn't persist drop-off details yet (no table/entity).
-     * Returns a generated dropOffId to support the API contract and enable future persistence.
+     * Updates claim status to VEHICLE_AT_WORKSHOP — this TRIGGERS surveyor auto-assignment.
      */
     @Transactional
     public UUID confirmVehicleDropOff(UUID claimId, VehicleDropOffRequest request,
                                       String customerId, String correlationId) {
         UUID dropOffId = UUID.randomUUID();
-        log.info("[{}] Vehicle drop-off confirmed. dropOffId={} claimId={} customerId={} notes={} mileage={}",
-                correlationId, dropOffId, claimId, customerId, request.dropOffNotes(), request.mileage());
+
+        // Update claim status to VEHICLE_AT_WORKSHOP (cross-schema write in modular monolith)
+        int updated = jdbcTemplate.update(
+                "UPDATE claims.claims SET status = 'VEHICLE_AT_WORKSHOP', updated_at = NOW() WHERE id = ? AND status = 'WORKSHOP_SELECTED'",
+                claimId);
+
+        if (updated == 0) {
+            String currentStatus = jdbcTemplate.queryForObject(
+                    "SELECT status FROM claims.claims WHERE id = ?", String.class, claimId);
+            log.warn("[{}] Drop-off: claim {} not updated (current status: {}). Requires WORKSHOP_SELECTED.",
+                    correlationId, claimId, currentStatus);
+            throw new IllegalStateException(
+                    "Cannot confirm drop-off: claim is not in WORKSHOP_SELECTED status (current: " + currentStatus + ")");
+        }
+
+        // Fetch workshop info for the event payload
+        String workshopIdRaw = jdbcTemplate.queryForObject(
+                "SELECT workshop_id FROM claims.claims WHERE id = ?", String.class, claimId);
+        UUID workshopId = workshopIdRaw != null ? UUID.fromString(workshopIdRaw) : null;
+
+        String workshopName = "Unknown Workshop";
+        String workshopZip = null;
+        if (workshopId != null) {
+            try {
+                var row = jdbcTemplate.queryForMap(
+                        "SELECT name, zip_code FROM workshops.workshops WHERE id = ?", workshopId);
+                workshopName = (String) row.get("name");
+                workshopZip = (String) row.get("zip_code");
+            } catch (Exception e) {
+                log.warn("[{}] Could not fetch workshop details for drop-off event", correlationId);
+            }
+        }
+
+        log.info("[{}] 🚗 Vehicle drop-off confirmed | Claim: {} | Workshop: {} | dropOffId: {} | mileage: {} | fuel: {} | Status → VEHICLE_AT_WORKSHOP",
+                correlationId, claimId, workshopName, dropOffId,
+                request.mileage(), request.fuelLevel());
+
+        // Publish vehicle.droppedoff event — AutoAssignmentService listens to this to trigger surveyor assignment
+        var dropOffPayload = new VehicleDroppedOffPayload(
+                claimId,
+                workshopId,
+                workshopName,
+                workshopZip,        // workshopZipCode
+                null,               // workshopState
+                null,               // workshopLatitude
+                null,               // workshopLongitude
+                dropOffId,
+                Instant.now(),      // droppedOffAt
+                request.dropOffNotes(),
+                request.mileage(),
+                request.fuelLevel(),
+                request.photosUploaded(),
+                null,               // confirmedBy
+                null,               // customerId
+                null,               // policyNumber
+                null                // vehicleRegistration
+        );
+        var event = new DomainEvent<>(
+                UUID.randomUUID().toString(), "vehicle.droppedoff",
+                correlationId, null,
+                claimId.toString(), "Claim",
+                "v1", Instant.now(),
+                dropOffPayload);
+        kafkaTemplate.send("claim-events", claimId.toString(), event);
+
         return dropOffId;
     }
 

@@ -46,13 +46,20 @@ export default function RentalVehiclePage() {
       }).then((r) => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['claim', claimId] })
+      queryClient.invalidateQueries({ queryKey: ['claims'] })
       navigate(`/customer/claims/${claimId}`)
     },
   })
 
-  const skipRental = () => {
-    navigate(`/customer/claims/${claimId}`)
-  }
+  const skipMutation = useMutation({
+    mutationFn: () =>
+      httpClient.post(`/rentals/skip?claimId=${claimId}`).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['claim', claimId] })
+      queryClient.invalidateQueries({ queryKey: ['claims'] })
+      navigate(`/customer/claims/${claimId}`)
+    },
+  })
 
   if (claimLoading) {
     return (
@@ -91,11 +98,12 @@ export default function RentalVehiclePage() {
           </p>
         </div>
         <button
-          onClick={skipRental}
-          className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+          onClick={() => skipMutation.mutate()}
+          disabled={skipMutation.isPending}
+          className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50"
         >
           <X className="w-4 h-4" />
-          Skip This Step
+          {skipMutation.isPending ? 'Skipping...' : 'Skip This Step'}
         </button>
       </div>
 
@@ -259,10 +267,11 @@ export default function RentalVehiclePage() {
       {/* Action Buttons */}
       <div className="flex gap-3">
         <button
-          onClick={skipRental}
+          onClick={() => skipMutation.mutate()}
+          disabled={skipMutation.isPending}
           className="btn-secondary flex-1"
         >
-          Skip - I Don't Need a Rental
+          {skipMutation.isPending ? 'Skipping...' : "Skip - I Don't Need a Rental"}
         </button>
       </div>
     </div>

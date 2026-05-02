@@ -245,40 +245,46 @@ export default function ClaimDetailPage() {
     )
   }
 
-  // Journey steps logic
+  // Journey steps — statuses that count as each step being done
+  const workshopDone = !['SUBMITTED'].includes(claim.status)
+  const dropOffDone  = !['SUBMITTED', 'WORKSHOP_SELECTED'].includes(claim.status)
+  
+  // Rental step is complete if customer reserved or skipped
+  const rentalStepComplete = claim.rentalStatus === 'RESERVED' || claim.rentalStatus === 'SKIPPED'
+  
+  const journeyComplete = rentalStepComplete || ['ASSIGNED', 'UNDER_SURVEY', 'SURVEYED', 'UNDER_ADJUDICATION',
+                           'APPROVED', 'REJECTED', 'PAYMENT_INITIATED', 'SETTLED'].includes(claim.status)
+
   const needsWorkshopSelection = claim.status === 'SUBMITTED'
-  const needsVehicleDropOff = claim.status === 'WORKSHOP_SELECTED'
-  const canSelectRental = claim.status === 'VEHICLE_AT_WORKSHOP'
-  
-  // Journey is complete when claim moves beyond initial setup stages
-  const journeyComplete = ['ASSIGNED', 'UNDER_SURVEY', 'SURVEYED', 'UNDER_ADJUDICATION', 
-                          'APPROVED', 'REJECTED', 'PAYMENT_INITIATED', 'SETTLED'].includes(claim.status)
-  
+  const needsVehicleDropOff    = claim.status === 'WORKSHOP_SELECTED'
+  const canSelectRental        = claim.status === 'VEHICLE_AT_WORKSHOP' && !rentalStepComplete
+
   const journeySteps = [
     {
       step: 1,
       label: 'Select Workshop',
-      completed: !needsWorkshopSelection,
+      completed: workshopDone,
       current: needsWorkshopSelection,
       icon: <Building2 className="w-4 h-4" />,
     },
     {
       step: 2,
       label: 'Drop Off Vehicle',
-      completed: !needsVehicleDropOff && !needsWorkshopSelection,
+      completed: dropOffDone,
       current: needsVehicleDropOff,
       icon: <Car className="w-4 h-4" />,
     },
     {
       step: 3,
       label: 'Rental (Optional)',
-      completed: journeyComplete,
+      completed: rentalStepComplete,
       current: canSelectRental,
       icon: <KeyRound className="w-4 h-4" />,
     },
   ]
-  
-  const showJourneyProgress = needsWorkshopSelection || needsVehicleDropOff || canSelectRental
+
+  // Show the banner during the journey AND once complete (so user sees a success message)
+  const showJourneyProgress = needsWorkshopSelection || needsVehicleDropOff || canSelectRental || journeyComplete
 
   return (
     <div className="space-y-6">
@@ -342,11 +348,22 @@ export default function ClaimDetailPage() {
             <div className="bg-white rounded-lg p-4 border border-green-200">
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-6 h-6 text-green-600" />
-                <div>
+                <div className="flex-1">
                   <p className="font-semibold text-gray-900">Setup Complete!</p>
-                  <p className="text-sm text-gray-600">
-                    Your vehicle is at the workshop. A surveyor has been assigned and will inspect it soon.
+                  <p className="text-sm text-gray-600 mt-1">
+                    Your vehicle is at the workshop{claim.rentalStatus === 'RESERVED' ? ' and rental vehicle is reserved' : ''}.
                   </p>
+                  {claim.assignedSurveyorId ? (
+                    <div className="mt-2 flex items-center gap-2 text-sm text-green-700">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span className="font-medium">Surveyor assigned - Inspection will begin soon</span>
+                    </div>
+                  ) : (
+                    <div className="mt-2 flex items-center gap-2 text-sm text-blue-700">
+                      <Clock className="w-4 h-4" />
+                      <span>Assigning surveyor...</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -645,15 +662,22 @@ export default function ClaimDetailPage() {
                   <span className="text-xs text-gray-300 shrink-0">{formatBytes(doc.fileSizeBytes)}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <a
-                    href={doc.downloadUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => void documentsApi.openDocumentInNewTabWithAuth(doc.documentId)}
+                    className="text-primary-700 hover:underline text-xs"
+                    aria-label={`View ${doc.filename}`}
+                  >
+                    View
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void documentsApi.downloadDocumentWithAuth(doc.documentId, doc.filename)}
                     className="text-primary-700 hover:underline text-xs"
                     aria-label={`Download ${doc.filename}`}
                   >
                     Download
-                  </a>
+                  </button>
                   <button
                     onClick={() => {
                       if (window.confirm(`Remove "${doc.filename}"?`)) {

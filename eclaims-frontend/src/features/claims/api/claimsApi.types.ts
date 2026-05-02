@@ -31,11 +31,16 @@ export interface ClaimResponse {
   policeReportFiled: boolean;
   assignedSurveyorId?: string;
   assignedAdjustorId?: string;
+  estimatedAmount?: number;
   assessedAmount?: number;
   approvedAmount?: number;
   workshopId?: string;
   rejectionReason?: string;
   fraudFlag: boolean;
+  rentalReservationId?: string;
+  rentalStatus?: 'NOT_SELECTED' | 'RESERVED' | 'SKIPPED';
+  surveyCompletedAt?: string;
+  adjudicatedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

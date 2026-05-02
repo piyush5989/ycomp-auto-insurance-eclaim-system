@@ -1,8 +1,0 @@
-C:\Data\Codebase\sse\eclaims-backend\modules\workflow\src\main\java\com\yclaims\workflow\application\AutoAssignmentService.java
-C:\Data\Codebase\sse\eclaims-backend\modules\workflow\src\main\java\com\yclaims\workflow\infrastructure\persistence\AdjustorEntity.java
-C:\Data\Codebase\sse\eclaims-backend\modules\workflow\src\main\java\com\yclaims\workflow\infrastructure\persistence\AdjustorJpaRepository.java
-C:\Data\Codebase\sse\eclaims-backend\modules\workflow\src\main\java\com\yclaims\workflow\infrastructure\persistence\AssignmentEntity.java
-C:\Data\Codebase\sse\eclaims-backend\modules\workflow\src\main\java\com\yclaims\workflow\infrastructure\persistence\AssignmentJpaRepository.java
-C:\Data\Codebase\sse\eclaims-backend\modules\workflow\src\main\java\com\yclaims\workflow\infrastructure\persistence\SurveyorEntity.java
-C:\Data\Codebase\sse\eclaims-backend\modules\workflow\src\main\java\com\yclaims\workflow\infrastructure\persistence\SurveyorJpaRepository.java
-C:\Data\Codebase\sse\eclaims-backend\modules\workflow\src\main\java\com\yclaims\workflow\presentation\WorkflowController.java

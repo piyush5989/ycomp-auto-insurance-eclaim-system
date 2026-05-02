@@ -1,13 +1,15 @@
 import React, { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useClaimDetails } from '@/features/claims/hooks/useClaimDetails'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { httpClient } from '@/shared/api/httpClient'
 import { StatusBadge } from '@/shared/components/ui/Badge'
 import type { ClaimStatus } from '@/shared/utils/claimStatusLabel'
 import { formatCurrency } from '@/shared/utils/formatCurrency'
 import { useAuth } from '@/shared/auth/KeycloakProvider'
-import { ArrowLeft, CheckCircle, Camera } from 'lucide-react'
+import { documentsApi } from '@/features/documents/api/documentsApi'
+import type { DocumentType } from '@/features/documents/api/documentsApi.types'
+import { ArrowLeft, CheckCircle, Camera, Upload, X, FileImage, FileVideo } from 'lucide-react'
 
 export default function AssessClaimPage() {
   const { claimId } = useParams<{ claimId: string }>()
@@ -18,14 +20,65 @@ export default function AssessClaimPage() {
 
   const [assessedAmount, setAssessedAmount] = useState('')
   const [damageNotes, setDamageNotes] = useState('')
+  const [uploadingFiles, setUploadingFiles] = useState<File[]>([])
+  const [uploadedDocumentIds, setUploadedDocumentIds] = useState<string[]>([])
+
+  const { data: documents = [] } = useQuery({
+    queryKey: ['claim-documents', claimId],
+    queryFn: () => documentsApi.listByClaimId(claimId!).then((r) => r.data || []),
+    enabled: !!claimId,
+  })
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || [])
+    const validFiles = files.filter((file) => {
+      const isImage = file.type.startsWith('image/')
+      const isVideo = file.type.startsWith('video/')
+      const isUnder5MB = file.size <= 5 * 1024 * 1024
+      
+      if (!isImage && !isVideo) {
+        alert(`${file.name} is not an image or video`)
+        return false
+      }
+      if (!isUnder5MB) {
+        alert(`${file.name} is larger than 5MB`)
+        return false
+      }
+      return true
+    })
+    
+    setUploadingFiles((prev) => [...prev, ...validFiles].slice(0, 10)) // Max 10 files
+  }
+
+  const removeFile = (index: number) => {
+    setUploadingFiles((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const uploadAllFiles = async () => {
+    const uploadPromises = uploadingFiles.map((file) =>
+      documentsApi.uploadDocument(claimId!, file, 'PHOTO_DAMAGE' as DocumentType)
+    )
+    const results = await Promise.all(uploadPromises)
+    const ids = results.map((r) => r.data.documentId)
+    setUploadedDocumentIds((prev) => [...prev, ...ids])
+    setUploadingFiles([])
+    queryClient.invalidateQueries({ queryKey: ['claim-documents', claimId] })
+  }
 
   const submitAssessment = useMutation({
-    mutationFn: () =>
-      httpClient.patch(`/claims/${claimId}/status`, {
+    mutationFn: async () => {
+      // Upload any pending files first
+      if (uploadingFiles.length > 0) {
+        await uploadAllFiles()
+      }
+      
+      // Then submit assessment
+      return httpClient.patch(`/claims/${claimId}/status`, {
         targetStatus: 'SURVEYED',
         amount: parseFloat(assessedAmount),
         reason: damageNotes,
-      }).then((r) => r.data),
+      }).then((r) => r.data)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['claim', claimId] })
       queryClient.invalidateQueries({ queryKey: ['my-assignments'] })
@@ -152,6 +205,98 @@ export default function AssessClaimPage() {
               <p className="text-xs text-gray-500 mt-1">
                 Enter the total estimated cost for repairs based on your inspection
               </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Damage Photos/Videos
+              </label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <input
+                  type="file"
+                  id="damage-photos"
+                  accept="image/*,video/*"
+                  multiple
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <label htmlFor="damage-photos" className="cursor-pointer">
+                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-sm text-gray-600 mb-1">
+                    Click to upload damage photos or videos
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Max 5MB per file, up to 10 files (JPEG, PNG, MP4)
+                  </p>
+                </label>
+              </div>
+
+              {/* Preview pending uploads */}
+              {uploadingFiles.length > 0 && (
+                <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {uploadingFiles.map((file, idx) => (
+                    <div key={idx} className="relative border rounded-lg p-2 bg-gray-50">
+                      <button
+                        onClick={() => removeFile(idx)}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                      <div className="flex items-center gap-2">
+                        {file.type.startsWith('image/') ? (
+                          <FileImage className="w-8 h-8 text-blue-500" />
+                        ) : (
+                          <FileVideo className="w-8 h-8 text-purple-500" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-gray-900 truncate">{file.name}</p>
+                          <p className="text-xs text-gray-500">{(file.size / 1024).toFixed(1)} KB</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Show already uploaded documents */}
+              {documents.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-xs font-medium text-gray-700 mb-2">Already Uploaded ({documents.length})</p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {documents.map((doc) => (
+                      <div key={doc.documentId} className="border rounded-lg p-2 bg-green-50 border-green-200">
+                        <div className="flex items-center gap-2">
+                          {doc.contentType.startsWith('image/') ? (
+                            <FileImage className="w-8 h-8 text-green-600" />
+                          ) : (
+                            <FileVideo className="w-8 h-8 text-green-600" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-gray-900 truncate">{doc.filename}</p>
+                            <p className="text-xs text-green-700">✓ Uploaded</p>
+                            <div className="flex gap-2 mt-1">
+                              <button
+                                type="button"
+                                onClick={() => void documentsApi.openDocumentInNewTabWithAuth(doc.documentId)}
+                                className="text-xs text-primary-600 hover:underline"
+                              >
+                                View
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void documentsApi.downloadDocumentWithAuth(doc.documentId, doc.filename)}
+                                className="text-xs text-primary-600 hover:underline"
+                              >
+                                Download
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>

@@ -8,12 +8,12 @@ CREATE TABLE IF NOT EXISTS workflow.surveyors (
     active  BOOLEAN     NOT NULL DEFAULT TRUE
 );
 
--- Seed test surveyors for demo
+-- Seed surveyors using real Keycloak user IDs from eclaims-realm.json
+-- These IDs are explicitly set in Keycloak to ensure consistency
 INSERT INTO workflow.surveyors (id, name, email, region, active)
 VALUES
-    ('a1b2c3d4-0000-0000-0000-000000000001', 'Alice Surveyor',   'surveyor1@eclaims.test', 'EAST', TRUE),
-    ('a1b2c3d4-0000-0000-0000-000000000002', 'Bob Surveyor',     'surveyor2@eclaims.test', 'WEST', TRUE),
-    ('a1b2c3d4-0000-0000-0000-000000000003', 'Carol Surveyor',   'surveyor3@eclaims.test', 'EAST', TRUE)
+    ('20000000-0000-0000-0000-000000000001', 'Alice Surveyor',   'surveyor1@eclaims.test', 'EAST', TRUE),
+    ('20000000-0000-0000-0000-000000000002', 'Steve Surveyor',   'surveyor2@eclaims.test', 'WEST', TRUE)
 ON CONFLICT DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS workflow.assignments (

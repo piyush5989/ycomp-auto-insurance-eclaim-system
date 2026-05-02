@@ -31,7 +31,7 @@ public class ReportingController {
     private final ReportingApplicationService reportingService;
 
     @GetMapping("/kpi")
-    @PreAuthorize("hasAnyRole('REGIONAL_MGR','TOP_MANAGEMENT','AUDITOR')")
+    @PreAuthorize("@authz.isAllowed('report', 'kpi')")
     @Operation(summary = "Get claims KPI summary — pre-aggregated, cached snapshot")
     public ResponseEntity<ApiResponse<ClaimsKpiResponse>> getKpiSummary(
             @RequestParam(defaultValue = "global") String region) {
@@ -40,7 +40,7 @@ public class ReportingController {
     }
 
     @GetMapping("/fraud-ageing")
-    @PreAuthorize("hasAnyRole('AUDITOR','TOP_MANAGEMENT')")
+    @PreAuthorize("@authz.isAllowed('report', 'fraud-ageing')")
     @Operation(summary = "Fraud ageing report — claims flagged for fraud by age bucket")
     public ResponseEntity<ApiResponse<List<FraudAgeingResponse>>> getFraudAgeing() {
         List<FraudAgeingResponse> response = reportingService.getFraudAgeing(correlationId());
@@ -48,7 +48,7 @@ public class ReportingController {
     }
 
     @GetMapping("/regional")
-    @PreAuthorize("hasAnyRole('REGIONAL_MGR','TOP_MANAGEMENT','AUDITOR')")
+    @PreAuthorize("@authz.isAllowed('report', 'kpi-regional')")
     @Operation(summary = "Get regional KPI summary for a specific region")
     public ResponseEntity<ApiResponse<RegionalKpiResponse>> getRegionalKpi(
             @RequestParam String region) {
@@ -57,7 +57,7 @@ public class ReportingController {
     }
 
     @GetMapping("/regional/all")
-    @PreAuthorize("hasAnyRole('TOP_MANAGEMENT','AUDITOR')")
+    @PreAuthorize("@authz.isAllowed('report', 'all-regions')")
     @Operation(summary = "Get KPI comparison across all regions for top management")
     public ResponseEntity<ApiResponse<List<RegionalKpiResponse>>> getAllRegionalKpis() {
         List<RegionalKpiResponse> response = reportingService.getAllRegionalKpis(correlationId());
