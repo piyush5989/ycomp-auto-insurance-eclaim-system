@@ -20,13 +20,8 @@ export default function MyClaimsPage() {
   const { data: claims = [], isLoading } = useQuery({
     queryKey: ['adjustor-my-claims', statusFilter],
     queryFn: () => {
-      // Adjustors see claims that need adjudication or were adjudicated by them
-      const params = new URLSearchParams()
-      if (statusFilter === 'ALL') {
-        params.append('status', 'SURVEYED')
-        // Note: Backend needs to support OR queries or multiple status values
-        // For now, we'll filter client-side
-      } else {
+      const params = new URLSearchParams({ assignedTo: 'me' })
+      if (statusFilter !== 'ALL') {
         params.append('status', statusFilter)
       }
       return httpClient.get(`/claims?${params.toString()}`).then((r) => r.data.data?.data ?? [])

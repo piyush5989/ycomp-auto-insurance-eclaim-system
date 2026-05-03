@@ -155,11 +155,13 @@ $users = Invoke-RestMethod `
 $allOk = $true
 foreach ($u in $users) {
     $expected = switch ($u.username) {
-        "surveyor1"    { "20000000-0000-0000-0000-000000000001" }
-        "surveyor2"    { "20000000-0000-0000-0000-000000000002" }
-        "adjustor1"    { "30000000-0000-0000-0000-000000000001" }
-        "adjustor2"    { "30000000-0000-0000-0000-000000000002" }
-        default        { $null }
+        "surveyor1"        { "20000000-0000-0000-0000-000000000001" }
+        "surveyor2"        { "20000000-0000-0000-0000-000000000002" }
+        "adjustor1"        { "30000000-0000-0000-0000-000000000001" }
+        "adjustor2"        { "30000000-0000-0000-0000-000000000002" }
+        "autofix_east"     { "60000000-0000-0000-0000-000000000001" }
+        "quickrepair_west" { "60000000-0000-0000-0000-000000000002" }
+        default            { $null }
     }
     if ($expected -and $u.id -ne $expected) {
         Write-Warn "MISMATCH $($u.username): got $($u.id), expected $expected"
@@ -182,4 +184,6 @@ Write-Host "  1. Log in as surveyor1 / adjustor1 (Test@1234)" -ForegroundColor D
 Write-Host "     WorkforceProvisioningFilter confirms their rows." -ForegroundColor DarkCyan
 Write-Host "  2. Drop off a vehicle and verify My Assignments" -ForegroundColor DarkCyan
 Write-Host "     shows the claim - IDs now match throughout." -ForegroundColor DarkCyan
+Write-Host "  3. Log in as autofix_east / quickrepair_west (Test@1234)" -ForegroundColor DarkCyan
+Write-Host "     to test workshop portal - profile auto-resolves via keycloak_user_id." -ForegroundColor DarkCyan
 Write-Host "---------------------------------------------------" -ForegroundColor DarkCyan

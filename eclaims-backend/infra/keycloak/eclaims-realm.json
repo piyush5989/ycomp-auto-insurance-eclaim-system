@@ -160,7 +160,7 @@
           { "name": "perm:payment:read",     "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"payment\"]", "scopes": "[\"read\"]",     "applyPolicies": "[\"customer-policy\",\"case-manager-policy\",\"auditor-policy\"]" } },
 
           { "name": "perm:workshop:search",               "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"workshop\"]", "scopes": "[\"search\"]",               "applyPolicies": "[\"customer-policy\",\"case-manager-policy\"]" } },
-          { "name": "perm:workshop:work-order-read",      "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"workshop\"]", "scopes": "[\"work-order-read\"]",      "applyPolicies": "[\"customer-policy\",\"case-manager-policy\",\"auditor-policy\"]" } },
+          { "name": "perm:workshop:work-order-read",      "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"workshop\"]", "scopes": "[\"work-order-read\"]",      "applyPolicies": "[\"customer-policy\",\"case-manager-policy\",\"auditor-policy\",\"workshop-policy\"]" } },
           { "name": "perm:workshop:work-order-submit",    "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"workshop\"]", "scopes": "[\"work-order-submit\"]",    "applyPolicies": "[\"workshop-policy\"]" } },
           { "name": "perm:workshop:repair-status-update", "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"workshop\"]", "scopes": "[\"repair-status-update\"]", "applyPolicies": "[\"workshop-policy\"]" } },
           { "name": "perm:workshop:select",               "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"workshop\"]", "scopes": "[\"select\"]",               "applyPolicies": "[\"customer-policy\"]" } },
@@ -262,14 +262,27 @@
     },
     {
       "id": "60000000-0000-0000-0000-000000000001",
-      "username": "workshop1",
-      "email": "workshop1@eclaims.test",
-      "firstName": "Eve",
-      "lastName": "Workshop",
+      "username": "autofix_east",
+      "email": "autofix@workshop.test",
+      "firstName": "AutoFix",
+      "lastName": "Premium",
       "enabled": true,
       "emailVerified": true,
       "credentials": [{ "type": "password", "value": "Test@1234", "temporary": false }],
-      "realmRoles": ["workshop"]
+      "realmRoles": ["workshop"],
+      "attributes": { "workshopId": ["b1c2d3e4-0000-0000-0000-000000000001"], "region": ["EAST"] }
+    },
+    {
+      "id": "60000000-0000-0000-0000-000000000002",
+      "username": "quickrepair_west",
+      "email": "quickrepair@workshop.test",
+      "firstName": "QuickRepair",
+      "lastName": "Center",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "Test@1234", "temporary": false }],
+      "realmRoles": ["workshop"],
+      "attributes": { "workshopId": ["b1c2d3e4-0000-0000-0000-000000000002"], "region": ["WEST"] }
     },
     {
       "id": "70000000-0000-0000-0000-000000000001",

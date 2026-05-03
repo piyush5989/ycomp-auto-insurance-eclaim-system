@@ -12,9 +12,10 @@ interface NavItem {
 interface SidebarProps {
   navItems: NavItem[];
   title: string;
+  subtitle?: string;
 }
 
-export function Sidebar({ navItems, title }: SidebarProps) {
+export function Sidebar({ navItems, title, subtitle }: SidebarProps) {
   const { username, logout } = useAuth();
 
   return (
@@ -22,6 +23,7 @@ export function Sidebar({ navItems, title }: SidebarProps) {
       <div className="px-6 py-5 border-b border-primary-700">
         <h1 className="text-lg font-bold tracking-tight">eClaims</h1>
         <p className="text-primary-200 text-xs mt-0.5">{title}</p>
+        {subtitle && <p className="text-primary-300 text-xs mt-0.5">{subtitle}</p>}
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">

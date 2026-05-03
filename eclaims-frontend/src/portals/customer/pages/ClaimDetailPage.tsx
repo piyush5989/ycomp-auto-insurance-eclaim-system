@@ -9,12 +9,13 @@ import { format } from 'date-fns'
 import {
   ArrowLeft, AlertTriangle, Paperclip, Upload, Wrench,
   Calendar, FileText, CheckCircle2, Clock, Trash2,
-  Pencil, MessageSquarePlus, MessageSquare, Save, X,
+  Pencil, MessageSquarePlus, MessageSquare, Save, X, XCircle,
   Building2, Car, KeyRound
 } from 'lucide-react'
 import { documentsApi } from '@/features/documents/api/documentsApi'
 import type { DocumentType } from '@/features/documents/api/documentsApi.types'
 import { claimsApi } from '@/features/claims/api/claimsApi'
+import { workshopsApi } from '@/features/workshops/api/workshopsApi'
 import { httpClient } from '@/shared/api/httpClient'
 import type { ApiResponse } from '@/shared/types/ApiResponse'
 import imageCompression from 'browser-image-compression'
@@ -135,6 +136,14 @@ export default function ClaimDetailPage() {
     staleTime: 0,
     retry: false,
     select: (r) => r.data,
+  })
+
+  const { data: workshopData } = useQuery({
+    queryKey: ['workshop', claim?.workshopId],
+    queryFn: () => workshopsApi.getById(claim!.workshopId!).then((r) => r.data),
+    enabled: !!claim?.workshopId,
+    staleTime: 5 * 60_000,
+    retry: false,
   })
 
   const uploadMutation = useMutation({
@@ -353,7 +362,29 @@ export default function ClaimDetailPage() {
                   <p className="text-sm text-gray-600 mt-1">
                     Your vehicle is at the workshop{claim.rentalStatus === 'RESERVED' ? ' and rental vehicle is reserved' : ''}.
                   </p>
-                  {claim.assignedSurveyorId ? (
+                  {workshopData && (
+                    <div className="mt-3 bg-gray-50 rounded-lg px-3 py-2 text-sm">
+                      <p className="font-medium text-gray-900 flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5 text-primary-700" />
+                        {workshopData.name}
+                      </p>
+                      <p className="text-gray-500 text-xs mt-0.5">
+                        {workshopData.address}, {workshopData.city} {workshopData.zipCode}
+                      </p>
+                      <p className="text-gray-500 text-xs">{workshopData.phone}</p>
+                    </div>
+                  )}
+                  {claim.status === 'APPROVED' ? (
+                    <div className="mt-2 flex items-center gap-2 text-sm text-green-700">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span className="font-medium">Your claim has been approved! Ready for payment.</span>
+                    </div>
+                  ) : claim.status === 'REJECTED' ? (
+                    <div className="mt-2 flex items-center gap-2 text-sm text-red-700">
+                      <XCircle className="w-4 h-4" />
+                      <span className="font-medium">Claim has been rejected</span>
+                    </div>
+                  ) : claim.assignedSurveyorId ? (
                     <div className="mt-2 flex items-center gap-2 text-sm text-green-700">
                       <CheckCircle2 className="w-4 h-4" />
                       <span className="font-medium">Surveyor assigned - Inspection will begin soon</span>

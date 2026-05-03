@@ -25,6 +25,42 @@ public class WorkshopController {
 
     private final WorkshopApplicationService workshopService;
 
+    @GetMapping("/workshops/{workshopId}")
+    @PreAuthorize("@authz.isAllowed('workshop', 'search')")
+    @Operation(summary = "Get a single workshop by ID")
+    public ResponseEntity<ApiResponse<WorkshopResponse>> getWorkshopById(
+            @PathVariable UUID workshopId) {
+        WorkshopResponse workshop = workshopService.getWorkshopById(workshopId);
+        return ResponseEntity.ok(ApiResponse.success(workshop, correlationId()));
+    }
+
+    @GetMapping("/workshops/my-claims")
+    @PreAuthorize("@authz.isAllowed('workshop', 'work-order-read')")
+    @Operation(summary = "Get all claims assigned to the currently logged-in workshop",
+               description = "Returns claims where this workshop has been selected and vehicle dropped off, including accident details for workshop context.")
+    public ResponseEntity<ApiResponse<java.util.List<java.util.Map<String, Object>>>> getMyClaims() {
+        java.util.List<java.util.Map<String, Object>> claims =
+                workshopService.getMyClaimsForWorkshop(UserContextHolder.currentUserId());
+        return ResponseEntity.ok(ApiResponse.success(claims, correlationId()));
+    }
+
+    @GetMapping("/workshops/my-profile")
+    @PreAuthorize("@authz.isAllowed('workshop', 'work-order-read')")
+    @Operation(summary = "Get the profile of the currently logged-in workshop",
+               description = "Resolves the partner workshop account from the Keycloak subject claim.")
+    public ResponseEntity<ApiResponse<WorkshopResponse>> getMyWorkshopProfile() {
+        WorkshopResponse profile = workshopService.getMyWorkshopProfile(UserContextHolder.currentUserId());
+        return ResponseEntity.ok(ApiResponse.success(profile, correlationId()));
+    }
+
+    @GetMapping("/workshops/my-work-orders")
+    @PreAuthorize("@authz.isAllowed('workshop', 'work-order-read')")
+    @Operation(summary = "List all work orders belonging to the currently logged-in workshop")
+    public ResponseEntity<ApiResponse<List<WorkOrderResponse>>> getMyWorkOrders() {
+        List<WorkOrderResponse> orders = workshopService.getMyWorkOrders(UserContextHolder.currentUserId());
+        return ResponseEntity.ok(ApiResponse.success(orders, correlationId()));
+    }
+
     @GetMapping("/workshops")
     @PreAuthorize("@authz.isAllowed('workshop', 'search')")
     @Operation(
@@ -66,13 +102,15 @@ public class WorkshopController {
 
     @PatchMapping("/work-orders/{workOrderId}/repair-status")
     @PreAuthorize("@authz.isAllowed('workshop', 'repair-status-update')")
-    @Operation(summary = "Update repair status for a work order — publishes repair.status.updated event")
+    @Operation(summary = "Update repair status for a work order — optionally set final cost and completion date")
     public ResponseEntity<ApiResponse<WorkOrderResponse>> updateRepairStatus(
             @PathVariable UUID workOrderId,
             @RequestParam String status,
-            @RequestParam(required = false) String note) {
+            @RequestParam(required = false) String note,
+            @RequestParam(required = false) java.math.BigDecimal finalCost,
+            @RequestParam(required = false) java.time.LocalDate estimatedCompletionDate) {
         WorkOrderResponse response = workshopService.updateRepairStatus(
-                workOrderId, status, note, correlationId());
+                workOrderId, status, note, finalCost, estimatedCompletionDate, correlationId());
         return ResponseEntity.ok(ApiResponse.success(response, correlationId()));
     }
 

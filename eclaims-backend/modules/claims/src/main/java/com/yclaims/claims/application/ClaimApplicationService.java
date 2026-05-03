@@ -253,6 +253,16 @@ public class ClaimApplicationService {
 
         Claim saved = claimRepository.save(claim);
 
+        // Auto-persist surveyor/adjustor notes as endorsements so customers and staff can see them
+        if (cmd.targetStatus() == ClaimStatus.SURVEYED
+                && cmd.reason() != null && !cmd.reason().isBlank()) {
+            addEndorsement(cmd.claimId(), cmd.reason(), cmd.performedByUserId(), "SURVEYOR_NOTE");
+        }
+        if ((cmd.targetStatus() == ClaimStatus.APPROVED || cmd.targetStatus() == ClaimStatus.REJECTED)
+                && cmd.reason() != null && !cmd.reason().isBlank()) {
+            addEndorsement(cmd.claimId(), cmd.reason(), cmd.performedByUserId(), "ADJUDICATOR_NOTE");
+        }
+
         // Publish status change event
         publishStatusChangedEvent(saved, previous, cmd);
 

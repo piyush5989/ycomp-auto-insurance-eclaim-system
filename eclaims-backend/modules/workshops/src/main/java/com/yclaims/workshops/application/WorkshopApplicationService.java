@@ -28,6 +28,54 @@ public class WorkshopApplicationService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final JdbcTemplate jdbcTemplate;
 
+    @Transactional(readOnly = true)
+    public WorkshopResponse getWorkshopById(UUID workshopId) {
+        WorkshopEntity entity = workshopRepository.findById(workshopId)
+                .orElseThrow(() -> new NotFoundException("Workshop", workshopId.toString()));
+        return toResponse(entity);
+    }
+
+    @Transactional(readOnly = true)
+    public List<java.util.Map<String, Object>> getMyClaimsForWorkshop(String keycloakUserId) {
+        WorkshopEntity workshop = workshopRepository.findByKeycloakUserId(keycloakUserId)
+                .orElseThrow(() -> new NotFoundException("Workshop", "keycloakUserId=" + keycloakUserId));
+        return jdbcTemplate.queryForList(
+                """
+                SELECT id AS claim_id,
+                       status,
+                       vehicle_registration,
+                       policy_number,
+                       incident_date,
+                       incident_location,
+                       description,
+                       assessed_amount,
+                       approved_amount,
+                       rejection_reason,
+                       fraud_flag,
+                       created_at,
+                       updated_at
+                FROM claims.claims
+                WHERE workshop_id = ?
+                ORDER BY updated_at DESC
+                """,
+                workshop.getId().toString());
+    }
+
+    @Transactional(readOnly = true)
+    public WorkshopResponse getMyWorkshopProfile(String keycloakUserId) {
+        WorkshopEntity entity = workshopRepository.findByKeycloakUserId(keycloakUserId)
+                .orElseThrow(() -> new NotFoundException("Workshop", "keycloakUserId=" + keycloakUserId));
+        return toResponse(entity);
+    }
+
+    @Transactional(readOnly = true)
+    public List<WorkOrderResponse> getMyWorkOrders(String keycloakUserId) {
+        WorkshopEntity entity = workshopRepository.findByKeycloakUserId(keycloakUserId)
+                .orElseThrow(() -> new NotFoundException("Workshop", "keycloakUserId=" + keycloakUserId));
+        return workOrderRepository.findByWorkshopIdOrderByCreatedAtDesc(entity.getId())
+                .stream().map(wo -> toWorkOrderResponse(wo, entity)).toList();
+    }
+
     /**
      * Workshop/provider search — filtered by providerType and location (city or zip).
      * Cache disabled temporarily due to Redis serialization issues.
@@ -78,11 +126,15 @@ public class WorkshopApplicationService {
 
     @Transactional
     public WorkOrderResponse updateRepairStatus(UUID workOrderId, String status,
-                                                 String note, String correlationId) {
+                                                 String note, java.math.BigDecimal finalCost,
+                                                 java.time.LocalDate estimatedCompletionDate,
+                                                 String correlationId) {
         WorkOrderEntity entity = workOrderRepository.findById(workOrderId)
                 .orElseThrow(() -> new NotFoundException("WorkOrder", workOrderId.toString()));
 
         entity.setRepairStatus(status);
+        if (finalCost != null) entity.setFinalCost(finalCost);
+        if (estimatedCompletionDate != null) entity.setEstimatedCompletionDate(estimatedCompletionDate);
         entity.setUpdatedAt(Instant.now());
         workOrderRepository.save(entity);
 

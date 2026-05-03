@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useClaimsList } from '@/features/claims/hooks/useClaimsList';
 import { useAuth } from '@/shared/auth/KeycloakProvider';
 import { StatusBadge } from '@/shared/components/ui/Badge';
@@ -12,6 +12,7 @@ import { PlusCircle, FileText, TrendingUp } from 'lucide-react';
 
 export default function DashboardPage() {
   const { username } = useAuth();
+  const navigate = useNavigate();
   const { data: claims = [], isLoading } = useClaimsList();
 
   const activeClaims = claims.filter((c) => !['SETTLED', 'REJECTED', 'WITHDRAWN', 'ARCHIVED'].includes(c.status));
@@ -82,7 +83,7 @@ export default function DashboardPage() {
           columns={columns}
           data={claims.slice(0, 5)}
           isLoading={isLoading}
-          onRowClick={(row) => window.location.href = `/customer/claims/${row.claimId}`}
+          onRowClick={(row) => navigate(`/customer/claims/${row.claimId}`)}
           emptyMessage="No claims yet. Submit your first claim to get started."
         />
       </div>

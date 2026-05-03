@@ -20,6 +20,7 @@ public class WorkshopEntity {
     private double rating;
     private boolean active;
     @Column(name = "provider_type", nullable = false, length = 30) private String providerType;
+    @Column(name = "keycloak_user_id", length = 36, unique = true) private String keycloakUserId;
 
     @Override public boolean equals(Object o) { if (this == o) return true; if (!(o instanceof WorkshopEntity x)) return false; return id != null && id.equals(x.id); }
     @Override public int hashCode() { return id != null ? id.hashCode() : 0; }
