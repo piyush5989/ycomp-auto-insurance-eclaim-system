@@ -169,7 +169,10 @@ public class Claim extends AggregateRoot {
             throw new InvalidClaimStateException(id, "Approved amount must be positive");
         }
         this.approvedAmount = approvedAmount;
-        this.workshopId = workshopId;
+        // Only update workshopId if explicitly provided; preserve the existing value set during workshop selection
+        if (workshopId != null && !workshopId.isBlank()) {
+            this.workshopId = workshopId;
+        }
         this.status = ClaimStatus.APPROVED;
         this.updatedAt = Instant.now();
         registerEvent(new ClaimStatusChangedEvent(id, ClaimStatus.UNDER_ADJUDICATION, ClaimStatus.APPROVED, "adjustor", correlationId));
@@ -270,6 +273,12 @@ public class Claim extends AggregateRoot {
                 "Cannot reassign adjustor for claim in terminal status: " + this.status);
         }
         this.assignedAdjustorId = newAdjustorId;
+        
+        // If claim was in SURVEYED status, transition to UNDER_ADJUDICATION when adjustor is assigned
+        if (this.status == ClaimStatus.SURVEYED) {
+            this.status = ClaimStatus.UNDER_ADJUDICATION;
+        }
+        
         this.updatedAt = Instant.now();
     }
 

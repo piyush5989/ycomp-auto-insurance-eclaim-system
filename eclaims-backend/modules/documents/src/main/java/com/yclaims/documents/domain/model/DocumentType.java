@@ -11,5 +11,9 @@ public enum DocumentType {
     MEDICAL_REPORT,
     INVOICE,                // Customer-facing: payment invoices
     WITNESS_STATEMENT,
+    WORKSHOP_PROGRESS_PHOTO,  // Workshop: repair progress photos
+    WORKSHOP_PROGRESS_VIDEO,  // Workshop: repair progress videos  
+    WORKSHOP_BEFORE_PHOTO,    // Workshop: vehicle condition on arrival
+    WORKSHOP_AFTER_PHOTO,     // Workshop: completed repair photos
     OTHER
 }

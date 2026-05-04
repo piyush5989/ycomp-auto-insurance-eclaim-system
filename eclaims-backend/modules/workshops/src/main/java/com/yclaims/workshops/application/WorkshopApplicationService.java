@@ -3,7 +3,9 @@ package com.yclaims.workshops.application;
 import com.yclaims.contracts.events.DomainEvent;
 import com.yclaims.contracts.events.v1.RepairStatusUpdatedPayload;
 import com.yclaims.contracts.events.v1.VehicleDroppedOffPayload;
+import com.yclaims.documents.application.DocumentApplicationService;
 import com.yclaims.kernel.exception.NotFoundException;
+import com.yclaims.kernel.security.UserContextHolder;
 import com.yclaims.workshops.infrastructure.persistence.*;
 import com.yclaims.workshops.presentation.dto.*;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +15,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.util.List;
@@ -25,8 +28,10 @@ public class WorkshopApplicationService {
 
     private final WorkshopJpaRepository workshopRepository;
     private final WorkOrderJpaRepository workOrderRepository;
+    private final WorkOrderStatusHistoryRepository statusHistoryRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final JdbcTemplate jdbcTemplate;
+    private final DocumentApplicationService documentService;
 
     @Transactional(readOnly = true)
     public WorkshopResponse getWorkshopById(UUID workshopId) {
@@ -107,6 +112,24 @@ public class WorkshopApplicationService {
     }
 
     @Transactional
+    public UUID uploadWorkOrderMedia(UUID workOrderId, String documentType,
+                                     MultipartFile file, String userId, String correlationId) {
+        WorkOrderEntity workOrder = workOrderRepository.findById(workOrderId)
+                .orElseThrow(() -> new NotFoundException("WorkOrder", workOrderId.toString()));
+        
+        try {
+            var response = documentService.uploadDocument(
+                    workOrder.getClaimId(), documentType, file, userId, correlationId);
+            log.info("[{}] Workshop media uploaded | WorkOrder: {} | ClaimId: {} | DocumentId: {} | Type: {}",
+                    correlationId, workOrderId, workOrder.getClaimId(), response.getDocumentId(), documentType);
+            return response.getDocumentId();
+        } catch (Exception e) {
+            log.error("[{}] Failed to upload workshop media for work order {}", correlationId, workOrderId, e);
+            throw new RuntimeException("Failed to upload media: " + e.getMessage(), e);
+        }
+    }
+
+    @Transactional
     public WorkOrderResponse submitWorkOrder(WorkOrderRequest request, String correlationId) {
         WorkOrderEntity entity = new WorkOrderEntity();
         entity.setId(UUID.randomUUID());
@@ -138,6 +161,17 @@ public class WorkshopApplicationService {
         entity.setUpdatedAt(Instant.now());
         workOrderRepository.save(entity);
 
+        // Save status change to history for customer tracking (FR9)
+        WorkOrderStatusHistoryEntity historyEntry = new WorkOrderStatusHistoryEntity();
+        historyEntry.setId(UUID.randomUUID());
+        historyEntry.setWorkOrderId(workOrderId);
+        historyEntry.setStatus(status);
+        historyEntry.setNote(note);
+        historyEntry.setEstimatedCompletionDate(estimatedCompletionDate);
+        historyEntry.setChangedByUserId(UserContextHolder.currentUserId());
+        historyEntry.setChangedAt(Instant.now());
+        statusHistoryRepository.save(historyEntry);
+
         WorkshopEntity workshop = workshopRepository.findById(entity.getWorkshopId()).orElse(null);
         publishRepairStatusEvent(entity, workshop, note, correlationId);
 
@@ -146,11 +180,26 @@ public class WorkshopApplicationService {
 
     @Transactional(readOnly = true)
     public WorkOrderResponse getWorkOrderByClaimId(UUID claimId, String correlationId) {
-        WorkOrderEntity entity = workOrderRepository
+        return workOrderRepository
                 .findFirstByClaimIdOrderByCreatedAtDesc(claimId)
-                .orElseThrow(() -> new NotFoundException("WorkOrder", "claimId=" + claimId));
-        WorkshopEntity workshop = workshopRepository.findById(entity.getWorkshopId()).orElse(null);
-        return toWorkOrderResponse(entity, workshop);
+                .map(entity -> {
+                    WorkshopEntity workshop = workshopRepository.findById(entity.getWorkshopId()).orElse(null);
+                    return toWorkOrderResponse(entity, workshop);
+                })
+                .orElse(null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<WorkOrderStatusHistoryResponse> getWorkOrderStatusHistory(UUID workOrderId) {
+        return statusHistoryRepository.findByWorkOrderIdOrderByChangedAtAsc(workOrderId).stream()
+                .map(entity -> new WorkOrderStatusHistoryResponse(
+                        entity.getId(),
+                        entity.getStatus(),
+                        entity.getNote(),
+                        entity.getEstimatedCompletionDate(),
+                        entity.getChangedAt()
+                ))
+                .toList();
     }
 
     /**

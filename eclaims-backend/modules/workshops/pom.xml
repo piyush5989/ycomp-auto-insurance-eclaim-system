@@ -14,6 +14,7 @@
     <dependencies>
         <dependency><groupId>com.yclaims</groupId><artifactId>eclaims-kernel</artifactId></dependency>
         <dependency><groupId>com.yclaims</groupId><artifactId>eclaims-contracts</artifactId></dependency>
+        <dependency><groupId>com.yclaims</groupId><artifactId>eclaims-documents</artifactId></dependency>
         <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>
         <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-data-jpa</artifactId></dependency>
         <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-validation</artifactId></dependency>

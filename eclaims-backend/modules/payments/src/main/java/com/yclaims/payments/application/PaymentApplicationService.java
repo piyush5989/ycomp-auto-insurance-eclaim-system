@@ -10,13 +10,29 @@ import com.yclaims.payments.presentation.dto.InitiatePaymentRequest;
 import com.yclaims.payments.presentation.dto.PaymentResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -28,10 +44,48 @@ import java.util.UUID;
 @Slf4j
 public class PaymentApplicationService {
 
+    @Value("${eclaims.payments.processing-fee:10.00}")
+    private BigDecimal processingFeeAmount;
+
     private final PaymentGatewayPort gatewayPort;
     private final PaymentJpaRepository paymentRepository;
     private final RedisTemplate<String, Object> redisTemplate;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final JdbcTemplate jdbcTemplate;
+
+    @Transactional
+    public BigDecimal calculateFinalBill(UUID claimId, String correlationId) {
+        // Get claim approved amount and final cost from workshop
+        Map<String, Object> claimData = jdbcTemplate.queryForMap(
+                """
+                SELECT c.approved_amount, wo.final_cost 
+                FROM claims.claims c 
+                LEFT JOIN workshops.work_orders wo ON c.id = wo.claim_id 
+                WHERE c.id = ?::uuid
+                """, claimId.toString());
+
+        BigDecimal approvedAmount = (BigDecimal) claimData.get("approved_amount");
+        BigDecimal finalCost = (BigDecimal) claimData.get("final_cost");
+        
+        if (approvedAmount == null) {
+            throw new IllegalStateException("Claim must be approved before payment calculation");
+        }
+
+        // Final Bill = Max(Workshop Final Cost - Approved Amount, 0) + Processing Fee (eclaims.payments.processing-fee)
+        BigDecimal processingFee = processingFeeAmount;
+        BigDecimal workshopDifference = BigDecimal.ZERO;
+        
+        if (finalCost != null && finalCost.compareTo(approvedAmount) > 0) {
+            workshopDifference = finalCost.subtract(approvedAmount);
+        }
+
+        BigDecimal finalBill = workshopDifference.add(processingFee);
+        
+        log.info("[{}] Final bill calculation | Claim: {} | Approved: {} | Final Cost: {} | Processing Fee: {} | Final Bill: {}",
+                correlationId, claimId, approvedAmount, finalCost, processingFee, finalBill);
+        
+        return finalBill;
+    }
 
     @Transactional
     public PaymentResponse initiatePayment(String idempotencyKey,
@@ -47,16 +101,19 @@ public class PaymentApplicationService {
             return existing;
         }
 
+        // Calculate the actual final bill amount (override request amount)
+        BigDecimal finalBillAmount = calculateFinalBill(request.claimId(), correlationId);
+        
         UUID paymentId = UUID.randomUUID();
         PaymentGatewayPort.PaymentGatewayResult result = gatewayPort.initiatePayment(
-                paymentId, userId, request.amount(), request.currency(),
+                paymentId, userId, finalBillAmount, request.currency(),
                 "Claim settlement: " + request.claimId());
 
         PaymentEntity entity = new PaymentEntity();
         entity.setId(paymentId);
         entity.setClaimId(request.claimId());
         entity.setCustomerId(userId);
-        entity.setAmount(request.amount());
+        entity.setAmount(finalBillAmount);  // Use calculated amount, not request amount
         entity.setCurrency(request.currency());
         entity.setStatus(result.success() ? "SETTLED" : "FAILED");
         entity.setGatewayTransactionId(result.gatewayTransactionId());
@@ -75,6 +132,8 @@ public class PaymentApplicationService {
         // Publish payment settled event
         if (result.success()) {
             publishPaymentSettledEvent(entity, correlationId);
+            // Update claim status to indicate payment is complete
+            updateClaimStatusAfterPayment(request.claimId(), correlationId);
         }
 
         return response;
@@ -101,6 +160,128 @@ public class PaymentApplicationService {
                 "v1", Instant.now(), payload
         );
         kafkaTemplate.send("payment-events", entity.getId().toString(), event);
+    }
+
+    private void updateClaimStatusAfterPayment(UUID claimId, String correlationId) {
+        try {
+            jdbcTemplate.update(
+                    "UPDATE claims.claims SET status = 'PAYMENT_PROCESSED' WHERE id = ?::uuid",
+                    claimId.toString());
+            log.info("[{}] Updated claim {} status to PAYMENT_PROCESSED after successful payment", 
+                    correlationId, claimId);
+        } catch (Exception e) {
+            log.error("[{}] Failed to update claim status after payment for claim {}", 
+                    correlationId, claimId, e);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> generateReceipt(UUID paymentId, String correlationId) {
+        PaymentEntity payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new NotFoundException("Payment", paymentId.toString()));
+        Map<String, Object> receipt = buildReceiptData(payment);
+
+        log.info("[{}] Generated receipt for payment {}", correlationId, paymentId);
+        return receipt;
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] generateReceiptPdfByClaimId(UUID claimId, String correlationId) {
+        PaymentEntity payment = paymentRepository
+                .findTopByClaimIdAndStatusOrderBySettledAtDesc(claimId, "SETTLED")
+                .orElseThrow(() -> new NotFoundException("SettledPaymentForClaim", claimId.toString()));
+
+        Map<String, Object> receipt = buildReceiptData(payment);
+        byte[] pdfBytes = buildReceiptPdf(receipt);
+        log.info("[{}] Generated receipt PDF for claim {} payment {}", correlationId, claimId, payment.getId());
+        return pdfBytes;
+    }
+
+    private Map<String, Object> buildReceiptData(PaymentEntity payment) {
+        Map<String, Object> claimDetails = jdbcTemplate.queryForMap(
+                """
+                SELECT c.policy_number, c.vehicle_registration, c.incident_date,
+                       c.approved_amount, w.name as workshop_name, w.phone as workshop_phone,
+                       wo.final_cost
+                FROM claims.claims c
+                LEFT JOIN workshops.workshops w ON c.workshop_id::uuid = w.id
+                LEFT JOIN workshops.work_orders wo ON c.id = wo.claim_id
+                WHERE c.id = ?::uuid
+                """, payment.getClaimId().toString());
+
+        Map<String, Object> receipt = new HashMap<>();
+        receipt.put("receiptId", payment.getId().toString());
+        receipt.put("claimId", payment.getClaimId().toString());
+        receipt.put("policyNumber", claimDetails.get("policy_number"));
+        receipt.put("vehicleRegistration", claimDetails.get("vehicle_registration"));
+        receipt.put("incidentDate", claimDetails.get("incident_date"));
+        receipt.put("approvedAmount", claimDetails.get("approved_amount"));
+        receipt.put("workshopFinalCost", claimDetails.get("final_cost"));
+        receipt.put("workshopName", claimDetails.get("workshop_name"));
+        receipt.put("workshopPhone", claimDetails.get("workshop_phone"));
+        receipt.put("processingFee", processingFeeAmount);
+        receipt.put("totalPaid", payment.getAmount());
+        receipt.put("currency", payment.getCurrency());
+        receipt.put("paymentDate", payment.getSettledAt());
+        receipt.put("transactionId", payment.getGatewayTransactionId());
+        return receipt;
+    }
+
+    private byte[] buildReceiptPdf(Map<String, Object> receipt) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")
+                .withZone(ZoneId.systemDefault());
+        List<String> lines = new ArrayList<>();
+        lines.add("eClaims Payment Receipt");
+        lines.add("");
+        lines.add("Receipt ID: " + value(receipt.get("receiptId")));
+        lines.add("Claim ID: " + value(receipt.get("claimId")));
+        lines.add("Policy Number: " + value(receipt.get("policyNumber")));
+        lines.add("Vehicle: " + value(receipt.get("vehicleRegistration")));
+        lines.add("Workshop: " + value(receipt.get("workshopName")));
+        lines.add("Workshop Phone: " + value(receipt.get("workshopPhone")));
+        lines.add("");
+        lines.add("Approved Amount: " + value(receipt.get("approvedAmount")));
+        lines.add("Workshop Final Cost: " + value(receipt.get("workshopFinalCost")));
+        lines.add("Processing Fee: " + value(receipt.get("processingFee")));
+        lines.add("Total Paid: " + value(receipt.get("totalPaid")) + " " + value(receipt.get("currency")));
+        lines.add("");
+        lines.add("Payment Date: " + formatInstant(receipt.get("paymentDate"), formatter));
+        lines.add("Transaction ID: " + value(receipt.get("transactionId")));
+
+        try (PDDocument document = new PDDocument(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            PDPage page = new PDPage(PDRectangle.A4);
+            document.addPage(page);
+            try (PDPageContentStream stream = new PDPageContentStream(document, page)) {
+                stream.beginText();
+                stream.newLineAtOffset(50, 780);
+                stream.setLeading(18f);
+                stream.setFont(PDType1Font.HELVETICA_BOLD, 16);
+                stream.showText(lines.get(0));
+                stream.newLine();
+                stream.newLine();
+                stream.setFont(PDType1Font.HELVETICA, 11);
+                for (int i = 1; i < lines.size(); i++) {
+                    stream.showText(lines.get(i));
+                    stream.newLine();
+                }
+                stream.endText();
+            }
+            document.save(out);
+            return out.toByteArray();
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to generate receipt PDF", e);
+        }
+    }
+
+    private String value(Object v) {
+        return v == null ? "-" : String.valueOf(v);
+    }
+
+    private String formatInstant(Object v, DateTimeFormatter formatter) {
+        if (v instanceof Instant instant) {
+            return formatter.format(instant);
+        }
+        return value(v);
     }
 
     private PaymentResponse toResponse(PaymentEntity entity, boolean isNew) {

@@ -1,7 +1,9 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { FileText, Car, AlertTriangle, MapPin, Calendar, CheckCircle2, Clock } from 'lucide-react'
+import { useMutation } from '@tanstack/react-query'
 import { useMyClaims } from '@/features/workshops/hooks/useMyClaims'
+import { downloadClaimReceiptPdf } from '@/shared/api/paymentReceiptApi'
 import { format } from 'date-fns'
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
@@ -21,6 +23,9 @@ const formatAmount = (v: number | null) =>
 
 export default function MyClaimsPage() {
   const { data: claims = [], isLoading } = useMyClaims()
+  const downloadReceiptMutation = useMutation({
+    mutationFn: (claimId: string) => downloadClaimReceiptPdf(claimId),
+  })
 
   const activeClaims = claims.filter((c) =>
     !['SETTLED', 'REJECTED'].includes(c.status)
@@ -96,12 +101,24 @@ export default function MyClaimsPage() {
               <span>Approved: <span className="font-medium text-green-700">{formatAmount(claim.approved_amount)}</span></span>
             )}
           </div>
-          <Link
-            to={`/workshop/work-orders/new?claimId=${claim.claim_id}`}
-            className="text-xs text-blue-600 hover:underline font-medium"
-          >
-            + Work Order
-          </Link>
+          <div className="flex items-center gap-3">
+            {claim.status === 'SETTLED' && (
+              <button
+                type="button"
+                onClick={() => downloadReceiptMutation.mutate(claim.claim_id)}
+                disabled={downloadReceiptMutation.isPending}
+                className="text-xs text-green-700 hover:underline font-medium disabled:opacity-60"
+              >
+                {downloadReceiptMutation.isPending ? 'Preparing receipt...' : 'Download Receipt PDF'}
+              </button>
+            )}
+            <Link
+              to={`/workshop/work-orders/new?claimId=${claim.claim_id}`}
+              className="text-xs text-blue-600 hover:underline font-medium"
+            >
+              + Work Order
+            </Link>
+          </div>
         </div>
       </div>
     )

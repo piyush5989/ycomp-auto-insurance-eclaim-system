@@ -35,7 +35,7 @@ public class WorkshopController {
     }
 
     @GetMapping("/workshops/my-claims")
-    @PreAuthorize("@authz.isAllowed('workshop', 'work-order-read')")
+    @PreAuthorize("hasRole('WORKSHOP') or @authz.isAllowed('workshop', 'work-order-read')")
     @Operation(summary = "Get all claims assigned to the currently logged-in workshop",
                description = "Returns claims where this workshop has been selected and vehicle dropped off, including accident details for workshop context.")
     public ResponseEntity<ApiResponse<java.util.List<java.util.Map<String, Object>>>> getMyClaims() {
@@ -45,7 +45,7 @@ public class WorkshopController {
     }
 
     @GetMapping("/workshops/my-profile")
-    @PreAuthorize("@authz.isAllowed('workshop', 'work-order-read')")
+    @PreAuthorize("hasRole('WORKSHOP') or @authz.isAllowed('workshop', 'work-order-read')")
     @Operation(summary = "Get the profile of the currently logged-in workshop",
                description = "Resolves the partner workshop account from the Keycloak subject claim.")
     public ResponseEntity<ApiResponse<WorkshopResponse>> getMyWorkshopProfile() {
@@ -54,7 +54,7 @@ public class WorkshopController {
     }
 
     @GetMapping("/workshops/my-work-orders")
-    @PreAuthorize("@authz.isAllowed('workshop', 'work-order-read')")
+    @PreAuthorize("hasRole('WORKSHOP') or @authz.isAllowed('workshop', 'work-order-read')")
     @Operation(summary = "List all work orders belonging to the currently logged-in workshop")
     public ResponseEntity<ApiResponse<List<WorkOrderResponse>>> getMyWorkOrders() {
         List<WorkOrderResponse> orders = workshopService.getMyWorkOrders(UserContextHolder.currentUserId());
@@ -79,15 +79,28 @@ public class WorkshopController {
     }
 
     @GetMapping("/claims/{claimId}/work-order")
-    @PreAuthorize("@authz.isAllowed('workshop', 'work-order-read')")
+    @PreAuthorize("@authz.isAllowed('claim', 'read') or @authz.isAllowed('workshop', 'work-order-read')")
     @Operation(
         summary = "Get the current work order for a claim",
-        description = "FR9: Customer can track repair progress based on the work order submitted by the repair agency."
+        description = "FR9: Customer can track repair progress based on the work order submitted by the repair agency. "
+                      + "Also available to workshop users (work-order-read)."
     )
     public ResponseEntity<ApiResponse<WorkOrderResponse>> getWorkOrderForClaim(
             @PathVariable UUID claimId) {
         WorkOrderResponse response = workshopService.getWorkOrderByClaimId(claimId, correlationId());
         return ResponseEntity.ok(ApiResponse.success(response, correlationId()));
+    }
+
+    @GetMapping("/work-orders/{workOrderId}/status-history")
+    @PreAuthorize("@authz.isAllowed('claim', 'read') or @authz.isAllowed('workshop', 'work-order-read')")
+    @Operation(
+        summary = "Get chronological status history for a work order",
+        description = "FR9: Track full repair progress timeline for customer transparency"
+    )
+    public ResponseEntity<ApiResponse<List<WorkOrderStatusHistoryResponse>>> getWorkOrderStatusHistory(
+            @PathVariable UUID workOrderId) {
+        List<WorkOrderStatusHistoryResponse> history = workshopService.getWorkOrderStatusHistory(workOrderId);
+        return ResponseEntity.ok(ApiResponse.success(history, correlationId()));
     }
 
     @PostMapping("/work-orders")
@@ -135,6 +148,19 @@ public class WorkshopController {
                 claimId, request, UserContextHolder.currentUserId(), correlationId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(dropOffId, correlationId()));
+    }
+
+    @PostMapping("/work-orders/{workOrderId}/upload-media")
+    @PreAuthorize("@authz.isAllowed('workshop', 'work-order-submit')")
+    @Operation(summary = "Upload progress photos/videos for a work order")
+    public ResponseEntity<ApiResponse<UUID>> uploadWorkOrderMedia(
+            @PathVariable UUID workOrderId,
+            @RequestParam String documentType,
+            @RequestPart org.springframework.web.multipart.MultipartFile file) {
+        UUID documentId = workshopService.uploadWorkOrderMedia(
+                workOrderId, documentType, file, UserContextHolder.currentUserId(), correlationId());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(documentId, correlationId()));
     }
 
     private String correlationId() {

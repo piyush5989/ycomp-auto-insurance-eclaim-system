@@ -6,7 +6,7 @@ package com.yclaims.claims.domain.model;
  *
  * DRAFT → SUBMITTED → WORKSHOP_SELECTED → VEHICLE_AT_WORKSHOP → ASSIGNED → UNDER_SURVEY
  *       → SURVEYED → UNDER_ADJUDICATION → APPROVED / REJECTED
- * APPROVED → PAYMENT_INITIATED → SETTLED → ARCHIVED
+ * APPROVED → PAYMENT_INITIATED → PAYMENT_PROCESSED → COMPLETED → SETTLED → ARCHIVED
  * Any active (non-terminal) state → WITHDRAWN (customer-initiated)
  */
 public enum ClaimStatus {
@@ -21,6 +21,8 @@ public enum ClaimStatus {
     APPROVED,
     REJECTED,
     PAYMENT_INITIATED,
+    PAYMENT_PROCESSED,
+    COMPLETED,
     SETTLED,
     WITHDRAWN,
     ARCHIVED;

@@ -350,6 +350,16 @@ public class AutoAssignmentService {
     }
 
     /**
+     * Public method to manually trigger adjustor assignment for a claim.
+     * Used for retry scenarios (e.g., when adjustors were unavailable initially).
+     */
+    @Transactional
+    public void manuallyAssignAdjustor(UUID claimId, String correlationId) {
+        log.info("[{}] 🔄 Manual adjustor assignment requested for claim {}", correlationId, claimId);
+        autoAssignAdjustor(claimId, correlationId);
+    }
+
+    /**
      * Auto-assign adjustor after survey is completed.
      * Uses simple load balancing - assigns to adjustor with lowest active workload.
      */
@@ -367,11 +377,13 @@ public class AutoAssignmentService {
 
         log.info("[{}] ✓ Found {} active adjustor(s)", correlationId, adjustors.size());
 
-        // Load balancing: find adjustor with lowest workload
+        // Load balancing: find adjustor with lowest active claim count
         Optional<AdjustorEntity> assignee = adjustors.stream()
                 .min((a1, a2) -> {
-                    long load1 = assignmentRepository.countActiveBySurveyorId(a1.getId());
-                    long load2 = assignmentRepository.countActiveBySurveyorId(a2.getId());
+                    long load1 = countActiveClaimsForAdjustor(a1.getId());
+                    long load2 = countActiveClaimsForAdjustor(a2.getId());
+                    log.debug("[{}]   Adjustor {} workload: {} active claims", correlationId, a1.getName(), load1);
+                    log.debug("[{}]   Adjustor {} workload: {} active claims", correlationId, a2.getName(), load2);
                     return Long.compare(load1, load2);
                 });
 
@@ -381,27 +393,44 @@ public class AutoAssignmentService {
             return;
         }
 
-        // Create assignment
-        long currentLoad = assignmentRepository.countActiveBySurveyorId(assignee.get().getId());
-        AssignmentEntity assignment = new AssignmentEntity();
-        assignment.setId(UUID.randomUUID());
-        assignment.setClaimId(claimId);
-        assignment.setSurveyorId(assignee.get().getId()); // Reusing surveyorId field for adjustor
-        assignment.setAssignedAt(Instant.now());
-        assignment.setActive(true);
-        assignment.setCorrelationId(correlationId);
-        assignmentRepository.save(assignment);
+        AdjustorEntity selectedAdjustor = assignee.get();
+        long currentLoad = countActiveClaimsForAdjustor(selectedAdjustor.getId());
 
         log.info("[{}] ✅ ADJUSTOR AUTO-ASSIGNED (after survey completed) | Claim: {} | Adjustor: {} ({}) | Current workload: {} active claims",
                 correlationId,
                 claimId,
-                assignee.get().getId(),
-                assignee.get().getName(),
+                selectedAdjustor.getId(),
+                selectedAdjustor.getName(),
                 currentLoad);
+
+        // Update claim status to UNDER_ADJUDICATION and record the assigned adjustor.
+        // Note: adjustors are NOT stored in the workflow.assignments table (which has a FK to surveyors).
+        // Adjustor tracking is done via the assigned_adjustor_id column on the claims table.
+        jdbcTemplate.update(
+                "UPDATE claims.claims SET status = 'UNDER_ADJUDICATION', assigned_adjustor_id = ?, updated_at = NOW() WHERE id = ?",
+                selectedAdjustor.getId().toString(), claimId);
+        log.info("[{}] 📝 Updated claim {} status → UNDER_ADJUDICATION (assignedAdjustorId: {})",
+                correlationId, claimId, selectedAdjustor.getId());
 
         // Publish events
         publishAdjustorAssignedEvent(claimId, assignee.get(), correlationId);
         publishNotificationForAdjustor(claimId, assignee.get(), correlationId);
+    }
+
+    /**
+     * Count active claims assigned to an adjustor.
+     * Adjustors are tracked on claims.claims table, not in workflow.assignments (which is for surveyors).
+     */
+    private long countActiveClaimsForAdjustor(UUID adjustorId) {
+        try {
+            Long count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM claims.claims WHERE assigned_adjustor_id = ? AND status IN ('UNDER_ADJUDICATION')",
+                    Long.class, adjustorId.toString());
+            return count != null ? count : 0L;
+        } catch (Exception e) {
+            log.warn("Failed to count active claims for adjustor {}: {}", adjustorId, e.getMessage());
+            return 0L;
+        }
     }
 
     private void publishAdjustorAssignedEvent(UUID claimId, AdjustorEntity adjustor, String correlationId) {

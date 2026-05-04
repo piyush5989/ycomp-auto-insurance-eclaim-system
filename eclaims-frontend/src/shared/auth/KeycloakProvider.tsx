@@ -8,6 +8,7 @@ interface AuthContextValue {
   token: string | null;
   userId: string | null;
   username: string | null;
+  email: string | null;
   roles: string[];
   logout: () => void;
 }
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextValue>({
   token: null,
   userId: null,
   username: null,
+  email: null,
   roles: [],
   logout: () => {},
 });
@@ -57,6 +59,7 @@ export function KeycloakProvider({ children }: { children: React.ReactNode }) {
           token: authenticated ? (keycloak.token ?? null) : null,
           userId: authenticated ? (keycloak.subject ?? null) : null,
           username: authenticated ? keycloak.tokenParsed?.['preferred_username'] : null,
+          email: authenticated ? (keycloak.tokenParsed?.['email'] as string | undefined) ?? null : null,
           roles: extractRoles(keycloak),
           logout: () => keycloak.logout(),
         });

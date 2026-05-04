@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Wrench, ArrowRight } from 'lucide-react'
+import { Wrench, ArrowRight, CheckCircle, X } from 'lucide-react'
 import { useMyWorkOrders } from '@/features/workshops/hooks/useMyWorkOrders'
+import { consumeWorkshopRepairFlash } from '@/portals/workshop/workshopRepairFlash'
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   PENDING:           { bg: '#fef9c3', text: '#713f12' },
@@ -13,9 +14,42 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
 
 export default function WorkOrdersListPage() {
   const { data: workOrders = [], isLoading } = useMyWorkOrders()
+  const [showRepairToast, setShowRepairToast] = useState(false)
+
+  useEffect(() => {
+    if (consumeWorkshopRepairFlash()) {
+      setShowRepairToast(true)
+      const id = window.setTimeout(() => setShowRepairToast(false), 4500)
+      return () => window.clearTimeout(id)
+    }
+    return undefined
+  }, [])
+
+  const handleDismissRepairToast = () => {
+    setShowRepairToast(false)
+  }
 
   return (
     <div className="space-y-6">
+      {showRepairToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed top-4 left-1/2 z-50 flex max-w-md -translate-x-1/2 items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 shadow-lg"
+        >
+          <CheckCircle className="h-5 w-5 shrink-0 text-green-600" aria-hidden />
+          <p className="text-sm font-medium text-green-900">Repair status updated successfully</p>
+          <button
+            type="button"
+            onClick={handleDismissRepairToast}
+            className="ml-2 rounded p-1 text-green-700 hover:bg-green-100"
+            aria-label="Dismiss notification"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">My Work Orders</h1>
         <Link to="/workshop/work-orders/new" className="btn-primary">

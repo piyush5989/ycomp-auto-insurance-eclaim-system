@@ -20,6 +20,7 @@ import com.yclaims.kernel.audit.AuditEvent;
 import com.yclaims.kernel.audit.AuditPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +28,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -51,6 +53,7 @@ public class ClaimApplicationService {
     private final FraudDetectionService fraudDetectionService;
     private final ClaimDtoMapper claimDtoMapper;
     private final ClaimEndorsementJpaRepository endorsementRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     /**
      * Submit a new claim — idempotent via natural key deduplication.
@@ -459,4 +462,5 @@ public class ClaimApplicationService {
 
         return claimDtoMapper.toResponse(saved);
     }
+
 }

@@ -1,11 +1,13 @@
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient, useMutation } from '@tanstack/react-query'
 import { useSubmitClaim } from '@/features/claims/hooks/useSubmitClaim'
 import { submitClaimSchema, type SubmitClaimFormData } from '@/features/claims/validation/submitClaimSchema'
-import { CheckCircle, AlertCircle, ChevronRight, ChevronLeft, AlertTriangle, ArrowRight } from 'lucide-react'
+import { resolveDemoCustomerClaimPrefill } from '@/features/claims/config/demoCustomerClaimPrefill'
+import { useAuth } from '@/shared/auth/KeycloakProvider'
+import { CheckCircle, AlertCircle, ChevronRight, ChevronLeft, AlertTriangle, ArrowRight, Info } from 'lucide-react'
 import { claimsApi } from '@/features/claims/api/claimsApi'
 import type { PotentialDuplicate } from '@/features/claims/api/claimsApi.types'
 import { format } from 'date-fns'
@@ -83,15 +85,30 @@ const DuplicateWarningModal = ({ duplicates, onCreateNew, onGoToExisting }: Dupl
 export default function SubmitClaimPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { userId, username, email } = useAuth()
   const [step, setStep] = useState(0)
   const [duplicates, setDuplicates] = useState<PotentialDuplicate[] | null>(null)
   const submitClaim = useSubmitClaim()
 
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<SubmitClaimFormData>({
+  const demoPrefill = useMemo(
+    () => resolveDemoCustomerClaimPrefill({ userId, username, email }),
+    [userId, username, email],
+  )
+
+  const { register, handleSubmit, watch, reset, formState: { errors } } = useForm<SubmitClaimFormData>({
     resolver: zodResolver(submitClaimSchema),
     defaultValues: { policeReportFiled: false },
     mode: 'onChange',
   })
+
+  useEffect(() => {
+    if (!demoPrefill) return
+    reset({
+      policeReportFiled: false,
+      policyNumber: demoPrefill.policyNumber,
+      vehicleRegistration: demoPrefill.vehicleRegistration,
+    })
+  }, [demoPrefill, reset])
 
   const formValues = watch()
 
@@ -186,6 +203,22 @@ export default function SubmitClaimPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Submit a New Claim</h1>
         <p className="text-gray-500 mt-1">Complete the form below to file your insurance claim.</p>
+        {demoPrefill && (
+          <div
+            className="mt-4 flex gap-3 rounded-xl border border-blue-100 bg-blue-50/90 px-4 py-3 text-sm text-blue-900"
+            role="status"
+            aria-live="polite"
+          >
+            <Info className="w-5 h-5 shrink-0 text-blue-600 mt-0.5" aria-hidden />
+            <div>
+              <p className="font-medium text-blue-950">Demo account — policy &amp; vehicle prefilled</p>
+              <p className="text-blue-800/90 mt-0.5">{demoPrefill.hint}</p>
+              <p className="text-xs text-blue-700/80 mt-1">
+                Incident details are yours to enter; backend validates policy + plate against the stub PMS.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Stepper */}

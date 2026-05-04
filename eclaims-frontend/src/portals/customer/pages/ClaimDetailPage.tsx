@@ -10,13 +10,14 @@ import {
   ArrowLeft, AlertTriangle, Paperclip, Upload, Wrench,
   Calendar, FileText, CheckCircle2, Clock, Trash2,
   Pencil, MessageSquarePlus, MessageSquare, Save, X, XCircle,
-  Building2, Car, KeyRound
+  Building2, Car, KeyRound, CreditCard
 } from 'lucide-react'
 import { documentsApi } from '@/features/documents/api/documentsApi'
 import type { DocumentType } from '@/features/documents/api/documentsApi.types'
 import { claimsApi } from '@/features/claims/api/claimsApi'
 import { workshopsApi } from '@/features/workshops/api/workshopsApi'
 import { httpClient } from '@/shared/api/httpClient'
+import { downloadClaimReceiptPdf } from '@/shared/api/paymentReceiptApi'
 import type { ApiResponse } from '@/shared/types/ApiResponse'
 import imageCompression from 'browser-image-compression'
 
@@ -95,8 +96,75 @@ const EDITABLE_STATUSES: string[] = ['SUBMITTED']
 // Statuses where we show the endorsements/notes section
 const ENDORSEMENT_STATUSES: string[] = [
   'ASSIGNED','UNDER_SURVEY','SURVEYED','UNDER_ADJUDICATION',
-  'APPROVED','REJECTED','PAYMENT_INITIATED','SETTLED',
+  'APPROVED','REJECTED','PAYMENT_INITIATED','PAYMENT_PROCESSED','SETTLED',
 ]
+
+interface StatusHistoryEntry {
+  id: string
+  status: string
+  note?: string
+  estimatedCompletionDate?: string
+  changedAt: string
+}
+
+function RepairProgressHistory({ workOrderId }: { workOrderId: string }) {
+  const { data: history = [], isLoading } = useQuery<StatusHistoryEntry[]>({
+    queryKey: ['work-order-history', workOrderId],
+    queryFn: async () => {
+      const response = await httpClient.get(`/work-orders/${workOrderId}/status-history`)
+      return response.data.data
+    },
+    staleTime: 30000,
+  })
+
+  if (isLoading) {
+    return <div className="text-xs text-gray-400">Loading progress history...</div>
+  }
+
+  if (!history || history.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="border-t border-gray-100 pt-4 mt-4">
+      <h3 className="text-xs font-medium text-gray-700 mb-3">Progress Timeline</h3>
+      <div className="space-y-3">
+        {history.map((entry, index) => (
+          <div key={entry.id} className="flex gap-3">
+            <div className="flex flex-col items-center">
+              <div className={`w-2 h-2 rounded-full shrink-0 ${
+                entry.status === 'COMPLETED' ? 'bg-green-500' :
+                entry.status === 'IN_PROGRESS' ? 'bg-blue-500' :
+                'bg-gray-300'
+              }`} />
+              {index < history.length - 1 && (
+                <div className="w-px h-full bg-gray-200 mt-1" />
+              )}
+            </div>
+            <div className="flex-1 pb-3">
+              <div className="flex items-start justify-between mb-1">
+                <p className="text-sm font-medium text-gray-900 capitalize">
+                  {entry.status.replace(/_/g, ' ').toLowerCase()}
+                </p>
+                <p className="text-xs text-gray-400 shrink-0 ml-2">
+                  {format(new Date(entry.changedAt), 'dd MMM, HH:mm')}
+                </p>
+              </div>
+              {entry.note && (
+                <p className="text-xs text-gray-600 leading-relaxed">{entry.note}</p>
+              )}
+              {entry.estimatedCompletionDate && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Est. completion: {format(new Date(entry.estimatedCompletionDate), 'dd MMM yyyy')}
+                </p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function ClaimDetailPage() {
   const { claimId } = useParams<{ claimId: string }>()
@@ -193,6 +261,11 @@ export default function ClaimDetailPage() {
     onError: () => setNoteError('Failed to save note. Please try again.'),
   })
 
+  const downloadReceiptMutation = useMutation({
+    mutationFn: () => downloadClaimReceiptPdf(claimId!),
+  })
+
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -262,7 +335,7 @@ export default function ClaimDetailPage() {
   const rentalStepComplete = claim.rentalStatus === 'RESERVED' || claim.rentalStatus === 'SKIPPED'
   
   const journeyComplete = rentalStepComplete || ['ASSIGNED', 'UNDER_SURVEY', 'SURVEYED', 'UNDER_ADJUDICATION',
-                           'APPROVED', 'REJECTED', 'PAYMENT_INITIATED', 'SETTLED'].includes(claim.status)
+                           'APPROVED', 'REJECTED', 'PAYMENT_INITIATED', 'PAYMENT_PROCESSED', 'SETTLED'].includes(claim.status)
 
   const needsWorkshopSelection = claim.status === 'SUBMITTED'
   const needsVehicleDropOff    = claim.status === 'WORKSHOP_SELECTED'
@@ -352,53 +425,6 @@ export default function ClaimDetailPage() {
             ))}
           </div>
 
-          {/* Success Message */}
-          {journeyComplete && (
-            <div className="bg-white rounded-lg p-4 border border-green-200">
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="w-6 h-6 text-green-600" />
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900">Setup Complete!</p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Your vehicle is at the workshop{claim.rentalStatus === 'RESERVED' ? ' and rental vehicle is reserved' : ''}.
-                  </p>
-                  {workshopData && (
-                    <div className="mt-3 bg-gray-50 rounded-lg px-3 py-2 text-sm">
-                      <p className="font-medium text-gray-900 flex items-center gap-1.5">
-                        <Building2 className="w-3.5 h-3.5 text-primary-700" />
-                        {workshopData.name}
-                      </p>
-                      <p className="text-gray-500 text-xs mt-0.5">
-                        {workshopData.address}, {workshopData.city} {workshopData.zipCode}
-                      </p>
-                      <p className="text-gray-500 text-xs">{workshopData.phone}</p>
-                    </div>
-                  )}
-                  {claim.status === 'APPROVED' ? (
-                    <div className="mt-2 flex items-center gap-2 text-sm text-green-700">
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span className="font-medium">Your claim has been approved! Ready for payment.</span>
-                    </div>
-                  ) : claim.status === 'REJECTED' ? (
-                    <div className="mt-2 flex items-center gap-2 text-sm text-red-700">
-                      <XCircle className="w-4 h-4" />
-                      <span className="font-medium">Claim has been rejected</span>
-                    </div>
-                  ) : claim.assignedSurveyorId ? (
-                    <div className="mt-2 flex items-center gap-2 text-sm text-green-700">
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span className="font-medium">Surveyor assigned - Inspection will begin soon</span>
-                    </div>
-                  ) : (
-                    <div className="mt-2 flex items-center gap-2 text-sm text-blue-700">
-                      <Clock className="w-4 h-4" />
-                      <span>Assigning surveyor...</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Action Buttons */}
           {needsWorkshopSelection && (
@@ -455,6 +481,206 @@ export default function ClaimDetailPage() {
           )}
         </div>
       )}
+
+      {/* Claim Status Messages */}
+      <div className="bg-white rounded-lg p-4 border border-gray-200">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center shrink-0">
+            {claim.status === 'APPROVED' ? (
+              <CheckCircle2 className="w-5 h-5 text-primary-700" />
+            ) : claim.status === 'REJECTED' ? (
+              <XCircle className="w-5 h-5 text-red-600" />
+            ) : claim.status === 'PAYMENT_PROCESSED' || claim.status === 'SETTLED' ? (
+              <CheckCircle2 className="w-5 h-5 text-green-600" />
+            ) : (
+              <Clock className="w-5 h-5 text-blue-600" />
+            )}
+          </div>
+          <div className="flex-1">
+            {claim.status === 'SUBMITTED' ? (
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">Claim Submitted Successfully</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  Your claim is being reviewed. Please select a repair workshop to proceed.
+                </p>
+              </div>
+            ) : claim.status === 'WORKSHOP_SELECTED' ? (
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">Workshop Selected</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  Please drop off your vehicle at the selected workshop to trigger surveyor assignment.
+                </p>
+                {workshopData && (
+                  <div className="mt-2 text-sm text-gray-700">
+                    <strong>{workshopData.name}</strong> - {workshopData.address}, {workshopData.city}
+                  </div>
+                )}
+              </div>
+            ) : claim.status === 'VEHICLE_AT_WORKSHOP' ? (
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">Vehicle at Workshop</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  Your vehicle has been dropped off. Assigning surveyor for inspection...
+                </p>
+                {workshopData && (
+                  <div className="mt-2 text-sm text-gray-700">
+                    <strong>{workshopData.name}</strong> - {workshopData.address}, {workshopData.city}
+                  </div>
+                )}
+              </div>
+            ) : claim.assignedSurveyorId && ['ASSIGNED', 'UNDER_SURVEY'].includes(claim.status) ? (
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">Surveyor Assigned</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  A surveyor has been assigned to inspect your vehicle. Inspection will begin soon.
+                </p>
+              </div>
+            ) : claim.status === 'SURVEYED' ? (
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">Survey Completed</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  Surveyor has submitted the assessment. Waiting for adjustor input.
+                </p>
+              </div>
+            ) : claim.status === 'UNDER_ADJUDICATION' ? (
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">Under Review</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  Your claim is being reviewed by an adjustor for final decision.
+                </p>
+              </div>
+            ) : claim.status === 'APPROVED' ? (
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">Claim Approved!</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  {workOrderData?.repairStatus === 'COMPLETED' 
+                    ? 'Your claim has been approved and repairs are completed. You can now proceed to payment.'
+                    : 'Your claim has been approved! Workshop will start repairing and keep you posted on progress.'
+                  }
+                </p>
+                {claim.approvedAmount && (
+                  <p className="text-sm text-green-700 font-medium mt-1">
+                    Approved Amount: {formatCurrency(claim.approvedAmount)}
+                  </p>
+                )}
+              </div>
+            ) : claim.status === 'REJECTED' ? (
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">Claim Rejected</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  Unfortunately, your claim has been rejected. Please review the details below.
+                </p>
+                {claim.rejectionReason && (
+                  <p className="text-sm text-red-700 mt-1">
+                    Reason: {claim.rejectionReason}
+                  </p>
+                )}
+              </div>
+            ) : claim.status === 'PAYMENT_INITIATED' ? (
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">Payment in Progress</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  Your payment is being processed. You'll receive confirmation once completed.
+                </p>
+              </div>
+            ) : claim.status === 'PAYMENT_PROCESSED' ? (
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">Payment Received</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  Your payment was successful. Use the receipt section below if you need a PDF, and follow the pickup instructions for your vehicle.
+                </p>
+              </div>
+            ) : claim.status === 'SETTLED' ? (
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">Claim Settled</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  Your claim has been fully settled. Thank you for choosing our services.
+                </p>
+              </div>
+            ) : (
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">Processing Claim</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  Your claim is being processed. We'll update you as it progresses.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Vehicle at Workshop Banner — from drop-off through payment; hidden after payment is processed or settled */}
+      {['VEHICLE_AT_WORKSHOP', 'ASSIGNED', 'UNDER_SURVEY', 'SURVEYED', 'UNDER_ADJUDICATION', 'APPROVED', 'PAYMENT_INITIATED'].includes(claim.status) && workshopData && (
+        <div className="card bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-green-100 rounded-lg shrink-0">
+              <Wrench className="w-5 h-5 text-green-700" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-gray-900 mb-1">Your vehicle is at the workshop</h3>
+              <div className="space-y-1.5 text-sm">
+                <p className="font-medium text-gray-800">{workshopData.name}</p>
+                <p className="text-gray-600">{workshopData.address}, {workshopData.city} {workshopData.zipCode}</p>
+                <p className="text-gray-600">
+                  <span className="text-gray-500">Phone:</span>{' '}
+                  <a href={`tel:${workshopData.phone}`} className="text-primary-700 hover:underline">
+                    {workshopData.phone}
+                  </a>
+                </p>
+                {workOrderData && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    Work Order #{workOrderData.workOrderId.substring(0, 8).toUpperCase()} &bull;{' '}
+                    Status: <span className="font-medium capitalize">
+                      {workOrderData.repairStatus.replace(/_/g, ' ').toLowerCase()}
+                    </span>
+                  </p>
+                )}
+              </div>
+              {['APPROVED', 'PAYMENT_INITIATED', 'SETTLED'].includes(claim.status) && workOrderData?.repairStatus !== 'COMPLETED' && (
+                <p className="text-xs text-green-700 mt-3 bg-green-50/50 rounded px-2 py-1 inline-block">
+                  Your claim has been approved! Workshop started repairing and will keep you posted as progress...
+                </p>
+              )}
+              {workOrderData?.repairStatus === 'COMPLETED' && workOrderData?.finalCost && (
+                <div className="mt-4 p-3 bg-white border border-green-300 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-gray-900">Repairs Completed!</p>
+                    <CheckCircle2 className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div className="text-sm text-gray-700 space-y-1">
+                    <p className="flex justify-between">
+                      <span>Workshop Final Bill:</span>
+                      <span className="font-semibold">{formatCurrency(workOrderData.finalCost)}</span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span>Approved Amount:</span>
+                      <span className="font-semibold">{formatCurrency(claim.approvedAmount ?? 0)}</span>
+                    </p>
+                    <p className="flex justify-between text-base font-bold text-green-700 pt-2 border-t border-gray-200">
+                      <span>Your Payment:</span>
+                      <span>{formatCurrency(Math.max(0, (workOrderData.finalCost ?? 0) - (claim.approvedAmount ?? 0)))}</span>
+                    </p>
+                  </div>
+                  {claim.status === 'PAYMENT_INITIATED' ? (
+                    <p className="text-sm text-sky-700 mt-3 text-center">
+                      Payment is processing...
+                    </p>
+                  ) : (
+                    <Link
+                      to={`/customer/payment/${claim.claimId}`}
+                      className="btn-primary w-full mt-3 flex items-center justify-center gap-2"
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      Pay Now
+                    </Link>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
 
       <div className="grid grid-cols-2 gap-5">
         {/* Claim Information */}
@@ -605,15 +831,47 @@ export default function ClaimDetailPage() {
         )}
       </div>
 
-      {/* Payment CTA */}
-      {claim.status === 'APPROVED' && (
-        <div className="card border-l-4 border-l-green-500">
-          <p className="text-green-700 font-medium mb-3">
-            Your claim has been approved! Proceed to payment.
+      {['PAYMENT_PROCESSED', 'SETTLED'].includes(claim.status) && (
+        <div className="card border-l-4 border-l-blue-500">
+          <p className="text-blue-700 font-medium mb-3">
+            Payment completed. You can download your receipt PDF anytime.
           </p>
-          <Link to={`/customer/payment/${claim.claimId}`} className="btn-primary">
-            Proceed to Payment
-          </Link>
+          <button
+            type="button"
+            onClick={() => downloadReceiptMutation.mutate()}
+            disabled={downloadReceiptMutation.isPending}
+            className="btn-secondary"
+          >
+            {downloadReceiptMutation.isPending ? 'Preparing receipt...' : 'Download Receipt'}
+          </button>
+        </div>
+      )}
+
+      {/* Vehicle Pickup Info */}
+      {claim.status === 'PAYMENT_PROCESSED' && workshopData && (
+        <div className="card border-l-4 border-l-blue-500">
+          <div className="flex items-start gap-4">
+            <KeyRound className="w-6 h-6 text-blue-600 mt-1 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-blue-700 font-medium mb-2">
+                🎉 Payment Complete! Your vehicle is ready for pickup
+              </p>
+              <p className="text-sm text-gray-600 mb-3">
+                Contact <strong>{workshopData.name}</strong> at <strong>{workshopData.phone}</strong> to arrange pickup.
+              </p>
+              <div className="flex gap-3">
+                <a href={`tel:${workshopData.phone}`} className="btn-primary">
+                  Call Workshop
+                </a>
+                <button
+                  onClick={() => window.location.href = '/customer/claims'}
+                  className="btn-secondary"
+                >
+                  Back to Claims
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -795,9 +1053,8 @@ export default function ClaimDetailPage() {
               </div>
             )}
 
-            <p className="text-xs text-gray-400">
-              Last updated: {format(new Date(workOrderData.updatedAt), 'dd MMM yyyy, HH:mm')}
-            </p>
+            {/* Progress Timeline */}
+            <RepairProgressHistory workOrderId={workOrderData.workOrderId} />
           </div>
         )}
       </div>

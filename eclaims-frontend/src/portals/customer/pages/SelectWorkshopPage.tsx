@@ -37,7 +37,7 @@ export default function SelectWorkshopPage() {
       params.append('providerType', 'REPAIR_WORKSHOP')
       return httpClient.get(`/workshops?${params.toString()}`).then((r) => r.data.data ?? [])
     },
-    enabled: !!(searchZip.trim() || searchCity.trim()),
+    // Load all repair workshops by default; ZIP/city narrow the list (API filters when provided)
     staleTime: 5 * 60 * 1000,
   })
 
@@ -103,6 +103,9 @@ export default function SelectWorkshopPage() {
       {/* Search Section */}
       <div className="card">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Search Partner Workshops</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          All partner repair workshops are listed below. Optionally enter a ZIP or city to narrow results.
+        </p>
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
           <div className="relative flex-1">
             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -129,11 +132,6 @@ export default function SelectWorkshopPage() {
         {workshopsLoading ? (
           <div className="flex justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-800" />
-          </div>
-        ) : !searchZip.trim() && !searchCity.trim() ? (
-          <div className="text-center py-12 text-gray-400 border border-dashed border-gray-200 rounded-lg">
-            <Building2 className="w-12 h-12 mx-auto mb-3 opacity-40" />
-            <p>Enter a ZIP code or city name to find workshops near you</p>
           </div>
         ) : workshops.length === 0 ? (
           <div className="text-center py-12 text-gray-400 border border-dashed border-gray-200 rounded-lg">

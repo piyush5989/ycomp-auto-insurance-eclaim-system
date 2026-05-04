@@ -102,3 +102,5 @@ eclaims:
     admin-password: ${KEYCLOAK_ADMIN_PASSWORD:admin}
     authz:
       audience: ${KEYCLOAK_AUTHZ_AUDIENCE:eclaims-api}
+  payments:
+    processing-fee: ${ECLAIMS_PROCESSING_FEE:10.00}  # Configurable processing fee per claim payment

@@ -195,6 +195,18 @@
       "attributes": { "customerId": ["customer1-uuid"] }
     },
     {
+      "id": "10000000-0000-0000-0000-000000000002",
+      "username": "customer2",
+      "email": "customer2@eclaims.test",
+      "firstName": "Jane",
+      "lastName": "Customer",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "Test@1234", "temporary": false }],
+      "realmRoles": ["customer"],
+      "attributes": { "customerId": ["customer2-uuid"] }
+    },
+    {
       "id": "20000000-0000-0000-0000-000000000001",
       "username": "surveyor1",
       "email": "surveyor1@eclaims.test",

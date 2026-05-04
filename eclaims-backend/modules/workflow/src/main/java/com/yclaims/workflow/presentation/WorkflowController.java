@@ -1,6 +1,7 @@
 package com.yclaims.workflow.presentation;
 
 import com.yclaims.kernel.web.ApiResponse;
+import com.yclaims.workflow.application.AutoAssignmentService;
 import com.yclaims.workflow.infrastructure.persistence.SurveyorEntity;
 import com.yclaims.workflow.infrastructure.persistence.SurveyorJpaRepository;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,6 +25,7 @@ import java.util.UUID;
 public class WorkflowController {
 
     private final SurveyorJpaRepository surveyorRepository;
+    private final AutoAssignmentService autoAssignmentService;
 
     @GetMapping("/surveyors")
     @PreAuthorize("@authz.isAllowed('workflow', 'list-surveyors')")
@@ -55,6 +57,15 @@ public class WorkflowController {
                 .toList();
 
         return ResponseEntity.ok(ApiResponse.success(response, correlationId()));
+    }
+
+    @PostMapping("/claims/{claimId}/assign-adjustor")
+    @PreAuthorize("@authz.isAllowed('workflow', 'manual-assign')")
+    @Operation(summary = "Manually trigger adjustor assignment for a claim")
+    public ResponseEntity<ApiResponse<String>> manuallyAssignAdjustor(@PathVariable UUID claimId) {
+        String correlationId = correlationId();
+        autoAssignmentService.manuallyAssignAdjustor(claimId, correlationId);
+        return ResponseEntity.ok(ApiResponse.success("Adjustor assignment triggered for claim " + claimId, correlationId));
     }
 
     private String correlationId() {
