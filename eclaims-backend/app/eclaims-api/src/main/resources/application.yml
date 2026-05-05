@@ -81,9 +81,6 @@ eclaims:
     base-url: ${ECLAIMS_API_BASE_URL:http://localhost:8090}
   storage:
     path: ${ECLAIMS_STORAGE_PATH:./uploads}
-  outbox:
-    # How often the relay polls the outbox tables (ms). 500ms gives ~500ms max notification lag.
-    relay-interval-ms: ${ECLAIMS_OUTBOX_RELAY_MS:500}
   kafka:
     # Kafka topic replication factor. Override to 3 in production profile.
     replicas: ${ECLAIMS_KAFKA_REPLICAS:1}

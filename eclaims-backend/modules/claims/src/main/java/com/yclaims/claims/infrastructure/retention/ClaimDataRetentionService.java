@@ -62,10 +62,7 @@ public class ClaimDataRetentionService {
         String anonymisedToken = "ANONYMISED_" + UUID.randomUUID().toString().substring(0, 8);
 
         settledClaims.forEach(claim -> {
-            // Note: We use a direct field approach here because anonymisation is a special
-            // infrastructure concern, not a domain operation — it bypasses the domain model intentionally.
             anonymiseClaim(claim, anonymisedToken);
-
             auditPublisher.publish(new AuditEvent(
                     UUID.randomUUID().toString(),
                     "gdpr-erasure",
@@ -80,25 +77,14 @@ public class ClaimDataRetentionService {
             ));
         });
 
-        claimJpaRepository.saveAll(settledClaims);
         log.info("Anonymised {} claims for customer {}", settledClaims.size(), customerId);
         return AnonymisationResult.success(settledClaims.size());
     }
 
     private void anonymiseClaim(ClaimEntity claim, String token) {
-        claim.updateFromDomain(
-                claim.getStatus(),
-                claim.getAssignedSurveyorId(),
-                claim.getAssignedAdjustorId(),
-                claim.getAssessedAmount(),
-                claim.getApprovedAmount(),
-                claim.getWorkshopId(),
-                claim.getRejectionReason(),
-                claim.isFraudFlag(),
-                claim.getFraudReason()
-        );
-        // PII fields are anonymised at the entity level via direct update query to avoid
-        // loading domain model which enforces state machine rules
+        // Direct UPDATE replaces PII columns without touching the domain model or its
+        // state machine — GDPR erasure is an infrastructure concern, not a business operation.
+        claimJpaRepository.anonymisePii(claim.getId(), token);
     }
 
     public record AnonymisationResult(boolean success, boolean blocked, String message, int anonymisedCount) {

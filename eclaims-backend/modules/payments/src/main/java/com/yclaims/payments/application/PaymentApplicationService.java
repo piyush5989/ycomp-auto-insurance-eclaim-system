@@ -4,13 +4,14 @@ import com.yclaims.contracts.events.DomainEvent;
 import com.yclaims.contracts.events.v1.PaymentSettledPayload;
 import com.yclaims.kernel.exception.NotFoundException;
 import com.yclaims.payments.domain.port.out.PaymentGatewayPort;
-import com.yclaims.payments.infrastructure.outbox.PaymentOutboxPublisher;
+import com.yclaims.payments.infrastructure.event.PaymentEventQueued;
 import com.yclaims.payments.infrastructure.persistence.PaymentEntity;
 import com.yclaims.payments.infrastructure.persistence.PaymentJpaRepository;
 import com.yclaims.payments.presentation.dto.InitiatePaymentRequest;
 import com.yclaims.payments.presentation.dto.PaymentResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,9 @@ import java.util.UUID;
 /**
  * Payment orchestration with Redis idempotency key store.
  * Duplicate payment requests within 24h return the cached result — zero side effects.
+ *
+ * Event publishing uses @TransactionalEventListener(AFTER_COMMIT) via ApplicationEventPublisher:
+ * the Kafka send is deferred until after the DB row is committed, preventing phantom events.
  */
 @Service
 @RequiredArgsConstructor
@@ -31,7 +35,7 @@ public class PaymentApplicationService {
     private final PaymentGatewayPort gatewayPort;
     private final PaymentJpaRepository paymentRepository;
     private final RedisTemplate<String, Object> redisTemplate;
-    private final PaymentOutboxPublisher outboxPublisher;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public PaymentResponse initiatePayment(String idempotencyKey,
@@ -72,7 +76,7 @@ public class PaymentApplicationService {
         // Store in Redis for 24h idempotency window
         redisTemplate.opsForValue().set(cacheKey, response, Duration.ofHours(24));
 
-        // Queue payment settled event in outbox — same transaction as paymentRepository.save()
+        // Queue payment settled event — KafkaPaymentEventPublisher fires after TX commit
         if (result.success()) {
             publishPaymentSettledEvent(entity, correlationId);
         }
@@ -100,7 +104,8 @@ public class PaymentApplicationService {
                 entity.getId().toString(), "Payment",
                 "v1", Instant.now(), payload
         );
-        outboxPublisher.publish("payment-events", event);
+        // Queue for post-commit delivery — KafkaPaymentEventPublisher handles the actual send
+        eventPublisher.publishEvent(new PaymentEventQueued("payment-events", event));
     }
 
     private PaymentResponse toResponse(PaymentEntity entity, boolean isNew) {

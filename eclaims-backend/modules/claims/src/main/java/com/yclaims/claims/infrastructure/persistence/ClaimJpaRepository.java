@@ -3,6 +3,7 @@ package com.yclaims.claims.infrastructure.persistence;
 import com.yclaims.claims.domain.model.ClaimStatus;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -38,4 +39,17 @@ public interface ClaimJpaRepository extends JpaRepository<ClaimEntity, UUID> {
            "WHERE c.vehicleRegistration = :reg " +
            "AND c.createdAt >= CURRENT_TIMESTAMP - :days * 86400")
     int countRecentClaimsForVehicle(@Param("reg") String vehicleRegistration, @Param("days") int days);
+
+    /**
+     * GDPR right-to-erasure: replace all PII fields with an anonymisation token.
+     * Uses a direct UPDATE rather than loading the domain model to avoid triggering
+     * the state machine on an entity whose lifecycle is already closed.
+     */
+    @Modifying
+    @Query("UPDATE ClaimEntity c SET " +
+           "c.customerId = :token, " +
+           "c.customerEmail = :token, " +
+           "c.customerPhone = :token " +
+           "WHERE c.id = :id")
+    void anonymisePii(@Param("id") UUID id, @Param("token") String token);
 }
