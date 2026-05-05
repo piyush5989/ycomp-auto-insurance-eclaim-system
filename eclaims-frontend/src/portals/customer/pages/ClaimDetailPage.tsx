@@ -566,13 +566,43 @@ export default function ClaimDetailPage() {
               </div>
             ) : claim.status === 'REJECTED' ? (
               <div>
-                <p className="font-semibold text-gray-900 text-sm">Claim Rejected</p>
+                <p className="font-semibold text-gray-900 text-sm">Claim not approved</p>
                 <p className="text-sm text-gray-600 mt-1">
-                  Unfortunately, your claim has been rejected. Please review the details below.
+                  We are sorry to inform you that your claim has been rejected.
                 </p>
-                {claim.rejectionReason && (
-                  <p className="text-sm text-red-700 mt-1">
-                    Reason: {claim.rejectionReason}
+                {claim.rejectionReason ? (
+                  <div className="mt-2 text-sm text-gray-800">
+                    <span className="font-medium text-gray-900">Reason:</span>{' '}
+                    {claim.rejectionReason}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-600 mt-2">No additional reason was recorded.</p>
+                )}
+                {workshopData && (
+                  <div className="mt-3 pt-3 border-t border-gray-100 text-sm text-gray-700 space-y-1">
+                    <p className="font-medium text-gray-900">Arrange vehicle pickup</p>
+                    <p>
+                      Contact <strong>{workshopData.name}</strong> to arrange pickup of your vehicle.
+                    </p>
+                    <p>
+                      <a href={`tel:${workshopData.phone}`} className="text-primary-700 hover:underline">
+                        {workshopData.phone}
+                      </a>
+                    </p>
+                    <p className="text-gray-600">
+                      {workshopData.address}, {workshopData.city}
+                      {workshopData.zipCode ? ` ${workshopData.zipCode}` : ''}
+                    </p>
+                  </div>
+                )}
+                {!workshopData && claim.workshopId && (
+                  <p className="text-sm text-gray-600 mt-2">
+                    Contact your selected workshop to arrange pickup of your vehicle.
+                  </p>
+                )}
+                {!claim.workshopId && (
+                  <p className="text-sm text-gray-600 mt-2">
+                    If your vehicle is at a workshop, contact them directly to arrange pickup.
                   </p>
                 )}
               </div>

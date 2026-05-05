@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { httpClient } from '@/shared/api/httpClient'
 import { CheckCircle, Building2, Upload, X } from 'lucide-react'
 import { useMyWorkshop } from '@/features/workshops/hooks/useMyWorkshop'
+import { useClaimDetails } from '@/features/claims/hooks/useClaimDetails'
 
 export default function WorkOrderPage() {
   const { data: profile, isLoading: profileLoading } = useMyWorkshop()
@@ -18,6 +19,10 @@ export default function WorkOrderPage() {
 
   const [mediaFiles, setMediaFiles] = React.useState<File[]>([])
   const fileInputRef = React.useRef<HTMLInputElement>(null)
+
+  const claimIdForLookup = form.claimId.trim() || undefined
+  const { data: linkedClaim, isSuccess: claimLoaded } = useClaimDetails(claimIdForLookup)
+  const isRejectedClaim = claimLoaded && linkedClaim?.status === 'REJECTED'
 
   const submitWorkOrder = useMutation({
     mutationFn: async () => {
@@ -101,6 +106,12 @@ export default function WorkOrderPage() {
       {!profile && !profileLoading && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
           No workshop profile linked to your account. Contact admin before submitting work orders.
+        </div>
+      )}
+
+      {isRejectedClaim && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-800">
+          This claim was rejected. You cannot create a work order for it.
         </div>
       )}
 
@@ -208,7 +219,13 @@ export default function WorkOrderPage() {
 
         <button
           onClick={() => submitWorkOrder.mutate()}
-          disabled={!form.claimId || !form.estimatedCost || !isReady || submitWorkOrder.isPending}
+          disabled={
+            !form.claimId ||
+            !form.estimatedCost ||
+            !isReady ||
+            submitWorkOrder.isPending ||
+            isRejectedClaim
+          }
           className="btn-primary w-full justify-center"
         >
           {submitWorkOrder.isPending ? 'Submitting...' : 'Submit Work Order'}

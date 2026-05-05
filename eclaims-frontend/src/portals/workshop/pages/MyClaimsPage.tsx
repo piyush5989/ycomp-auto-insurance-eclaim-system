@@ -112,12 +112,21 @@ export default function MyClaimsPage() {
                 {downloadReceiptMutation.isPending ? 'Preparing receipt...' : 'Download Receipt PDF'}
               </button>
             )}
-            <Link
-              to={`/workshop/work-orders/new?claimId=${claim.claim_id}`}
-              className="text-xs text-blue-600 hover:underline font-medium"
-            >
-              + Work Order
-            </Link>
+            {claim.status !== 'REJECTED' ? (
+              <Link
+                to={`/workshop/work-orders/new?claimId=${claim.claim_id}`}
+                className="text-xs text-blue-600 hover:underline font-medium"
+              >
+                + Work Order
+              </Link>
+            ) : (
+              <span
+                className="text-xs text-gray-400 cursor-not-allowed font-medium"
+                title="Work orders cannot be created for rejected claims"
+              >
+                Work order not available
+              </span>
+            )}
           </div>
         </div>
       </div>
