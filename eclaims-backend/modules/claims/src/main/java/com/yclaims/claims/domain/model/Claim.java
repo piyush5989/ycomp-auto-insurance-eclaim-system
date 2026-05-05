@@ -21,6 +21,7 @@ public class Claim extends AggregateRoot {
     private final String policyNumber;
     private final String customerId;
     private final String customerEmail;
+    private final String customerPhone;   // E.164 — sourced from PolicyServicePort
     private final String vehicleRegistration;
     private final ClaimType claimType;
     private final AccidentDetails accidentDetails;
@@ -42,6 +43,7 @@ public class Claim extends AggregateRoot {
                   String policyNumber,
                   String customerId,
                   String customerEmail,
+                  String customerPhone,
                   String vehicleRegistration,
                   ClaimType claimType,
                   AccidentDetails accidentDetails) {
@@ -49,6 +51,7 @@ public class Claim extends AggregateRoot {
         this.policyNumber = policyNumber;
         this.customerId = customerId;
         this.customerEmail = customerEmail;
+        this.customerPhone = customerPhone;
         this.vehicleRegistration = vehicleRegistration;
         this.claimType = claimType;
         this.accidentDetails = accidentDetails;
@@ -64,6 +67,7 @@ public class Claim extends AggregateRoot {
     public static Claim submit(String policyNumber,
                                String customerId,
                                String customerEmail,
+                               String customerPhone,
                                String vehicleRegistration,
                                ClaimType claimType,
                                AccidentDetails accidentDetails) {
@@ -72,6 +76,7 @@ public class Claim extends AggregateRoot {
                 policyNumber,
                 customerId,
                 customerEmail,
+                customerPhone,
                 vehicleRegistration,
                 claimType,
                 accidentDetails
@@ -87,6 +92,7 @@ public class Claim extends AggregateRoot {
                                      String policyNumber,
                                      String customerId,
                                      String customerEmail,
+                                     String customerPhone,
                                      String vehicleRegistration,
                                      ClaimType claimType,
                                      AccidentDetails accidentDetails,
@@ -102,7 +108,7 @@ public class Claim extends AggregateRoot {
                                      Instant createdAt,
                                      Instant updatedAt) {
         Claim claim = new Claim(id, policyNumber, customerId, customerEmail,
-                vehicleRegistration, claimType, accidentDetails);
+                customerPhone, vehicleRegistration, claimType, accidentDetails);
         claim.status = status;
         claim.assignedSurveyorId = assignedSurveyorId;
         claim.assignedAdjustorId = assignedAdjustorId;
@@ -206,6 +212,7 @@ public class Claim extends AggregateRoot {
     public String getPolicyNumber() { return policyNumber; }
     public String getCustomerId() { return customerId; }
     public String getCustomerEmail() { return customerEmail; }
+    public String getCustomerPhone() { return customerPhone; }
     public String getVehicleRegistration() { return vehicleRegistration; }
     public ClaimType getClaimType() { return claimType; }
     public AccidentDetails getAccidentDetails() { return accidentDetails; }

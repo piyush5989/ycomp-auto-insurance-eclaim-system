@@ -1,0 +1,191 @@
+# ============================================================
+#  eClaims System — .gitignore
+#  Covers: Java/Maven backend · React/Vite/TypeScript frontend
+#          · Docker · IDE · OS artifacts
+# ============================================================
+
+
+# ── Maven Build Output ──────────────────────────────────────
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Compiled Java class files
+*.class
+
+# JAR / WAR / EAR
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Maven Wrapper (keep the properties file; ignore the binary)
+.mvn/wrapper/MavenWrapperDownloader.java
+.mvn/wrapper/maven-wrapper.jar
+
+# Maven release plugin temp files
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.flattened-pom.xml
+
+
+# ── Spring Boot / Application ────────────────────────────────
+# Local document uploads (MinIO/LocalFS storage — never commit binary files)
+uploads/
+eclaims-uploads/
+
+# Spring Boot DevTools restart trigger
+.reloadtrigger
+
+# Spring Boot layered JAR exploded
+BOOT-INF/
+
+
+# ── Environment / Secrets ────────────────────────────────────
+# Never commit real .env files — only .env.example is tracked
+.env
+.env.local
+.env.production
+.env.staging
+
+# Keycloak exported realm with real secrets (only the seeded dev realm is tracked)
+eclaims-realm-export*.json
+
+# Kubernetes secrets / Helm values overrides
+**/secrets.yaml
+**/secrets.yml
+**/values-prod.yaml
+
+
+# ── Frontend: Node / Vite / React ────────────────────────────
+node_modules/
+dist/
+dist-ssr/
+build/
+
+# Vite cache
+.vite/
+*.local
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Coverage
+coverage/
+lcov.info
+
+# PWA generated assets (regenerated on build)
+eclaims-frontend/public/sw.js
+eclaims-frontend/public/workbox-*.js
+eclaims-frontend/public/manifest.webmanifest
+
+
+# ── Logs ─────────────────────────────────────────────────────
+*.log
+*.log.*
+logs/
+log/
+spring.log
+
+# k6 output
+eclaims-backend/infra/load-tests/*.json
+eclaims-backend/infra/load-tests/results/
+
+
+# ── Docker ───────────────────────────────────────────────────
+# Docker Desktop local state (not project config)
+.docker/
+
+# Override files with local credentials — docker-compose.override.yml is user-local
+docker-compose.override.yml
+
+
+# ── IDEs: IntelliJ IDEA ──────────────────────────────────────
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+atlassian-ide-plugin.xml
+
+# Keep the code style settings if your team shares them
+# !.idea/codeStyles/
+# !.idea/codeStyleSettings.xml
+
+
+# ── IDEs: Eclipse / STS ──────────────────────────────────────
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache
+bin/
+
+
+# ── IDEs: VS Code ────────────────────────────────────────────
+# Ignore workspace-local settings — share only extensions.json and launch.json if needed
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+
+# ── IDEs: NetBeans ───────────────────────────────────────────
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+
+# ── OS Artifacts ─────────────────────────────────────────────
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Thumbs.db:encdata
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+
+# ── JVM Crash Dumps ──────────────────────────────────────────
+hs_err_pid*
+replay_pid*
+
+
+# ── Test / Coverage Reports ──────────────────────────────────
+# Surefire and Failsafe test reports (inside target/ but be explicit)
+**/surefire-reports/
+**/failsafe-reports/
+
+# JaCoCo coverage
+jacoco.exec
+*.exec
+
+
+# ── Monitoring / Observability ───────────────────────────────
+# Local Prometheus / Grafana data volumes
+prometheus_data/
+grafana_data/

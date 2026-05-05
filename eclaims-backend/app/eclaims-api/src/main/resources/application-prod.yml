@@ -19,6 +19,24 @@ spring:
     consumer:
       group-id: eclaims-prod
       auto-offset-reset: latest
+    producer:
+      # acks=all: leader waits for all in-sync replicas before acking — no data loss
+      acks: all
+      properties:
+        # Requires 2 replicas to be in-sync before acking (with replicas=3, tolerates 1 broker failure)
+        min.insync.replicas: 2
+        # Retries with backoff — handles transient broker unavailability
+        retries: 3
+        retry.backoff.ms: 1000
+
+eclaims:
+  kafka:
+    replicas: 3
+  minio:
+    endpoint: ${MINIO_ENDPOINT}          # e.g. https://s3.amazonaws.com (use AWS SDK for S3)
+    access-key: ${MINIO_ACCESS_KEY}
+    secret-key: ${MINIO_SECRET_KEY}
+    bucket: ${MINIO_BUCKET:eclaims-documents}
 
   data:
     redis:

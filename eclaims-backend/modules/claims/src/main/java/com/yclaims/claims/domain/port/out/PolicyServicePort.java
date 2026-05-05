@@ -21,20 +21,21 @@ public interface PolicyServicePort {
             String customerId,
             String customerName,
             String customerEmail,
+            String customerPhone,        // E.164 format, e.g. "+12125551234"
             LocalDate policyStartDate,
             LocalDate policyEndDate,
             String coverageType,
             String failureReason
     ) {
         public static PolicyValidationResult valid(String customerId, String customerName,
-                                                    String customerEmail, LocalDate start,
-                                                    LocalDate end, String coverage) {
+                                                    String customerEmail, String customerPhone,
+                                                    LocalDate start, LocalDate end, String coverage) {
             return new PolicyValidationResult(true, customerId, customerName, customerEmail,
-                    start, end, coverage, null);
+                    customerPhone, start, end, coverage, null);
         }
 
         public static PolicyValidationResult invalid(String reason) {
-            return new PolicyValidationResult(false, null, null, null, null, null, null, reason);
+            return new PolicyValidationResult(false, null, null, null, null, null, null, null, reason);
         }
     }
 }

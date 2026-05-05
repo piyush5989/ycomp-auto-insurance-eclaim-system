@@ -26,12 +26,15 @@ public class PolicyServiceStubAdapter implements PolicyServicePort {
     private static final Map<String, PolicyValidationResult> SEED_POLICIES = Map.of(
             "POL-00000001", PolicyValidationResult.valid(
                     "customer1-uuid", "John Customer", "customer1@eclaims.test",
+                    "+12125550101",
                     LocalDate.of(2025, 1, 1), LocalDate.of(2026, 12, 31), "COMPREHENSIVE"),
             "POL-00000002", PolicyValidationResult.valid(
                     "customer2-uuid", "Jane Customer", "customer2@eclaims.test",
+                    "+12125550202",
                     LocalDate.of(2025, 6, 1), LocalDate.of(2026, 5, 31), "COLLISION"),
             "POL-00000003", PolicyValidationResult.valid(
                     UUID.randomUUID().toString(), "Load Test User", "loadtest@eclaims.test",
+                    "+19995550303",
                     LocalDate.of(2024, 1, 1), LocalDate.of(2027, 12, 31), "COMPREHENSIVE")
     );
 
@@ -47,6 +50,7 @@ public class PolicyServiceStubAdapter implements PolicyServicePort {
             // Generic valid response for load test generated policy numbers
             return PolicyValidationResult.valid(
                     UUID.randomUUID().toString(), "Test Customer", "test@eclaims.test",
+                    "+10005550000",
                     LocalDate.of(2024, 1, 1), LocalDate.of(2027, 12, 31), "COMPREHENSIVE"
             );
         }

@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS claims.claims (
     policy_number           VARCHAR(20)     NOT NULL,
     customer_id             VARCHAR(100)    NOT NULL,
     customer_email          VARCHAR(255)    NOT NULL,
+    customer_phone          VARCHAR(20),
     vehicle_registration    VARCHAR(20)     NOT NULL,
     claim_type              VARCHAR(30)     NOT NULL,
     status                  VARCHAR(30)     NOT NULL DEFAULT 'SUBMITTED',

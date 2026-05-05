@@ -12,6 +12,7 @@ public record ClaimCreatedPayload(
         String policyNumber,
         String customerId,
         String customerEmail,
+        String customerPhone,       // E.164 — used for SMS notifications
         String vehicleRegistration,
         LocalDate incidentDate,
         String claimType,

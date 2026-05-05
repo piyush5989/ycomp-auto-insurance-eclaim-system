@@ -30,7 +30,8 @@ public class NotificationApplicationService {
                 buildClaimSubmittedBody(payload)
         );
 
-        smsPort.send(null, // phone number not in payload — Phase 2
+        smsPort.send(
+                payload.customerPhone(),
                 "eClaims: Your claim " + payload.claimId() +
                 " has been received. We'll update you shortly.");
     }
@@ -44,6 +45,11 @@ public class NotificationApplicationService {
                 payload.customerEmail(),
                 subject,
                 buildStatusChangeBody(payload)
+        );
+
+        smsPort.send(
+                payload.customerPhone(),
+                "eClaims: Claim " + payload.claimId() + " status updated to " + payload.newStatus()
         );
     }
 

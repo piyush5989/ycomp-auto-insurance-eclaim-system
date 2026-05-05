@@ -1,6 +1,5 @@
 package com.yclaims.claims.infrastructure.event;
 
-import com.yclaims.claims.domain.port.out.DomainEventPublisher;
 import com.yclaims.contracts.events.DomainEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -8,8 +7,11 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Implements DomainEventPublisher port using Spring Kafka.
- * Publishes DomainEvent<T> envelopes to Redpanda (Kafka-compatible).
+ * Direct Kafka publisher utility — used ONLY by OutboxRelayService to forward
+ * outbox rows to Kafka after the DB transaction commits.
+ *
+ * NOT a DomainEventPublisher bean — the OutboxDomainEventPublisher is the adapter
+ * that application services depend on. This class is an infrastructure detail of the relay.
  *
  * The domain and application layers have no Kafka dependency —
  * they only know the DomainEventPublisher interface.
@@ -17,11 +19,10 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class KafkaClaimEventPublisher implements DomainEventPublisher {
+public class KafkaClaimEventPublisher {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    @Override
     public <T> void publish(String topic, DomainEvent<T> event) {
         log.debug("Publishing event [{}] type={} to topic={}",
                 event.eventId(), event.eventType(), topic);

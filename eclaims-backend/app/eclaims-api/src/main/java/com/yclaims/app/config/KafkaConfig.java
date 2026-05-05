@@ -21,6 +21,10 @@ import java.util.Map;
  *
  * Topic naming: dot notation per standards (claim.created, payment.settled, audit.event)
  * audit-events: 7-year retention (compliance — configured at broker level)
+ *
+ * Replication factor is profile-driven:
+ *   local/dev  → eclaims.kafka.replicas=1  (single Redpanda node)
+ *   prod       → eclaims.kafka.replicas=3  (3-node cluster, min.insync.replicas=2)
  */
 @Configuration
 public class KafkaConfig {
@@ -28,13 +32,17 @@ public class KafkaConfig {
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
 
+    /** 1 for local dev, 3 for production. Set via ECLAIMS_KAFKA_REPLICAS env var or profile yml. */
+    @Value("${eclaims.kafka.replicas:1}")
+    private int replicationFactor;
+
     // ─── Topic Definitions ───────────────────────────────────────────────
 
     @Bean
     public NewTopic claimEventsTopic() {
         return TopicBuilder.name("claim-events")
                 .partitions(3)
-                .replicas(1)
+                .replicas(replicationFactor)
                 .build();
     }
 
@@ -42,7 +50,7 @@ public class KafkaConfig {
     public NewTopic auditEventsTopic() {
         return TopicBuilder.name("audit-events")
                 .partitions(1)
-                .replicas(1)
+                .replicas(replicationFactor)
                 .build();
     }
 
@@ -50,7 +58,7 @@ public class KafkaConfig {
     public NewTopic paymentEventsTopic() {
         return TopicBuilder.name("payment-events")
                 .partitions(2)
-                .replicas(1)
+                .replicas(replicationFactor)
                 .build();
     }
 
@@ -58,7 +66,7 @@ public class KafkaConfig {
     public NewTopic repairEventsTopic() {
         return TopicBuilder.name("repair-events")
                 .partitions(2)
-                .replicas(1)
+                .replicas(replicationFactor)
                 .build();
     }
 

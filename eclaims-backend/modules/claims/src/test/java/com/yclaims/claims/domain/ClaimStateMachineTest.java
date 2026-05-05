@@ -124,6 +124,7 @@ class ClaimStateMachineTest {
                 "POL-00000001",
                 "customer-1",
                 "customer@test.com",
+                "+12125550101",
                 "TN01-1234",
                 ClaimType.COLLISION,
                 new AccidentDetails(

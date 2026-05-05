@@ -11,6 +11,7 @@ public record ClaimStatusChangedPayload(
         String policyNumber,
         String customerId,
         String customerEmail,
+        String customerPhone,       // E.164 — used for SMS notifications
         String previousStatus,
         String newStatus,
         String changedByUserId,

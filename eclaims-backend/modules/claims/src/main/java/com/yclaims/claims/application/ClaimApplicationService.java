@@ -85,6 +85,7 @@ public class ClaimApplicationService {
                 cmd.policyNumber(),
                 policy.customerId(),
                 policy.customerEmail(),
+                policy.customerPhone(),
                 cmd.vehicleRegistration(),
                 cmd.claimType(),
                 accidentDetails
@@ -164,6 +165,7 @@ public class ClaimApplicationService {
                 claim.getPolicyNumber(),
                 claim.getCustomerId(),
                 claim.getCustomerEmail(),
+                claim.getCustomerPhone(),
                 claim.getVehicleRegistration(),
                 claim.getAccidentDetails().incidentDate(),
                 claim.getClaimType().name(),
@@ -189,6 +191,7 @@ public class ClaimApplicationService {
                 claim.getPolicyNumber(),
                 claim.getCustomerId(),
                 claim.getCustomerEmail(),
+                claim.getCustomerPhone(),
                 previous.name(),
                 claim.getStatus().name(),
                 cmd.performedByUserId(),

@@ -1,19 +1,25 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useClaimDetails } from '@/features/claims/hooks/useClaimDetails';
+import { useClaimStatusStream } from '@/features/claims/hooks/useClaimStatusStream';
 import { StatusBadge } from '@/shared/components/ui/Badge';
 import type { ClaimStatus } from '@/shared/utils/claimStatusLabel';
 import { formatCurrency } from '@/shared/utils/formatCurrency';
 import { format } from 'date-fns';
-import { ArrowLeft, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Radio } from 'lucide-react';
 
 /**
  * Claim detail page — shows full claim lifecycle status timeline.
- * Data is fetched live (staleTime: 30s) — never served from cache for status field.
+ * Status is updated in real-time via SSE (useClaimStatusStream) — no polling needed.
+ * When a claim.status.changed event arrives, the React Query cache is invalidated
+ * and the UI updates instantly without any page refresh.
  */
 export default function ClaimDetailPage() {
   const { claimId } = useParams<{ claimId: string }>();
   const { data: claim, isLoading, error } = useClaimDetails(claimId);
+
+  // Subscribe to real-time status updates via SSE — replaces 30s polling
+  useClaimStatusStream(claimId);
 
   if (isLoading) {
     return (
@@ -44,6 +50,10 @@ export default function ClaimDetailPage() {
           <p className="text-xs text-gray-400 font-mono">{claim.claimId}</p>
         </div>
         <StatusBadge status={claim.status as ClaimStatus} className="ml-auto" />
+        <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+          <Radio className="w-3 h-3 animate-pulse" />
+          Live
+        </span>
       </div>
 
       <div className="grid grid-cols-2 gap-5">

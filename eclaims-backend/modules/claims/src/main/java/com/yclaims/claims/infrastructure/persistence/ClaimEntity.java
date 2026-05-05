@@ -54,6 +54,9 @@ public class ClaimEntity {
     @Column(name = "customer_email", nullable = false, length = 255)
     private String customerEmail;
 
+    @Column(name = "customer_phone", length = 20)
+    private String customerPhone;
+
     @Column(name = "vehicle_registration", nullable = false, length = 20)
     private String vehicleRegistration;
 
@@ -136,7 +139,7 @@ public class ClaimEntity {
 
     // Builder-style factory for persistence adapter
     public static ClaimEntity create(UUID id, String policyNumber, String customerId,
-                                      String customerEmail, String vehicleRegistration,
+                                      String customerEmail, String customerPhone, String vehicleRegistration,
                                       ClaimType claimType, ClaimStatus status,
                                       LocalDate incidentDate, String incidentLocation,
                                       String description, boolean policeReportFiled,
@@ -146,6 +149,7 @@ public class ClaimEntity {
         e.policyNumber = policyNumber;
         e.customerId = customerId;
         e.customerEmail = customerEmail;
+        e.customerPhone = customerPhone;
         e.vehicleRegistration = vehicleRegistration;
         e.claimType = claimType;
         e.status = status;

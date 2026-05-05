@@ -56,4 +56,9 @@ logging:
 
 eclaims:
   storage:
-    path: ./uploads
+    path: ./uploads  # Used by LocalFileSystemStorageAdapter (profile: local)
+  minio:
+    endpoint: http://localhost:9000
+    access-key: eclaims
+    secret-key: eclaims_secret
+    bucket: eclaims-documents
