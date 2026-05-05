@@ -60,8 +60,5 @@ public class PaymentOutboxEntity {
         return e;
     }
 
-    public void markPublished() {
-        this.published = true;
-        this.publishedAt = Instant.now();
-    }
+    // Publishing is marked via PaymentOutboxJpaRepository.markPublished(id) — native UPDATE.
 }

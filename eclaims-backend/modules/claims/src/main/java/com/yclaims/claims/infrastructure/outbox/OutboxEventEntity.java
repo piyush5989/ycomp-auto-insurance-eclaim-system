@@ -61,8 +61,6 @@ public class OutboxEventEntity {
         return e;
     }
 
-    public void markPublished() {
-        this.published = true;
-        this.publishedAt = Instant.now();
-    }
+    // Publishing is marked via OutboxEventJpaRepository.markPublished(id) — native UPDATE.
+    // No setter here — prevents accidental in-memory mutation bypassing the DB update.
 }
