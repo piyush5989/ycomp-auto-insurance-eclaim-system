@@ -12,6 +12,7 @@ import com.yclaims.notifications.infrastructure.persistence.CustomerNotification
 import com.yclaims.notifications.infrastructure.sms.SmsNotificationPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +36,7 @@ public class NotificationApplicationService {
     private final EmailNotificationAdapter emailAdapter;
     private final SmsNotificationPort smsPort;
     private final CustomerNotificationJpaRepository notificationRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     // ── Customer: claim submitted ─────────────────────────────────────────────
 
@@ -47,7 +49,7 @@ public class NotificationApplicationService {
                 "eClaims — Your Claim Has Been Submitted",
                 buildClaimSubmittedBody(payload));
 
-        sendSms(null,
+        sendSms(resolveCustomerPhone(payload.customerId()),
                 "eClaims: Claim " + payload.claimId() + " received for policy "
                         + payload.policyNumber() + ". We'll keep you updated.");
 
@@ -68,7 +70,7 @@ public class NotificationApplicationService {
                 "eClaims — Claim Status Updated: " + payload.newStatus(),
                 buildStatusChangeBody(payload));
 
-        sendSms(null,
+        sendSms(resolveCustomerPhone(payload.customerId()),
                 String.format("eClaims: Claim %s status updated to %s. Log in for details.",
                         payload.claimId(), payload.newStatus()));
 
@@ -100,7 +102,7 @@ public class NotificationApplicationService {
         String customerSms = "APPROVED".equals(payload.decision())
                 ? String.format("eClaims: Claim %s APPROVED for %s. Check your portal.", payload.claimId(), payload.approvedAmount())
                 : String.format("eClaims: Claim %s REJECTED. Reason: %s", payload.claimId(), payload.rejectionReason());
-        sendSms(null, customerSms);
+        sendSms(resolveCustomerPhone(payload.customerId() != null ? payload.customerId().toString() : null), customerSms);
 
         persistNotification(payload.customerId().toString(), "CLAIM_ADJUDICATED",
                 "Claim " + payload.decision(),
@@ -130,7 +132,7 @@ public class NotificationApplicationService {
                 "eClaims — Payment Confirmation",
                 buildPaymentConfirmationBody(payload));
 
-        sendSms(null,
+        sendSms(resolveCustomerPhone(payload.customerId()),
                 String.format("eClaims: Payment of %s %s for claim %s confirmed. Tx: %s",
                         payload.amount(), payload.currency(), payload.claimId(), payload.gatewayTransactionId()));
 
@@ -154,7 +156,7 @@ public class NotificationApplicationService {
                     buildRepairStatusBody(payload));
         }
 
-        sendSms(null,
+        sendSms(resolveCustomerPhone(payload.customerId()),
                 String.format("eClaims: Repair for claim %s → %s%s", payload.claimId(),
                         payload.repairStatus(),
                         payload.estimatedCompletionDate() != null
@@ -188,6 +190,9 @@ public class NotificationApplicationService {
         }
 
         String phone = payload.metadata() != null ? payload.metadata().get("recipientPhone") : null;
+        if (phone == null || phone.isBlank()) {
+            phone = resolveStaffPhone(payload.recipientType(), payload.recipientId());
+        }
         sendSms(phone, payload.message());
 
         persistNotification(
@@ -208,6 +213,42 @@ public class NotificationApplicationService {
      */
     private void sendSms(String phone, String message) {
         smsPort.send(phone, message);
+    }
+
+    private String resolveCustomerPhone(String customerId) {
+        if (customerId == null || customerId.isBlank()) return null;
+        try {
+            return jdbcTemplate.queryForObject(
+                    "SELECT phone FROM customers.customer_profiles WHERE customer_id = ?",
+                    String.class,
+                    customerId
+            );
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private String resolveStaffPhone(String recipientType, String recipientId) {
+        if (recipientType == null || recipientId == null) return null;
+        try {
+            if ("SURVEYOR".equalsIgnoreCase(recipientType)) {
+                return jdbcTemplate.queryForObject(
+                        "SELECT phone FROM workflow.surveyors WHERE id = ?::uuid",
+                        String.class,
+                        recipientId
+                );
+            }
+            if ("ADJUSTOR".equalsIgnoreCase(recipientType)) {
+                return jdbcTemplate.queryForObject(
+                        "SELECT phone FROM workflow.adjustors WHERE id = ?::uuid",
+                        String.class,
+                        recipientId
+                );
+            }
+            return null;
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private void persistNotification(String recipientId, String type,

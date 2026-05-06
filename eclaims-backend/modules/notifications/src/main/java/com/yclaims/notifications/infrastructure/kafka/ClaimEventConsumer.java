@@ -49,13 +49,23 @@ public class ClaimEventConsumer {
 
         switch (event.eventType()) {
             case "claim.created" -> {
-                if (event.payload() instanceof ClaimCreatedPayload payload) {
+                try {
+                    ClaimCreatedPayload payload =
+                            objectMapper.convertValue(event.payload(), ClaimCreatedPayload.class);
                     notificationService.sendClaimSubmittedNotification(payload, event.correlationId());
+                } catch (IllegalArgumentException e) {
+                    log.error("Failed to deserialise claim.created payload [{}]: {}",
+                            event.eventId(), e.getMessage());
                 }
             }
             case "claim.status.changed" -> {
-                if (event.payload() instanceof ClaimStatusChangedPayload payload) {
+                try {
+                    ClaimStatusChangedPayload payload =
+                            objectMapper.convertValue(event.payload(), ClaimStatusChangedPayload.class);
                     notificationService.sendStatusChangeNotification(payload, event.correlationId());
+                } catch (IllegalArgumentException e) {
+                    log.error("Failed to deserialise claim.status.changed payload [{}]: {}",
+                            event.eventId(), e.getMessage());
                 }
             }
             case "claim.adjudicated" -> {
@@ -80,9 +90,15 @@ public class ClaimEventConsumer {
     public void handlePaymentEvent(DomainEvent<?> event) {
         if (!deduplicate(event.eventId())) return;
 
-        if ("payment.settled".equals(event.eventType()) &&
-                event.payload() instanceof PaymentSettledPayload payload) {
-            notificationService.sendPaymentConfirmation(payload, event.correlationId());
+        if ("payment.settled".equals(event.eventType())) {
+            try {
+                PaymentSettledPayload payload =
+                        objectMapper.convertValue(event.payload(), PaymentSettledPayload.class);
+                notificationService.sendPaymentConfirmation(payload, event.correlationId());
+            } catch (IllegalArgumentException e) {
+                log.error("Failed to deserialise payment.settled payload [{}]: {}",
+                        event.eventId(), e.getMessage());
+            }
         }
     }
 
@@ -96,9 +112,15 @@ public class ClaimEventConsumer {
 
         log.info("Processing repair event [{}] type={}", event.eventId(), event.eventType());
 
-        if ("repair.status.updated".equals(event.eventType()) &&
-                event.payload() instanceof RepairStatusUpdatedPayload payload) {
-            notificationService.sendRepairStatusNotification(payload, event.correlationId());
+        if ("repair.status.updated".equals(event.eventType())) {
+            try {
+                RepairStatusUpdatedPayload payload =
+                        objectMapper.convertValue(event.payload(), RepairStatusUpdatedPayload.class);
+                notificationService.sendRepairStatusNotification(payload, event.correlationId());
+            } catch (IllegalArgumentException e) {
+                log.error("Failed to deserialise repair.status.updated payload [{}]: {}",
+                        event.eventId(), e.getMessage());
+            }
         }
     }
 

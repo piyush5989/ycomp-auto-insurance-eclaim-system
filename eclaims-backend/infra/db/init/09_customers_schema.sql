@@ -8,6 +8,7 @@ CREATE SCHEMA IF NOT EXISTS customers;
 CREATE TABLE IF NOT EXISTS customers.customer_profiles (
     id              UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
     customer_id     VARCHAR(100)    NOT NULL UNIQUE,   -- Keycloak subject / JWT sub
+    phone           VARCHAR(20),
     address_line1   VARCHAR(200),
     address_line2   VARCHAR(200),
     city            VARCHAR(100),

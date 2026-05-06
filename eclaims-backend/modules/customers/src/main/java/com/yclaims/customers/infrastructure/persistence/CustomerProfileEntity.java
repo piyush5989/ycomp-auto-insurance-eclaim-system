@@ -21,6 +21,9 @@ public class CustomerProfileEntity {
     @Column(name = "customer_id", nullable = false, unique = true, length = 100)
     private String customerId;
 
+    @Column(name = "phone", length = 20)
+    private String phone;
+
     @Column(name = "address_line1", length = 200)
     private String addressLine1;
 

@@ -20,6 +20,9 @@ public class AdjustorEntity {
     @Column(nullable = false, length = 255)
     private String email;
 
+    @Column(length = 20)
+    private String phone;
+
     @Column(length = 50)
     private String region;
 

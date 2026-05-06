@@ -1,3 +1,6 @@
+# Ensure consistent UTF-8 output so logs render correctly in Windows terminals
+chcp 65001 | Out-Null
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $ErrorActionPreference = "Stop"
 
 function Stop-ProcessOnPort {

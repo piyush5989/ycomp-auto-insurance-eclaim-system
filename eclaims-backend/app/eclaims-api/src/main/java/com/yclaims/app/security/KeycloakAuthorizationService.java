@@ -85,7 +85,7 @@ public class KeycloakAuthorizationService {
             );
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 boolean result = Boolean.TRUE.equals(response.getBody().get("result"));
-                log.debug("Authz decision: user={} {}#{} → {}", userId, resource, scope, result);
+                log.debug("Authz decision: user={} {}#{} -> {}", userId, resource, scope, result);
                 return result;
             }
         } catch (HttpClientErrorException.Forbidden e) {

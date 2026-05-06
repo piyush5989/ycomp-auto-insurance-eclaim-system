@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS workflow.adjustors (
     id      UUID        PRIMARY KEY,
     name    VARCHAR(100) NOT NULL,
     email   VARCHAR(255) NOT NULL,
+    phone   VARCHAR(20),
     region  VARCHAR(50),
     active  BOOLEAN     NOT NULL DEFAULT TRUE,
     field_office VARCHAR(100),
@@ -58,10 +59,10 @@ CREATE TABLE IF NOT EXISTS workflow.adjustors (
 );
 
 -- Seed adjustors using real Keycloak user IDs from eclaims-realm.json
-INSERT INTO workflow.adjustors (id, name, email, region, active, field_office, service_areas)
+INSERT INTO workflow.adjustors (id, name, email, phone, region, active, field_office, service_areas)
 VALUES
-    ('30000000-0000-0000-0000-000000000001', 'Bob Adjustor',   'adjustor1@eclaims.test', 'EAST', TRUE, 'Boston Office', '["EAST", "NORTHEAST"]'),
-    ('30000000-0000-0000-0000-000000000002', 'Betty Adjustor', 'adjustor2@eclaims.test', 'WEST', TRUE, 'San Francisco Office', '["WEST", "SOUTHWEST"]')
+    ('30000000-0000-0000-0000-000000000001', 'Bob Adjustor',   'adjustor1@eclaims.test', '+918604403487', 'EAST', TRUE, 'Boston Office', '["EAST", "NORTHEAST"]'),
+    ('30000000-0000-0000-0000-000000000002', 'Betty Adjustor', 'adjustor2@eclaims.test', '+918604403487', 'WEST', TRUE, 'San Francisco Office', '["WEST", "SOUTHWEST"]')
 ON CONFLICT DO NOTHING;
 
 -- Reassignment history tracking
