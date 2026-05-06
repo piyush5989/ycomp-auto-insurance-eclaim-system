@@ -1,5 +1,6 @@
 package com.yclaims.notifications.application;
 
+import com.yclaims.contracts.events.v1.ClaimAdjudicatedPayload;
 import com.yclaims.contracts.events.v1.ClaimCreatedPayload;
 import com.yclaims.contracts.events.v1.ClaimStatusChangedPayload;
 import com.yclaims.contracts.events.v1.NotificationRequestedPayload;
@@ -17,12 +18,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 
 /**
- * Orchestrates notification delivery:
- *   - Email via Mailhog (dev) / SMTP (prod)
- *   - SMS (stub — Phase 2: requires phone in customer profile)
- *   - In-app: persisted to notifications.customer_notifications, fetched via NotificationController
+ * Orchestrates notification delivery across all three channels:
+ *   - Email  : via Mailhog (dev, localhost:1025) / external SMTP (prod)
+ *   - SMS    : via TwilioSmsAdapter when TWILIO_ENABLED=true, otherwise ConsoleSmsAdapter
+ *   - In-app : persisted to notifications.customer_notifications, polled by NotificationController
  *
- * All methods are fire-and-forget (called from Kafka consumers — async from business operations).
+ * All methods are fire-and-forget — invoked from Kafka consumers, never from business transactions.
+ * Notification failures are swallowed with a log (see EmailNotificationAdapter) so they never
+ * roll back a business operation.
  */
 @Service
 @RequiredArgsConstructor
@@ -33,16 +36,20 @@ public class NotificationApplicationService {
     private final SmsNotificationPort smsPort;
     private final CustomerNotificationJpaRepository notificationRepository;
 
+    // ── Customer: claim submitted ─────────────────────────────────────────────
+
     @Transactional
     public void sendClaimSubmittedNotification(ClaimCreatedPayload payload, String correlationId) {
-        log.info("[{}] Sending claim submitted notification to {}", correlationId, payload.customerEmail());
+        log.info("[{}] Claim submitted → email+SMS to {}", correlationId, payload.customerEmail());
 
         emailAdapter.sendEmail(
                 payload.customerEmail(),
                 "eClaims — Your Claim Has Been Submitted",
                 buildClaimSubmittedBody(payload));
 
-        smsPort.send(null, "eClaims: Claim " + payload.claimId() + " received. We'll update you shortly.");
+        sendSms(null,
+                "eClaims: Claim " + payload.claimId() + " received for policy "
+                        + payload.policyNumber() + ". We'll keep you updated.");
 
         persistNotification(payload.customerId(), "CLAIM_SUBMITTED",
                 "Claim Submitted",
@@ -50,15 +57,20 @@ public class NotificationApplicationService {
                 payload.claimId());
     }
 
+    // ── Customer: claim status changed ───────────────────────────────────────
+
     @Transactional
     public void sendStatusChangeNotification(ClaimStatusChangedPayload payload, String correlationId) {
-        log.info("[{}] Sending status change notification: {} → {}",
-                correlationId, payload.previousStatus(), payload.newStatus());
+        log.info("[{}] Status change → {} | email+SMS to {}", correlationId, payload.newStatus(), payload.customerEmail());
 
         emailAdapter.sendEmail(
                 payload.customerEmail(),
                 "eClaims — Claim Status Updated: " + payload.newStatus(),
                 buildStatusChangeBody(payload));
+
+        sendSms(null,
+                String.format("eClaims: Claim %s status updated to %s. Log in for details.",
+                        payload.claimId(), payload.newStatus()));
 
         persistNotification(payload.customerId(), "CLAIM_STATUS_CHANGED",
                 "Claim Status Updated",
@@ -67,14 +79,60 @@ public class NotificationApplicationService {
                 payload.claimId());
     }
 
+    // ── Customer + Workshop: claim adjudicated (approved / rejected) ──────────
+
+    /**
+     * Sends decision notifications to both the customer and the partner workshop.
+     * workshopEmail is resolved at event-publish time via WorkshopEmailPort so we
+     * never need a cross-module DB query here.
+     */
+    @Transactional
+    public void sendClaimAdjudicatedNotification(ClaimAdjudicatedPayload payload, String correlationId) {
+        log.info("[{}] Claim adjudicated → {} | email+SMS to customer {}", correlationId, payload.decision(), payload.customerEmail());
+
+        // Customer email
+        emailAdapter.sendEmail(
+                payload.customerEmail(),
+                "eClaims — Claim Decision: " + payload.decision(),
+                buildAdjudicatedCustomerBody(payload));
+
+        // Customer SMS
+        String customerSms = "APPROVED".equals(payload.decision())
+                ? String.format("eClaims: Claim %s APPROVED for %s. Check your portal.", payload.claimId(), payload.approvedAmount())
+                : String.format("eClaims: Claim %s REJECTED. Reason: %s", payload.claimId(), payload.rejectionReason());
+        sendSms(null, customerSms);
+
+        persistNotification(payload.customerId().toString(), "CLAIM_ADJUDICATED",
+                "Claim " + payload.decision(),
+                "APPROVED".equals(payload.decision())
+                        ? "Your claim has been approved for " + payload.approvedAmount() + "."
+                        : "Your claim has been rejected. Reason: " + payload.rejectionReason(),
+                payload.claimId());
+
+        // Workshop email (if the event carries the email address)
+        if (payload.workshopEmail() != null && !payload.workshopEmail().isBlank()) {
+            log.info("[{}] Adjudication email → workshop {}", correlationId, payload.workshopEmail());
+            emailAdapter.sendEmail(
+                    payload.workshopEmail(),
+                    "eClaims — Repair Authorisation: " + payload.decision(),
+                    buildAdjudicatedWorkshopBody(payload));
+        }
+    }
+
+    // ── Customer: payment settled ─────────────────────────────────────────────
+
     @Transactional
     public void sendPaymentConfirmation(PaymentSettledPayload payload, String correlationId) {
-        log.info("[{}] Sending payment confirmation to {}", correlationId, payload.customerEmail());
+        log.info("[{}] Payment confirmed → email+SMS to {}", correlationId, payload.customerEmail());
 
         emailAdapter.sendEmail(
                 payload.customerEmail(),
                 "eClaims — Payment Confirmation",
                 buildPaymentConfirmationBody(payload));
+
+        sendSms(null,
+                String.format("eClaims: Payment of %s %s for claim %s confirmed. Tx: %s",
+                        payload.amount(), payload.currency(), payload.claimId(), payload.gatewayTransactionId()));
 
         persistNotification(payload.customerId(), "PAYMENT_CONFIRMED",
                 "Payment Confirmed",
@@ -83,15 +141,55 @@ public class NotificationApplicationService {
                 payload.claimId());
     }
 
+    // ── Customer: repair status updated ──────────────────────────────────────
+
+    @Transactional
+    public void sendRepairStatusNotification(RepairStatusUpdatedPayload payload, String correlationId) {
+        log.info("[{}] Repair status → {} | email+SMS for claim {}", correlationId, payload.repairStatus(), payload.claimId());
+
+        if (payload.customerEmail() != null) {
+            emailAdapter.sendEmail(
+                    payload.customerEmail(),
+                    "eClaims — Repair Status Update: " + payload.repairStatus(),
+                    buildRepairStatusBody(payload));
+        }
+
+        sendSms(null,
+                String.format("eClaims: Repair for claim %s → %s%s", payload.claimId(),
+                        payload.repairStatus(),
+                        payload.estimatedCompletionDate() != null
+                                ? ". Est. completion: " + payload.estimatedCompletionDate() : ""));
+
+        if (payload.customerId() != null) {
+            persistNotification(payload.customerId(), "REPAIR_STATUS_UPDATED",
+                    "Repair Update from " + payload.workshopName(),
+                    "Repair status: " + payload.repairStatus()
+                            + (payload.estimatedCompletionDate() != null
+                                    ? ". Estimated completion: " + payload.estimatedCompletionDate() : "")
+                            + (payload.statusNote() != null ? ". " + payload.statusNote() : ""),
+                    payload.claimId());
+        }
+    }
+
+    // ── Staff: surveyor / adjustor assigned (via notification-events) ─────────
+
     /**
-     * Handles generic notification.requested events from the workflow module.
-     * Persists an in-app notification for the recipient (surveyor, adjustor, etc.).
-     * Email/SMS channels require a recipient email lookup from IAM (Phase 2).
+     * Handles notification.requested events from AutoAssignmentService.
+     * recipientEmail is now carried in the payload (n2) so staff receive email directly.
+     * Phone lookup is Phase 2 — SMS falls through to ConsoleSmsAdapter when phone is absent.
      */
     @Transactional
     public void sendNotificationRequested(NotificationRequestedPayload payload, String correlationId) {
         log.info("[{}] notification.requested | recipient={} type={} channel={}",
                 correlationId, payload.recipientId(), payload.notificationType(), payload.channel());
+
+        if (payload.recipientEmail() != null && !payload.recipientEmail().isBlank()) {
+            emailAdapter.sendEmail(payload.recipientEmail(), payload.subject(), buildStaffNotificationBody(payload));
+        }
+
+        String phone = payload.metadata() != null ? payload.metadata().get("recipientPhone") : null;
+        sendSms(phone, payload.message());
+
         persistNotification(
                 payload.recipientId(),
                 payload.notificationType(),
@@ -101,35 +199,22 @@ public class NotificationApplicationService {
         );
     }
 
-    @Transactional
-    public void sendRepairStatusNotification(RepairStatusUpdatedPayload payload, String correlationId) {
-        log.info("[{}] Sending repair status notification for claimId={} status={}",
-                correlationId, payload.claimId(), payload.repairStatus());
+    // ── Shared helpers ────────────────────────────────────────────────────────
 
-        if (payload.customerEmail() != null) {
-            emailAdapter.sendEmail(
-                    payload.customerEmail(),
-                    "eClaims — Repair Status Update: " + payload.repairStatus(),
-                    buildRepairStatusBody(payload));
-        }
-
-        if (payload.customerId() != null) {
-            persistNotification(payload.customerId(), "REPAIR_STATUS_UPDATED",
-                    "Repair Update from " + payload.workshopName(),
-                    "Repair status: " + payload.repairStatus()
-                            + (payload.estimatedCompletionDate() != null
-                                    ? ". Estimated completion: " + payload.estimatedCompletionDate()
-                                    : "")
-                            + (payload.statusNote() != null ? ". " + payload.statusNote() : ""),
-                    payload.claimId());
-        }
+    /**
+     * Delegates to the active SmsNotificationPort implementation.
+     * When phone is null/blank the adapter logs clearly ("No phone — skipping") rather than
+     * attempting a send. Customer phone storage is tracked as a follow-on task.
+     */
+    private void sendSms(String phone, String message) {
+        smsPort.send(phone, message);
     }
 
-    private void persistNotification(String customerId, String type,
+    private void persistNotification(String recipientId, String type,
                                       String title, String message, UUID claimId) {
-        if (customerId == null) return;
+        if (recipientId == null) return;
         CustomerNotificationEntity entity = new CustomerNotificationEntity();
-        entity.setCustomerId(customerId);
+        entity.setCustomerId(recipientId);
         entity.setType(type);
         entity.setTitle(title);
         entity.setMessage(message);
@@ -137,6 +222,8 @@ public class NotificationApplicationService {
         entity.setRead(false);
         notificationRepository.save(entity);
     }
+
+    // ── Email body builders ───────────────────────────────────────────────────
 
     private String buildClaimSubmittedBody(ClaimCreatedPayload p) {
         return """
@@ -151,7 +238,7 @@ public class NotificationApplicationService {
                 Status:             %s
 
                 Our team will review your claim and assign a surveyor shortly.
-                You can track your claim status at any time through the eClaims customer portal.
+                Track your claim status any time through the eClaims customer portal.
 
                 Regards,
                 eClaims Team
@@ -174,6 +261,72 @@ public class NotificationApplicationService {
                 Regards,
                 eClaims Team
                 """.formatted(p.claimId(), p.previousStatus(), p.newStatus());
+    }
+
+    private String buildAdjudicatedCustomerBody(ClaimAdjudicatedPayload p) {
+        if ("APPROVED".equals(p.decision())) {
+            return """
+                    Dear Customer,
+
+                    We are pleased to inform you that your claim has been APPROVED.
+
+                    Claim ID:          %s
+                    Decision:          APPROVED
+                    Approved Amount:   %s
+
+                    Your vehicle will now proceed with repairs. You will receive further
+                    updates as the repair progresses.
+
+                    Regards,
+                    eClaims Team
+                    """.formatted(p.claimId(), p.approvedAmount());
+        }
+        return """
+                Dear Customer,
+
+                After careful review, your claim has been REJECTED.
+
+                Claim ID:   %s
+                Decision:   REJECTED
+                Reason:     %s
+
+                If you believe this decision is incorrect, please contact our support team
+                or raise an appeal through the eClaims customer portal.
+
+                Regards,
+                eClaims Team
+                """.formatted(p.claimId(), p.rejectionReason());
+    }
+
+    private String buildAdjudicatedWorkshopBody(ClaimAdjudicatedPayload p) {
+        if ("APPROVED".equals(p.decision())) {
+            return """
+                    Dear Workshop Partner,
+
+                    Repair authorisation has been APPROVED for the following claim.
+
+                    Claim ID:          %s
+                    Approved Amount:   %s
+
+                    You are authorised to proceed with repairs up to the approved amount.
+                    Please upload the work order and repair updates through the workshop portal.
+
+                    Regards,
+                    eClaims Operations Team
+                    """.formatted(p.claimId(), p.approvedAmount());
+        }
+        return """
+                Dear Workshop Partner,
+
+                Please be advised that claim %s has been REJECTED.
+
+                Reason: %s
+
+                Please contact the customer directly regarding next steps.
+
+                Regards,
+                eClaims Operations Team
+                """.formatted(p.claimId(), p.rejectionReason());
     }
 
     private String buildPaymentConfirmationBody(PaymentSettledPayload p) {
@@ -215,5 +368,20 @@ public class NotificationApplicationService {
                 """.formatted(p.claimId(), p.workshopName(), p.repairStatus(),
                               p.estimatedCompletionDate() != null ? p.estimatedCompletionDate() : "TBD",
                               p.statusNote() != null ? p.statusNote() : "-");
+    }
+
+    private String buildStaffNotificationBody(NotificationRequestedPayload p) {
+        return """
+                Dear %s,
+
+                %s
+
+                Claim ID: %s
+
+                Please log in to the eClaims internal portal to view and action this claim.
+
+                Regards,
+                eClaims Operations
+                """.formatted(p.recipientType(), p.message(), p.claimId());
     }
 }

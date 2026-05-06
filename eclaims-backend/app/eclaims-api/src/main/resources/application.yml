@@ -34,6 +34,10 @@ spring:
         spring.json.add.type.headers: false
 
   mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
       mail.smtp.auth: false
       mail.smtp.starttls.enable: false
@@ -104,3 +108,9 @@ eclaims:
       audience: ${KEYCLOAK_AUTHZ_AUDIENCE:eclaims-api}
   payments:
     processing-fee: ${ECLAIMS_PROCESSING_FEE:10.00}  # Configurable processing fee per claim payment
+  sms:
+    twilio:
+      enabled: ${TWILIO_ENABLED:false}
+      account-sid: ${TWILIO_ACCOUNT_SID:}
+      auth-token: ${TWILIO_AUTH_TOKEN:}
+      from-number: ${TWILIO_FROM_NUMBER:+15550000000}

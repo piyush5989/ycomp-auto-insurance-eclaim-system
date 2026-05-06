@@ -1,0 +1,52 @@
+# ─── Java / Maven ─────────────────────────────────────────────────────────────
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+*.zip
+*.tar.gz
+*.rar
+
+# Maven wrapper generated files
+.mvn/wrapper/maven-wrapper.jar
+!.mvn/wrapper/maven-wrapper.properties
+
+# ─── Spring Boot / runtime ────────────────────────────────────────────────────
+*.log
+logs/
+log/
+spring-shell.log
+
+# ─── Node / npm / Vite (frontend) ─────────────────────────────────────────────
+node_modules/
+dist/
+.vite/
+.cache/
+*.tsbuildinfo
+
+# ─── Environment / secrets ────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+# Keep example files — they document required variables without exposing values
+!.env.example
+
+# ─── IDE ──────────────────────────────────────────────────────────────────────
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+*.swo
+*~
+
+# ─── OS artefacts ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Docker volumes ───────────────────────────────────────────────────────────
+postgres_data/

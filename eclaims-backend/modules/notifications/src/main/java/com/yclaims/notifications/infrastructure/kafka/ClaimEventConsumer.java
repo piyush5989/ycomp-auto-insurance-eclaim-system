@@ -2,6 +2,7 @@ package com.yclaims.notifications.infrastructure.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yclaims.contracts.events.DomainEvent;
+import com.yclaims.contracts.events.v1.ClaimAdjudicatedPayload;
 import com.yclaims.contracts.events.v1.ClaimCreatedPayload;
 import com.yclaims.contracts.events.v1.ClaimStatusChangedPayload;
 import com.yclaims.contracts.events.v1.NotificationRequestedPayload;
@@ -55,6 +56,16 @@ public class ClaimEventConsumer {
             case "claim.status.changed" -> {
                 if (event.payload() instanceof ClaimStatusChangedPayload payload) {
                     notificationService.sendStatusChangeNotification(payload, event.correlationId());
+                }
+            }
+            case "claim.adjudicated" -> {
+                try {
+                    ClaimAdjudicatedPayload payload =
+                            objectMapper.convertValue(event.payload(), ClaimAdjudicatedPayload.class);
+                    notificationService.sendClaimAdjudicatedNotification(payload, event.correlationId());
+                } catch (IllegalArgumentException e) {
+                    log.error("Failed to deserialise claim.adjudicated payload [{}]: {}",
+                            event.eventId(), e.getMessage());
                 }
             }
             default -> log.debug("No notification handler for claim event type: {}", event.eventType());

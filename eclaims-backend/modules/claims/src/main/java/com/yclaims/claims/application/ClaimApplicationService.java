@@ -8,6 +8,7 @@ import com.yclaims.claims.domain.model.*;
 import com.yclaims.claims.domain.port.out.ClaimRepository;
 import com.yclaims.claims.domain.port.out.DomainEventPublisher;
 import com.yclaims.claims.domain.port.out.PolicyServicePort;
+import com.yclaims.claims.domain.port.out.WorkshopEmailPort;
 import com.yclaims.claims.domain.service.FraudDetectionService;
 import com.yclaims.claims.infrastructure.persistence.ClaimEndorsementEntity;
 import com.yclaims.claims.infrastructure.persistence.ClaimEndorsementJpaRepository;
@@ -27,7 +28,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -52,6 +52,7 @@ public class ClaimApplicationService {
     private final FraudDetectionService fraudDetectionService;
     private final ClaimDtoMapper claimDtoMapper;
     private final ClaimEndorsementJpaRepository endorsementRepository;
+    private final WorkshopEmailPort workshopEmailPort;
 
     /**
      * Submit a new claim — idempotent via natural key deduplication.
@@ -357,6 +358,10 @@ public class ClaimApplicationService {
     }
 
     private void publishClaimAdjudicatedEvent(Claim claim, UpdateClaimStatusCommand cmd) {
+        UUID workshopId = claim.getWorkshopId() != null ? UUID.fromString(claim.getWorkshopId()) : null;
+        String workshopEmail = workshopId != null
+                ? workshopEmailPort.findEmailByWorkshopId(workshopId).orElse(null)
+                : null;
         var payload = new com.yclaims.contracts.events.v1.ClaimAdjudicatedPayload(
                 claim.getId().getValue(),
                 UUID.fromString(claim.getAssignedAdjustorId()),
@@ -365,8 +370,9 @@ public class ClaimApplicationService {
                 claim.getRejectionReason(),
                 UUID.fromString(claim.getCustomerId()),
                 claim.getCustomerEmail(),
-                claim.getWorkshopId() != null ? UUID.fromString(claim.getWorkshopId()) : null,
-                null,  // workshopName - would need join query
+                workshopId,
+                null,  // workshopName — not needed for notification
+                workshopEmail,
                 Instant.now()
         );
         var event = new DomainEvent<>(

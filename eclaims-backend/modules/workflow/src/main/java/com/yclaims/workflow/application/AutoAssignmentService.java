@@ -219,7 +219,8 @@ public class AutoAssignmentService {
     private void publishNotificationForSurveyorDropOff(UUID claimId, UUID workshopId, String workshopZip,
                                                         SurveyorEntity surveyor, String correlationId) {
         var notification = new NotificationRequestedPayload(
-                claimId, surveyor.getId().toString(), "SURVEYOR", "SURVEYOR_ASSIGNED", "IN_APP",
+                claimId, surveyor.getId().toString(), surveyor.getEmail(),
+                "SURVEYOR", "SURVEYOR_ASSIGNED", "EMAIL,IN_APP",
                 "New Survey Assignment - Vehicle Ready",
                 String.format("You have been assigned to survey claim %s. Vehicle is at workshop (ZIP: %s) and ready for inspection.", claimId, workshopZip),
                 null
@@ -347,7 +348,8 @@ public class AutoAssignmentService {
 
     private void publishNotificationForAdjustor(UUID claimId, AdjustorEntity adjustor, String correlationId) {
         var notification = new NotificationRequestedPayload(
-                claimId, adjustor.getId().toString(), "ADJUSTOR", "ADJUSTOR_ASSIGNED", "IN_APP",
+                claimId, adjustor.getId().toString(), adjustor.getEmail(),
+                "ADJUSTOR", "ADJUSTOR_ASSIGNED", "EMAIL,IN_APP",
                 "New Claim for Adjudication",
                 String.format("Survey has been completed for claim %s. Please review and adjudicate.", claimId),
                 null
