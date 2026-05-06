@@ -69,7 +69,7 @@ public class ClaimController {
     @GetMapping("/{claimId}")
     @PreAuthorize("hasAnyRole('CUSTOMER','SURVEYOR','ADJUSTOR','CASE_MANAGER','AUDITOR','TOP_MANAGEMENT')")
     @Operation(summary = "Get claim details by ID")
-    public ResponseEntity<ApiResponse<ClaimResponse>> getClaim(@PathVariable UUID claimId) {
+    public ResponseEntity<ApiResponse<ClaimResponse>> getClaim(@PathVariable("claimId") UUID claimId) {
         ClaimResponse response = claimService.getClaimById(claimId, UserContextHolder.currentUserId());
         return ResponseEntity.ok(ApiResponse.success(response, correlationId()));
     }
@@ -87,7 +87,7 @@ public class ClaimController {
     @PreAuthorize("hasAnyRole('SURVEYOR','ADJUSTOR','CASE_MANAGER')")
     @Operation(summary = "Update claim status — triggers state machine transition")
     public ResponseEntity<ApiResponse<ClaimResponse>> updateStatus(
-            @PathVariable UUID claimId,
+            @PathVariable("claimId") UUID claimId,
             @Valid @RequestBody ClaimStatusUpdateRequest request) {
 
         UpdateClaimStatusCommand cmd = new UpdateClaimStatusCommand(
@@ -107,7 +107,7 @@ public class ClaimController {
     @DeleteMapping("/{claimId}")
     @PreAuthorize("hasRole('CUSTOMER')")
     @Operation(summary = "Withdraw a claim (customer-initiated)")
-    public ResponseEntity<ApiResponse<ClaimResponse>> withdrawClaim(@PathVariable UUID claimId) {
+    public ResponseEntity<ApiResponse<ClaimResponse>> withdrawClaim(@PathVariable("claimId") UUID claimId) {
         UpdateClaimStatusCommand cmd = new UpdateClaimStatusCommand(
                 claimId,
                 com.yclaims.claims.domain.model.ClaimStatus.WITHDRAWN,

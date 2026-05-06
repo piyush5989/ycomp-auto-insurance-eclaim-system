@@ -177,8 +177,18 @@ public class Claim extends AggregateRoot {
         this.updatedAt = Instant.now();
     }
 
+    public void markPaymentProcessed() {
+        requireStatus(ClaimStatus.PAYMENT_INITIATED, "mark payment processed");
+        this.status = ClaimStatus.PAYMENT_PROCESSED;
+        this.updatedAt = Instant.now();
+    }
+
     public void settle() {
-        requireStatus(ClaimStatus.PAYMENT_INITIATED, "settle");
+        if (status != ClaimStatus.PAYMENT_INITIATED && status != ClaimStatus.PAYMENT_PROCESSED) {
+            throw new InvalidClaimStateException(id,
+                    "Cannot settle when claim is in status " + status
+                            + ". Expected: PAYMENT_INITIATED or PAYMENT_PROCESSED");
+        }
         this.status = ClaimStatus.SETTLED;
         this.updatedAt = Instant.now();
     }

@@ -60,6 +60,41 @@
                 <artifactId>eclaims-contracts</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>com.yclaims</groupId>
+                <artifactId>eclaims-claims</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yclaims</groupId>
+                <artifactId>eclaims-documents</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yclaims</groupId>
+                <artifactId>eclaims-workflow</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yclaims</groupId>
+                <artifactId>eclaims-notifications</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yclaims</groupId>
+                <artifactId>eclaims-workshops</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yclaims</groupId>
+                <artifactId>eclaims-payments</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yclaims</groupId>
+                <artifactId>eclaims-reporting</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <!-- MapStruct -->
             <dependency>
@@ -158,6 +193,7 @@
                             </path>
                         </annotationProcessorPaths>
                         <compilerArgs>
+                            <arg>-parameters</arg>
                             <arg>-Amapstruct.defaultComponentModel=spring</arg>
                         </compilerArgs>
                     </configuration>

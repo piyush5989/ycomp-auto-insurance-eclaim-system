@@ -41,7 +41,7 @@ public class ClaimDataRetentionService {
                         List.of(ClaimStatus.DRAFT, ClaimStatus.SUBMITTED, ClaimStatus.ASSIGNED,
                                 ClaimStatus.UNDER_SURVEY, ClaimStatus.SURVEYED,
                                 ClaimStatus.UNDER_ADJUDICATION, ClaimStatus.APPROVED,
-                                ClaimStatus.PAYMENT_INITIATED));
+                                ClaimStatus.PAYMENT_INITIATED, ClaimStatus.PAYMENT_PROCESSED));
 
         if (!activeClaims.isEmpty()) {
             log.warn("Cannot anonymise customer {} — {} active claim(s) in progress", customerId, activeClaims.size());

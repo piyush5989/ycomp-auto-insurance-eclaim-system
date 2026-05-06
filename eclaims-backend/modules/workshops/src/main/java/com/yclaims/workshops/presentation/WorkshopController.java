@@ -49,7 +49,7 @@ public class WorkshopController {
     @PreAuthorize("hasRole('WORKSHOP')")
     @Operation(summary = "Update repair status for a work order")
     public ResponseEntity<ApiResponse<WorkOrderResponse>> updateRepairStatus(
-            @PathVariable UUID workOrderId,
+            @PathVariable("workOrderId") UUID workOrderId,
             @RequestParam String status,
             @RequestParam(required = false) String note) {
         WorkOrderResponse response = workshopService.updateRepairStatus(workOrderId, status, note, correlationId());

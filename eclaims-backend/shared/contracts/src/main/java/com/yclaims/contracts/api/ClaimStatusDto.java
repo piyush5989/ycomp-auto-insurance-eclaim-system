@@ -7,7 +7,7 @@ package com.yclaims.contracts.api;
  * State machine (enforced by ClaimStateMachine):
  * DRAFT → SUBMITTED → ASSIGNED → UNDER_SURVEY → SURVEYED → UNDER_ADJUDICATION
  *       → APPROVED / REJECTED
- * APPROVED → PAYMENT_INITIATED → SETTLED → ARCHIVED
+ * APPROVED → PAYMENT_INITIATED → PAYMENT_PROCESSED → SETTLED → ARCHIVED
  * Any active state → WITHDRAWN (customer-initiated)
  */
 public enum ClaimStatusDto {
@@ -20,6 +20,7 @@ public enum ClaimStatusDto {
     APPROVED,
     REJECTED,
     PAYMENT_INITIATED,
+    PAYMENT_PROCESSED,
     SETTLED,
     WITHDRAWN,
     ARCHIVED

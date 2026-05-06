@@ -48,6 +48,13 @@ spring:
 server:
   port: 8090
 
+# Readiness group in application.yml lists kafka; locally the Kafka health
+# contributor may be absent depending on classpath. Skip strict validation for dev.
+management:
+  endpoint:
+    health:
+      validate-group-membership: false
+
 logging:
   level:
     com.yclaims: DEBUG

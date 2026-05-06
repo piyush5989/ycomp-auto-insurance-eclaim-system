@@ -2,7 +2,6 @@ package com.yclaims.documents.infrastructure.persistence;
 
 import com.yclaims.documents.domain.model.DocumentType;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -20,7 +19,7 @@ import java.util.UUID;
 )
 @Getter
 @Setter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 public class DocumentEntity {
 
     @Id
@@ -54,8 +53,6 @@ public class DocumentEntity {
 
     @Column(name = "archived")
     private boolean archived = false;
-
-    public DocumentEntity() {}
 
     @Override
     public boolean equals(Object o) {

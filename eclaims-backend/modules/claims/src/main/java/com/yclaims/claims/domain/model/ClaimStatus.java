@@ -6,7 +6,8 @@ package com.yclaims.claims.domain.model;
  *
  * DRAFT → SUBMITTED → ASSIGNED → UNDER_SURVEY → SURVEYED → UNDER_ADJUDICATION
  *       → APPROVED / REJECTED
- * APPROVED → PAYMENT_INITIATED → SETTLED → ARCHIVED
+ * APPROVED → PAYMENT_INITIATED → PAYMENT_PROCESSED → SETTLED → ARCHIVED
+ * (PAYMENT_PROCESSED may be persisted by payment flows; settle accepts it.)
  * Any active (non-terminal) state → WITHDRAWN (customer-initiated)
  */
 public enum ClaimStatus {
@@ -19,6 +20,8 @@ public enum ClaimStatus {
     APPROVED,
     REJECTED,
     PAYMENT_INITIATED,
+    /** Payment gateway / settlement pipeline has completed; claim not yet marked SETTLED. */
+    PAYMENT_PROCESSED,
     SETTLED,
     WITHDRAWN,
     ARCHIVED;

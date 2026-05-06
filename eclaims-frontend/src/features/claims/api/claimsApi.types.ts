@@ -1,6 +1,7 @@
 export type ClaimStatus =
   | 'DRAFT' | 'SUBMITTED' | 'ASSIGNED' | 'UNDER_SURVEY' | 'SURVEYED'
   | 'UNDER_ADJUDICATION' | 'APPROVED' | 'REJECTED' | 'PAYMENT_INITIATED'
+  | 'PAYMENT_PROCESSED'
   | 'SETTLED' | 'WITHDRAWN' | 'ARCHIVED';
 
 export type ClaimType =

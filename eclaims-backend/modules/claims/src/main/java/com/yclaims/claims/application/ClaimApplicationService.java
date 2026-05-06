@@ -148,6 +148,9 @@ public class ClaimApplicationService {
             case APPROVED -> claim.approve(cmd.amount(), cmd.workshopId(), cmd.correlationId());
             case REJECTED -> claim.reject(cmd.reason(), cmd.correlationId());
             case WITHDRAWN -> claim.withdraw(cmd.correlationId());
+            case PAYMENT_INITIATED -> claim.markPaymentInitiated();
+            case PAYMENT_PROCESSED -> claim.markPaymentProcessed();
+            case SETTLED -> claim.settle();
             default -> throw new IllegalArgumentException("Status transition not supported: " + cmd.targetStatus());
         }
 

@@ -1,6 +1,7 @@
 export type ClaimStatus =
   | 'DRAFT' | 'SUBMITTED' | 'ASSIGNED' | 'UNDER_SURVEY' | 'SURVEYED'
   | 'UNDER_ADJUDICATION' | 'APPROVED' | 'REJECTED' | 'PAYMENT_INITIATED'
+  | 'PAYMENT_PROCESSED'
   | 'SETTLED' | 'WITHDRAWN' | 'ARCHIVED';
 
 export const CLAIM_STATUS_LABELS: Record<ClaimStatus, string> = {
@@ -13,6 +14,7 @@ export const CLAIM_STATUS_LABELS: Record<ClaimStatus, string> = {
   APPROVED:            'Approved',
   REJECTED:            'Rejected',
   PAYMENT_INITIATED:   'Payment Initiated',
+  PAYMENT_PROCESSED:   'Payment Processed',
   SETTLED:             'Settled',
   WITHDRAWN:           'Withdrawn',
   ARCHIVED:            'Archived',
@@ -28,6 +30,7 @@ export const CLAIM_STATUS_COLORS: Record<ClaimStatus, string> = {
   APPROVED:            'bg-green-100 text-green-700',
   REJECTED:            'bg-red-200 text-red-800',
   PAYMENT_INITIATED:   'bg-sky-100 text-sky-700',
+  PAYMENT_PROCESSED:   'bg-cyan-100 text-cyan-800',
   SETTLED:             'bg-emerald-100 text-emerald-700',
   WITHDRAWN:           'bg-gray-200 text-gray-600',
   ARCHIVED:            'bg-gray-100 text-gray-500',

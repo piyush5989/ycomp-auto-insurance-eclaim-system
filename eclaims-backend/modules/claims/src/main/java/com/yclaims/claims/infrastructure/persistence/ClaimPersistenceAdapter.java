@@ -9,7 +9,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 
@@ -61,7 +63,8 @@ public class ClaimPersistenceAdapter implements ClaimRepository {
 
     @Override
     public int countRecentClaimsForVehicle(String vehicleRegistration, int days) {
-        return jpaRepository.countRecentClaimsForVehicle(vehicleRegistration, days);
+        Instant since = Instant.now().minus(days, ChronoUnit.DAYS);
+        return jpaRepository.countRecentClaimsForVehicle(vehicleRegistration, since);
     }
 
     @Override

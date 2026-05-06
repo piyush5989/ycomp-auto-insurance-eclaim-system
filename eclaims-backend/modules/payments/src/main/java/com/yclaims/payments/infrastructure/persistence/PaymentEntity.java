@@ -1,7 +1,6 @@
 package com.yclaims.payments.infrastructure.persistence;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -14,7 +13,7 @@ import java.util.UUID;
 @Table(name = "payments", schema = "payments")
 @Getter
 @Setter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 public class PaymentEntity {
 
     @Id
@@ -44,8 +43,6 @@ public class PaymentEntity {
 
     @Column(name = "settled_at")
     private Instant settledAt;
-
-    public PaymentEntity() {}
 
     @Override
     public boolean equals(Object o) {

@@ -58,6 +58,22 @@ class ClaimStateMachineTest {
     }
 
     @Test
+    void shouldSettleFromPaymentProcessed() {
+        Claim claim = buildClaim();
+        claim.assignSurveyor("surveyor-1", "corr-1");
+        claim.beginSurvey();
+        claim.completeSurvey(new BigDecimal("15000.00"), "adjustor-1");
+        claim.beginAdjudication();
+        claim.approve(new BigDecimal("14500.00"), "workshop-1", "corr-2");
+        claim.markPaymentInitiated();
+        claim.markPaymentProcessed();
+        assertThat(claim.getStatus()).isEqualTo(ClaimStatus.PAYMENT_PROCESSED);
+
+        claim.settle();
+        assertThat(claim.getStatus()).isEqualTo(ClaimStatus.SETTLED);
+    }
+
+    @Test
     void shouldRejectClaim() {
         Claim claim = buildClaim();
         claim.assignSurveyor("s1", "c1");

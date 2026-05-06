@@ -41,7 +41,7 @@ public class ClaimStatusSseController {
         summary = "Subscribe to real-time claim status events (SSE)",
         description = "Opens a persistent SSE connection. Sends a 'claim-status' event on every state transition."
     )
-    public SseEmitter subscribeToClaimEvents(@PathVariable UUID claimId) {
+    public SseEmitter subscribeToClaimEvents(@PathVariable("claimId") UUID claimId) {
         log.info("SSE: new subscriber for claimId={}", claimId);
         return broadcaster.register(claimId);
     }

@@ -51,7 +51,7 @@ public class PaymentController {
     @GetMapping("/{paymentId}")
     @PreAuthorize("hasAnyRole('CUSTOMER','CASE_MANAGER','AUDITOR')")
     @Operation(summary = "Get payment status by ID")
-    public ResponseEntity<ApiResponse<PaymentResponse>> getPayment(@PathVariable UUID paymentId) {
+    public ResponseEntity<ApiResponse<PaymentResponse>> getPayment(@PathVariable("paymentId") UUID paymentId) {
         PaymentResponse response = paymentService.getPayment(paymentId, correlationId());
         return ResponseEntity.ok(ApiResponse.success(response, correlationId()));
     }

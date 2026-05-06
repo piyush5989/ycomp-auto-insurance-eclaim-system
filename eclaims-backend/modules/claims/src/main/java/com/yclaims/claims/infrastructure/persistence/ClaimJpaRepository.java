@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -37,8 +38,8 @@ public interface ClaimJpaRepository extends JpaRepository<ClaimEntity, UUID> {
      */
     @Query("SELECT COUNT(c) FROM ClaimEntity c " +
            "WHERE c.vehicleRegistration = :reg " +
-           "AND c.createdAt >= CURRENT_TIMESTAMP - :days * 86400")
-    int countRecentClaimsForVehicle(@Param("reg") String vehicleRegistration, @Param("days") int days);
+           "AND c.createdAt >= :since")
+    int countRecentClaimsForVehicle(@Param("reg") String vehicleRegistration, @Param("since") Instant since);
 
     /**
      * GDPR right-to-erasure: replace all PII fields with an anonymisation token.

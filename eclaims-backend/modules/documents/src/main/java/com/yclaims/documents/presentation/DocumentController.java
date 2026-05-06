@@ -47,7 +47,7 @@ public class DocumentController {
     @PreAuthorize("hasAnyRole('CUSTOMER','SURVEYOR','ADJUSTOR','CASE_MANAGER','AUDITOR')")
     @Operation(summary = "List all documents for a claim")
     public ResponseEntity<ApiResponse<List<DocumentMetadataResponse>>> listDocuments(
-            @PathVariable UUID claimId) {
+            @PathVariable("claimId") UUID claimId) {
         List<DocumentMetadataResponse> docs = documentService.listDocumentsByClaimId(claimId, correlationId());
         return ResponseEntity.ok(ApiResponse.success(docs, correlationId()));
     }
@@ -55,7 +55,7 @@ public class DocumentController {
     @GetMapping("/{documentId}/download-url")
     @PreAuthorize("hasAnyRole('CUSTOMER','SURVEYOR','ADJUSTOR','CASE_MANAGER','AUDITOR')")
     @Operation(summary = "Get a pre-signed download URL for a document")
-    public ResponseEntity<ApiResponse<String>> getDownloadUrl(@PathVariable UUID documentId) {
+    public ResponseEntity<ApiResponse<String>> getDownloadUrl(@PathVariable("documentId") UUID documentId) {
         String url = documentService.getDownloadUrl(documentId, correlationId());
         return ResponseEntity.ok(ApiResponse.success(url, correlationId()));
     }
