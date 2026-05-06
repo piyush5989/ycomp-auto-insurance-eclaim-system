@@ -22,6 +22,7 @@ export default function AssessClaimPage() {
   const [damageNotes, setDamageNotes] = useState('')
   const [uploadingFiles, setUploadingFiles] = useState<File[]>([])
   const [uploadedDocumentIds, setUploadedDocumentIds] = useState<string[]>([])
+  const [fileErrors, setFileErrors] = useState<string[]>([])
 
   const { data: documents = [] } = useQuery({
     queryKey: ['claim-documents', claimId],
@@ -31,23 +32,26 @@ export default function AssessClaimPage() {
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || [])
+    const errors: string[] = []
     const validFiles = files.filter((file) => {
       const isImage = file.type.startsWith('image/')
       const isVideo = file.type.startsWith('video/')
       const isUnder5MB = file.size <= 5 * 1024 * 1024
-      
+
       if (!isImage && !isVideo) {
-        alert(`${file.name} is not an image or video`)
+        errors.push(`"${file.name}" is not an image or video file.`)
         return false
       }
       if (!isUnder5MB) {
-        alert(`${file.name} is larger than 5MB`)
+        errors.push(`"${file.name}" exceeds the 5 MB limit.`)
         return false
       }
       return true
     })
-    
-    setUploadingFiles((prev) => [...prev, ...validFiles].slice(0, 10)) // Max 10 files
+    setFileErrors(errors)
+    setUploadingFiles((prev) => [...prev, ...validFiles].slice(0, 10))
+    // Reset the input so the same file can be re-selected after an error
+    event.target.value = ''
   }
 
   const removeFile = (index: number) => {
@@ -230,6 +234,24 @@ export default function AssessClaimPage() {
                   </p>
                 </label>
               </div>
+
+              {/* Inline validation errors — replaces browser alert() */}
+              {fileErrors.length > 0 && (
+                <div className="mt-3 rounded-md bg-red-50 border border-red-200 p-3">
+                  <ul className="list-disc list-inside space-y-1">
+                    {fileErrors.map((err, i) => (
+                      <li key={i} className="text-xs text-red-700">{err}</li>
+                    ))}
+                  </ul>
+                  <button
+                    type="button"
+                    onClick={() => setFileErrors([])}
+                    className="mt-2 text-xs text-red-600 underline hover:text-red-800"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
 
               {/* Preview pending uploads */}
               {uploadingFiles.length > 0 && (

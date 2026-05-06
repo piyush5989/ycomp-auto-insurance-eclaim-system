@@ -134,13 +134,22 @@ public class Claim extends AggregateRoot {
         return claim;
     }
 
+    /**
+     * Auto-assignment is triggered after vehicle drop-off (VEHICLE_AT_WORKSHOP → ASSIGNED).
+     * The legacy SUBMITTED → ASSIGNED path is kept for backward-compatible direct assignment.
+     */
     public void assignSurveyor(String surveyorId, String correlationId) {
-        requireStatus(ClaimStatus.SUBMITTED, "assign surveyor");
+        if (status != ClaimStatus.SUBMITTED && status != ClaimStatus.VEHICLE_AT_WORKSHOP) {
+            throw new InvalidClaimStateException(id,
+                    "Cannot assign surveyor when claim is in status " + status +
+                    ". Expected: SUBMITTED or VEHICLE_AT_WORKSHOP");
+        }
+        ClaimStatus previous = this.status;
         this.assignedSurveyorId = surveyorId;
         this.status = ClaimStatus.ASSIGNED;
         this.updatedAt = Instant.now();
         registerEvent(new ClaimAssignedEvent(id, surveyorId, correlationId));
-        registerEvent(new ClaimStatusChangedEvent(id, ClaimStatus.SUBMITTED, ClaimStatus.ASSIGNED, surveyorId, correlationId));
+        registerEvent(new ClaimStatusChangedEvent(id, previous, ClaimStatus.ASSIGNED, surveyorId, correlationId));
     }
 
     public void beginSurvey() {
@@ -149,11 +158,24 @@ public class Claim extends AggregateRoot {
         this.updatedAt = Instant.now();
     }
 
-    public void completeSurvey(BigDecimal assessedAmount, String adjustorId) {
+    /**
+     * Surveyor submits assessment results. The adjustor is assigned separately by AutoAssignmentService
+     * via an adjustor.assigned event — surveyors do not pick their own adjustor.
+     */
+    public void completeSurvey(BigDecimal assessedAmount) {
         requireStatus(ClaimStatus.UNDER_SURVEY, "complete survey");
         this.assessedAmount = assessedAmount;
-        this.assignedAdjustorId = adjustorId;
         this.status = ClaimStatus.SURVEYED;
+        this.updatedAt = Instant.now();
+    }
+
+    /**
+     * Assigns an adjustor to the claim after survey completion.
+     * Does not change status — the adjustor explicitly begins adjudication via {@link #beginAdjudication()}.
+     */
+    public void assignAdjudicator(String adjustorId) {
+        requireStatus(ClaimStatus.SURVEYED, "assign adjustor");
+        this.assignedAdjustorId = adjustorId;
         this.updatedAt = Instant.now();
     }
 

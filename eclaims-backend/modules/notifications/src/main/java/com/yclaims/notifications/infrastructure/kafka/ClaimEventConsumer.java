@@ -1,8 +1,10 @@
 package com.yclaims.notifications.infrastructure.kafka;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yclaims.contracts.events.DomainEvent;
 import com.yclaims.contracts.events.v1.ClaimCreatedPayload;
 import com.yclaims.contracts.events.v1.ClaimStatusChangedPayload;
+import com.yclaims.contracts.events.v1.NotificationRequestedPayload;
 import com.yclaims.contracts.events.v1.PaymentSettledPayload;
 import com.yclaims.contracts.events.v1.RepairStatusUpdatedPayload;
 import com.yclaims.notifications.application.NotificationApplicationService;
@@ -28,6 +30,7 @@ public class ClaimEventConsumer {
 
     private final NotificationApplicationService notificationService;
     private final RedisTemplate<String, String> stringRedisTemplate;
+    private final ObjectMapper objectMapper;
 
     @KafkaListener(
         topics = "claim-events",
@@ -85,6 +88,33 @@ public class ClaimEventConsumer {
         if ("repair.status.updated".equals(event.eventType()) &&
                 event.payload() instanceof RepairStatusUpdatedPayload payload) {
             notificationService.sendRepairStatusNotification(payload, event.correlationId());
+        }
+    }
+
+    /**
+     * Consumes notification.requested events published by AutoAssignmentService
+     * (e.g. SURVEYOR_ASSIGNED, ADJUSTOR_ASSIGNED after vehicle drop-off / survey completion).
+     * Previously this topic had no consumer — in-app notifications were silently dropped.
+     */
+    @KafkaListener(
+        topics = "notification-events",
+        groupId = "notification-service",
+        containerFactory = "kafkaListenerContainerFactory"
+    )
+    public void handleNotificationEvent(DomainEvent<?> event) {
+        if (!deduplicate(event.eventId())) return;
+
+        log.info("Processing notification event [{}] type={}", event.eventId(), event.eventType());
+
+        if ("notification.requested".equals(event.eventType())) {
+            try {
+                NotificationRequestedPayload payload =
+                        objectMapper.convertValue(event.payload(), NotificationRequestedPayload.class);
+                notificationService.sendNotificationRequested(payload, event.correlationId());
+            } catch (IllegalArgumentException e) {
+                log.error("Failed to deserialise notification.requested payload [{}]: {}",
+                        event.eventId(), e.getMessage());
+            }
         }
     }
 

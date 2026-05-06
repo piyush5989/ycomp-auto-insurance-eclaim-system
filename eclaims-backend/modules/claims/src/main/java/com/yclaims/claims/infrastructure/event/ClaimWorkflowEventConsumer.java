@@ -1,6 +1,8 @@
 package com.yclaims.claims.infrastructure.event;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yclaims.claims.application.ClaimApplicationService;
+import com.yclaims.claims.application.command.UpdateClaimStatusCommand;
 import com.yclaims.claims.domain.model.ClaimStatus;
 import com.yclaims.claims.infrastructure.persistence.ClaimEntity;
 import com.yclaims.claims.infrastructure.persistence.ClaimJpaRepository;
@@ -20,7 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Claims-side consumer for workflow/workshop integration events.
@@ -35,6 +36,7 @@ import java.util.UUID;
 @Slf4j
 public class ClaimWorkflowEventConsumer {
 
+    private final ClaimApplicationService claimApplicationService;
     private final ClaimJpaRepository claimJpaRepository;
     private final RedisTemplate<String, String> stringRedisTemplate;
     private final ObjectMapper objectMapper;
@@ -146,82 +148,33 @@ public class ClaimWorkflowEventConsumer {
     }
 
     private void handleSurveyorAssigned(DomainEvent<?> event) {
-        log.debug("[{}] handleSurveyorAssigned called | payload type: {}", 
-                event.correlationId(), event.payload().getClass().getName());
-        
         SurveyorAssignedPayload payload = convertPayload(event.payload(), SurveyorAssignedPayload.class, event.correlationId());
         if (payload == null) {
             log.warn("[{}] surveyor.assigned payload conversion failed", event.correlationId());
             return;
         }
-
-        Optional<ClaimEntity> maybe = claimJpaRepository.findById(payload.claimId());
-        if (maybe.isEmpty()) {
-            log.warn("[{}] surveyor.assigned for unknown claim {}", event.correlationId(), payload.claimId());
-            return;
-        }
-
-        ClaimEntity entity = maybe.get();
-        entity.updateFromDomain(
-                ClaimStatus.ASSIGNED,
-                payload.surveyorId().toString(),
-                entity.getAssignedAdjustorId(),
-                entity.getAssessedAmount(),
-                entity.getApprovedAmount(),
-                entity.getWorkshopId(),
-                entity.getRejectionReason(),
-                entity.isFraudFlag(),
-                entity.getFraudReason(),
-                entity.getRegion(),
-                entity.getOverrideByUserId(),
-                entity.getOverrideReason(),
-                entity.getOverrideAt(),
-                entity.getRentalReservationId(),
-                entity.getRentalStatus()
-        );
-        claimJpaRepository.save(entity);
-
-        log.info("[{}] 📝 Claim {} updated from surveyor.assigned | status → ASSIGNED | assignedSurveyorId={}",
+        // Route through the domain model — Claim.assignSurveyor() enforces the state machine
+        // and registers domain events (ClaimAssignedEvent, ClaimStatusChangedEvent).
+        claimApplicationService.updateClaimStatus(new UpdateClaimStatusCommand(
+                payload.claimId(), ClaimStatus.ASSIGNED,
+                payload.surveyorId().toString(), null, null, null,
+                event.correlationId()
+        ));
+        log.info("[{}] Claim {} surveyor assigned via domain model | surveyorId={}",
                 event.correlationId(), payload.claimId(), payload.surveyorId());
     }
 
     private void handleAdjustorAssigned(DomainEvent<?> event) {
-        log.debug("[{}] handleAdjustorAssigned called | payload type: {}", 
-                event.correlationId(), event.payload().getClass().getName());
-        
         AdjustorAssignedPayload payload = convertPayload(event.payload(), AdjustorAssignedPayload.class, event.correlationId());
         if (payload == null) {
             log.warn("[{}] adjustor.assigned payload conversion failed", event.correlationId());
             return;
         }
-
-        Optional<ClaimEntity> maybe = claimJpaRepository.findById(payload.claimId());
-        if (maybe.isEmpty()) {
-            log.warn("[{}] adjustor.assigned for unknown claim {}", event.correlationId(), payload.claimId());
-            return;
-        }
-
-        ClaimEntity entity = maybe.get();
-        entity.updateFromDomain(
-                ClaimStatus.UNDER_ADJUDICATION,
-                entity.getAssignedSurveyorId(),
-                payload.adjustorId().toString(),
-                entity.getAssessedAmount(),
-                entity.getApprovedAmount(),
-                entity.getWorkshopId(),
-                entity.getRejectionReason(),
-                entity.isFraudFlag(),
-                entity.getFraudReason(),
-                entity.getRegion(),
-                entity.getOverrideByUserId(),
-                entity.getOverrideReason(),
-                entity.getOverrideAt(),
-                entity.getRentalReservationId(),
-                entity.getRentalStatus()
-        );
-        claimJpaRepository.save(entity);
-
-        log.info("[{}] 📝 Claim {} updated from adjustor.assigned | status → UNDER_ADJUDICATION | assignedAdjustorId={}",
+        // Only sets assignedAdjustorId — status stays SURVEYED.
+        // The adjustor explicitly begins adjudication via the UI (SURVEYED → UNDER_ADJUDICATION).
+        claimApplicationService.assignAdjudicator(
+                payload.claimId(), payload.adjustorId().toString(), event.correlationId());
+        log.info("[{}] Claim {} adjustor assigned | adjustorId={}",
                 event.correlationId(), payload.claimId(), payload.adjustorId());
     }
 

@@ -20,7 +20,6 @@ import com.yclaims.kernel.audit.AuditEvent;
 import com.yclaims.kernel.audit.AuditPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,7 +52,6 @@ public class ClaimApplicationService {
     private final FraudDetectionService fraudDetectionService;
     private final ClaimDtoMapper claimDtoMapper;
     private final ClaimEndorsementJpaRepository endorsementRepository;
-    private final JdbcTemplate jdbcTemplate;
 
     /**
      * Submit a new claim — idempotent via natural key deduplication.
@@ -246,7 +244,7 @@ public class ClaimApplicationService {
         switch (cmd.targetStatus()) {
             case ASSIGNED -> claim.assignSurveyor(cmd.performedByUserId(), cmd.correlationId());
             case UNDER_SURVEY -> claim.beginSurvey();
-            case SURVEYED -> claim.completeSurvey(cmd.amount(), cmd.performedByUserId());
+            case SURVEYED -> claim.completeSurvey(cmd.amount());
             case UNDER_ADJUDICATION -> claim.beginAdjudication();
             case APPROVED -> claim.approve(cmd.amount(), cmd.workshopId(), cmd.correlationId());
             case REJECTED -> claim.reject(cmd.reason(), cmd.correlationId());
@@ -429,6 +427,20 @@ public class ClaimApplicationService {
                 correlationId, claimId, previousAdjustorId, newAdjustorId, reassignedBy);
 
         return claimDtoMapper.toResponse(saved);
+    }
+
+    /**
+     * Called by the workflow module (via ClaimWorkflowEventConsumer) when AutoAssignmentService
+     * picks an adjustor after survey completion. Sets the adjustorId without changing status —
+     * the adjustor begins adjudication explicitly through the UI.
+     */
+    @Transactional
+    public void assignAdjudicator(UUID claimId, String adjustorId, String correlationId) {
+        Claim claim = claimRepository.findById(ClaimId.of(claimId))
+                .orElseThrow(() -> new ClaimNotFoundException(claimId.toString()));
+        claim.assignAdjudicator(adjustorId);
+        claimRepository.save(claim);
+        log.info("[{}] Adjustor {} assigned to claim {}", correlationId, adjustorId, claimId);
     }
 
     @Transactional

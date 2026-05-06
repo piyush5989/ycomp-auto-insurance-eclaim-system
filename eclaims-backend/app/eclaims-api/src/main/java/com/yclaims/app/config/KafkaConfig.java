@@ -62,6 +62,14 @@ public class KafkaConfig {
                 .build();
     }
 
+    @Bean
+    public NewTopic notificationEventsTopic() {
+        return TopicBuilder.name("notification-events")
+                .partitions(2)
+                .replicas(1)
+                .build();
+    }
+
     // ─── Consumer Factory ────────────────────────────────────────────────
 
     @Bean

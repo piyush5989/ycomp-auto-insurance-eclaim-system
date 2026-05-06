@@ -2,13 +2,14 @@ package com.yclaims.workflow.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yclaims.contracts.events.DomainEvent;
-import com.yclaims.contracts.events.v1.ClaimCreatedPayload;
 import com.yclaims.contracts.events.v1.AdjustorAssignedPayload;
+import com.yclaims.contracts.events.v1.NotificationRequestedPayload;
 import com.yclaims.contracts.events.v1.SurveyorAssignedPayload;
 import com.yclaims.workflow.infrastructure.persistence.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -16,20 +17,20 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
- * Auto-assignment service — consumes 'claim.created' events and assigns the best available
- * surveyor based on region and current workload.
+ * Auto-assignment service — listens to workflow trigger events and assigns the best available
+ * surveyor (on vehicle drop-off) or adjustor (on survey completion) using load-balanced selection.
  *
  * Assignment algorithm (Phase 1 — rule-based):
- *   1. Find active surveyors in the claim's region
- *   2. Select the one with the fewest current active assignments (load balancing)
- *   3. If no surveyor available, publish escalation event (Case Manager notified)
+ *   1. For surveyors: filter by ZIP coverage (DB-driven), then pick lowest workload
+ *   2. For adjustors: load-balance across all active adjustors
+ *   3. If no candidate available, publish claim.escalated event (Case Manager notified)
  *
- * Phase 2: ML-based assignment (skills matching, proximity, historical performance).
+ * Status transitions are driven by domain events — this service publishes surveyor.assigned /
+ * adjustor.assigned events that the claims module's ClaimWorkflowEventConsumer consumes.
  */
 @Service
 @RequiredArgsConstructor
@@ -39,9 +40,10 @@ public class AutoAssignmentService {
     private final AssignmentJpaRepository assignmentRepository;
     private final SurveyorJpaRepository surveyorRepository;
     private final AdjustorJpaRepository adjustorRepository;
+    private final SurveyorZipCoverageJpaRepository coverageRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final RedisTemplate<String, String> stringRedisTemplate;
-    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
 
     @KafkaListener(
@@ -84,54 +86,6 @@ public class AutoAssignmentService {
         }
     }
 
-    private void autoAssign(ClaimCreatedPayload payload, String correlationId) {
-        // Region is not part of the v1 claim.created contract payload.
-        // For now, fall back to global load-balancing across all active surveyors.
-        String region = null;
-        
-        // First, try to find surveyors in the claim's region
-        List<SurveyorEntity> availableInRegion = surveyorRepository.findByActiveTrue().stream()
-                .filter(s -> region != null && region.equalsIgnoreCase(s.getRegion()))
-                .toList();
-
-        List<SurveyorEntity> candidates = availableInRegion.isEmpty() 
-                ? surveyorRepository.findByActiveTrue()  // Fallback to all surveyors if no regional match
-                : availableInRegion;
-
-        if (availableInRegion.isEmpty() && region != null) {
-            log.warn("[{}] No surveyors found in region {} for claim {} — falling back to all surveyors",
-                    correlationId, region, payload.claimId());
-        }
-
-        Optional<SurveyorEntity> assignee = candidates.stream()
-                .min((a, b) -> {
-                    long aLoad = assignmentRepository.countActiveBySurveyorId(a.getId());
-                    long bLoad = assignmentRepository.countActiveBySurveyorId(b.getId());
-                    return Long.compare(aLoad, bLoad);
-                });
-
-        if (assignee.isEmpty()) {
-            log.warn("[{}] No available surveyors for claim {} — escalating to case managers",
-                    correlationId, payload.claimId());
-            publishEscalationEvent(payload, correlationId);
-            return;
-        }
-
-        AssignmentEntity assignment = new AssignmentEntity();
-        assignment.setId(UUID.randomUUID());
-        assignment.setClaimId(payload.claimId());
-        assignment.setSurveyorId(assignee.get().getId());
-        assignment.setAssignedAt(Instant.now());
-        assignment.setActive(true);
-        assignment.setCorrelationId(correlationId);
-        assignmentRepository.save(assignment);
-
-        log.info("[{}] Claim {} auto-assigned to surveyor {} in region {}",
-                correlationId, payload.claimId(), assignee.get().getId(), assignee.get().getRegion());
-
-        // Publish claim.assigned event so the claims module updates status
-        publishClaimAssignedEvent(payload, assignee.get(), correlationId);
-    }
 
     /**
      * Auto-assign surveyor based on vehicle drop-off at workshop (enterprise approach).
@@ -156,28 +110,9 @@ public class AutoAssignmentService {
         log.info("[{}] 🔍 Finding surveyors covering workshop ZIP: {}, State: {} (vehicle is NOW at workshop '{}', ready for inspection)", 
                 correlationId, workshopZip, workshopState, workshopName);
         
-        // Phase 1: Find surveyors covering the workshop ZIP code
-        List<SurveyorEntity> candidatesInZip = surveyorRepository.findByActiveTrue().stream()
-                .filter(s -> coversZipCode(s, workshopZip))
-                .toList();
-        
-        if (candidatesInZip.isEmpty()) {
-            // Fallback: Try ZIP3 (first 3 digits) for broader coverage
-            String zip3 = workshopZip != null && workshopZip.length() >= 3 ? workshopZip.substring(0, 3) : null;
-            log.warn("[{}] ⚠️  No surveyors found for ZIP5 {} — trying ZIP3 fallback: {}", 
-                    correlationId, workshopZip, zip3);
-            
-            candidatesInZip = surveyorRepository.findByActiveTrue().stream()
-                    .filter(s -> zip3 != null && coversZip3(s, zip3))
-                    .toList();
-        }
-        
-        if (candidatesInZip.isEmpty()) {
-            // Final fallback: any active surveyor (ensures assignment always succeeds in demo)
-            log.warn("[{}] ⚠️  No ZIP coverage match — using global fallback across all active surveyors",
-                    correlationId);
-            candidatesInZip = surveyorRepository.findByActiveTrue();
-        }
+        // Phase 1: Resolve which region covers this workshop ZIP, then find matching surveyors.
+        // Full ZIP5 is tried first; fall back to ZIP3 prefix; then global fallback.
+        List<SurveyorEntity> candidatesInZip = resolveSurveyorsByZip(workshopZip, correlationId);
 
         if (candidatesInZip.isEmpty()) {
             log.error("[{}] ❌ No surveyors available at all — escalating to case managers",
@@ -186,20 +121,15 @@ public class AutoAssignmentService {
             return;
         }
         
-        log.info("[{}] ✓ Found {} candidate surveyor(s) for workshop ZIP {}", 
+        log.info("[{}] ✓ Found {} candidate surveyor(s) for workshop ZIP {}",
                 correlationId, candidatesInZip.size(), workshopZip);
-        
-        // Phase 2: Rank by workload (load balancing)
+
+        // Phase 2: Batch-fetch all workload counts in a single query, then pick lowest.
+        Set<UUID> candidateIds = candidatesInZip.stream().map(SurveyorEntity::getId).collect(Collectors.toSet());
+        Map<UUID, Long> workloads = batchSurveyorWorkloads(candidateIds);
+
         Optional<SurveyorEntity> assignee = candidatesInZip.stream()
-                .min((a, b) -> {
-                    long aLoad = assignmentRepository.countActiveBySurveyorId(a.getId());
-                    long bLoad = assignmentRepository.countActiveBySurveyorId(b.getId());
-                    log.debug("[{}]   Surveyor {} (ID: {}) workload: {} active assignments", 
-                            correlationId, a.getName(), a.getId(), aLoad);
-                    log.debug("[{}]   Surveyor {} (ID: {}) workload: {} active assignments", 
-                            correlationId, b.getName(), b.getId(), bLoad);
-                    return Long.compare(aLoad, bLoad);
-                });
+                .min(Comparator.comparingLong(s -> workloads.getOrDefault(s.getId(), 0L)));
         
         if (assignee.isEmpty()) {
             log.error("[{}] ❌ Failed to select surveyor from candidates — escalating", correlationId);
@@ -207,8 +137,8 @@ public class AutoAssignmentService {
             return;
         }
         
-        // Phase 3: Create assignment
-        long currentLoad = assignmentRepository.countActiveBySurveyorId(assignee.get().getId());
+        // Phase 3: Create assignment record in workflow schema
+        long currentLoad = workloads.getOrDefault(assignee.get().getId(), 0L);
         AssignmentEntity assignment = new AssignmentEntity();
         assignment.setId(UUID.randomUUID());
         assignment.setClaimId(claimId);
@@ -217,53 +147,58 @@ public class AutoAssignmentService {
         assignment.setActive(true);
         assignment.setCorrelationId(correlationId);
         assignmentRepository.save(assignment);
-        
-        log.info("[{}] ✅ SURVEYOR AUTO-ASSIGNED (after vehicle drop-off) | Claim: {} | Surveyor: {} ({}) | Workshop ZIP: {} | Current workload: {} active assignments | Selection reason: Lowest workload in coverage area",
-                correlationId, 
-                claimId, 
-                assignee.get().getId(), 
-                assignee.get().getName(),
-                workshopZip,
-                currentLoad);
-        
-        // Phase 4: Update claim status to ASSIGNED in DB (cross-schema write — same DB in modular monolith)
-        jdbcTemplate.update(
-                "UPDATE claims.claims SET status = 'ASSIGNED', assigned_surveyor_id = ?, updated_at = NOW() WHERE id = ?",
-                assignee.get().getId().toString(), claimId);
-        log.info("[{}] 📝 Updated claim {} status → ASSIGNED (assignedSurveyorId: {})",
-                correlationId, claimId, assignee.get().getId());
 
-        // Phase 5: Publish events
+        log.info("[{}] ✅ SURVEYOR AUTO-ASSIGNED | Claim: {} | Surveyor: {} ({}) | ZIP: {} | Workload: {} active",
+                correlationId, claimId, assignee.get().getId(), assignee.get().getName(),
+                workshopZip, currentLoad);
+
+        // Phase 4: Publish events — ClaimWorkflowEventConsumer in the claims module
+        // will receive surveyor.assigned and update the claim via the domain model.
         publishSurveyorAssignedEventForDropOff(claimId, workshopId, workshopZip, assignee.get(), correlationId);
         publishNotificationForSurveyorDropOff(claimId, workshopId, workshopZip, assignee.get(), correlationId);
     }
     
     /**
-     * Check if surveyor covers a specific ZIP5 code.
-     * In production, this would query surveyor_coverage table.
-     * For now, simplified check based on region.
+     * Resolves active surveyors covering the given workshop ZIP code.
+     * Queries the surveyor_zip_coverage table: ZIP5 → ZIP3 → global fallback.
      */
-    private boolean coversZipCode(SurveyorEntity surveyor, String zipCode) {
-        if (zipCode == null || zipCode.length() < 5) return false;
-        
-        // Simplified: Boston area (021xx) for EAST surveyors, SF area (941xx) for WEST
-        if (zipCode.startsWith("021") && "EAST".equals(surveyor.getRegion())) return true;
-        if (zipCode.startsWith("941") && "WEST".equals(surveyor.getRegion())) return true;
-        
-        return false;
+    private List<SurveyorEntity> resolveSurveyorsByZip(String workshopZip, String correlationId) {
+        if (workshopZip != null && workshopZip.length() >= 5) {
+            String zip5 = workshopZip.substring(0, 5);
+            String region = coverageRepository.findRegionByZipPrefix(zip5).orElse(null);
+            if (region == null && workshopZip.length() >= 3) {
+                String zip3 = workshopZip.substring(0, 3);
+                region = coverageRepository.findRegionByZipPrefix(zip3).orElse(null);
+                if (region != null) {
+                    log.debug("[{}] ZIP5 {} not found; ZIP3 {} matched region {}", correlationId, zip5, zip3, region);
+                }
+            }
+            if (region != null) {
+                final String matched = region;
+                List<SurveyorEntity> byRegion = surveyorRepository.findByActiveTrue().stream()
+                        .filter(s -> matched.equalsIgnoreCase(s.getRegion()))
+                        .toList();
+                if (!byRegion.isEmpty()) return byRegion;
+                log.warn("[{}] Region {} matched ZIP {} but no active surveyors — global fallback", correlationId, region, workshopZip);
+            } else {
+                log.warn("[{}] No coverage record for ZIP {} — global fallback", correlationId, workshopZip);
+            }
+        }
+        return surveyorRepository.findByActiveTrue();
     }
-    
+
     /**
-     * Check if surveyor covers a ZIP3 area (broader coverage).
+     * Batch-fetches active assignment counts for a set of surveyor IDs in a single query.
+     * Avoids the N+1 problem of calling countActiveBySurveyorId() inside a comparator.
      */
-    private boolean coversZip3(SurveyorEntity surveyor, String zip3) {
-        if (zip3 == null || zip3.length() != 3) return false;
-        
-        // Simplified: 021 = Boston, 941 = San Francisco
-        if ("021".equals(zip3) && "EAST".equals(surveyor.getRegion())) return true;
-        if ("941".equals(zip3) && "WEST".equals(surveyor.getRegion())) return true;
-        
-        return false;
+    private Map<UUID, Long> batchSurveyorWorkloads(Set<UUID> ids) {
+        if (ids.isEmpty()) return Map.of();
+        return assignmentRepository.countActiveBySurveyorIds(ids)
+                .stream()
+                .collect(Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> (Long) row[1]
+                ));
     }
 
     private void publishSurveyorAssignedEventForDropOff(UUID claimId, UUID workshopId, String workshopZip,
@@ -283,27 +218,17 @@ public class AutoAssignmentService {
 
     private void publishNotificationForSurveyorDropOff(UUID claimId, UUID workshopId, String workshopZip,
                                                         SurveyorEntity surveyor, String correlationId) {
-        record NotificationPayload(UUID claimId, String recipientId, String recipientType, 
-                                    String notificationType, String channel, String subject, String message) {}
-        var notification = new NotificationPayload(
-                claimId,
-                surveyor.getId().toString(),
-                "SURVEYOR",
-                "SURVEYOR_ASSIGNED",
-                "IN_APP",
+        var notification = new NotificationRequestedPayload(
+                claimId, surveyor.getId().toString(), "SURVEYOR", "SURVEYOR_ASSIGNED", "IN_APP",
                 "New Survey Assignment - Vehicle Ready",
-                String.format("You have been assigned to survey claim %s. Vehicle is now at workshop (ZIP: %s) and ready for inspection.",
-                        claimId, workshopZip)
+                String.format("You have been assigned to survey claim %s. Vehicle is at workshop (ZIP: %s) and ready for inspection.", claimId, workshopZip),
+                null
         );
         var event = new DomainEvent<>(
-                UUID.randomUUID().toString(), "notification.requested",
-                correlationId, null,
-                claimId.toString(), "Notification",
-                "v1", Instant.now(),
-                notification
+                UUID.randomUUID().toString(), "notification.requested", correlationId, null,
+                claimId.toString(), "Notification", "v1", Instant.now(), notification
         );
-        log.info("[{}] 🔔 Publishing notification for surveyor {} - Vehicle ready for inspection", 
-                correlationId, surveyor.getName());
+        log.info("[{}] Publishing notification for surveyor {}", correlationId, surveyor.getName());
         kafkaTemplate.send("notification-events", surveyor.getId().toString(), event);
     }
 
@@ -324,30 +249,6 @@ public class AutoAssignmentService {
         kafkaTemplate.send("claim-events", claimId.toString(), event);
     }
     
-    private void publishClaimAssignedEvent(ClaimCreatedPayload payload,
-                                            SurveyorEntity surveyor, String correlationId) {
-        record ClaimAssignedPayload(UUID claimId, UUID surveyorId, String surveyorName) {}
-        var event = new DomainEvent<>(
-                UUID.randomUUID().toString(), "claim.assigned",
-                correlationId, null,
-                payload.claimId().toString(), "Claim",
-                "v1", Instant.now(),
-                new ClaimAssignedPayload(payload.claimId(), surveyor.getId(), surveyor.getName())
-        );
-        kafkaTemplate.send("claim-events", payload.claimId().toString(), event);
-    }
-
-    private void publishEscalationEvent(ClaimCreatedPayload payload, String correlationId) {
-        record EscalationPayload(UUID claimId, String reason) {}
-        var event = new DomainEvent<>(
-                UUID.randomUUID().toString(), "claim.escalated",
-                correlationId, null,
-                payload.claimId().toString(), "Claim",
-                "v1", Instant.now(),
-                new EscalationPayload(payload.claimId(), "No available surveyor in region")
-        );
-        kafkaTemplate.send("claim-events", payload.claimId().toString(), event);
-    }
 
     /**
      * Public method to manually trigger adjustor assignment for a claim.
@@ -377,15 +278,11 @@ public class AutoAssignmentService {
 
         log.info("[{}] ✓ Found {} active adjustor(s)", correlationId, adjustors.size());
 
-        // Load balancing: find adjustor with lowest active claim count
+        // Batch-fetch workloads in one query, then pick lowest — avoids N+1 inside comparator.
+        Map<UUID, Long> adjustorWorkloads = batchAdjustorWorkloads(adjustors);
+
         Optional<AdjustorEntity> assignee = adjustors.stream()
-                .min((a1, a2) -> {
-                    long load1 = countActiveClaimsForAdjustor(a1.getId());
-                    long load2 = countActiveClaimsForAdjustor(a2.getId());
-                    log.debug("[{}]   Adjustor {} workload: {} active claims", correlationId, a1.getName(), load1);
-                    log.debug("[{}]   Adjustor {} workload: {} active claims", correlationId, a2.getName(), load2);
-                    return Long.compare(load1, load2);
-                });
+                .min(Comparator.comparingLong(a -> adjustorWorkloads.getOrDefault(a.getId(), 0L)));
 
         if (assignee.isEmpty()) {
             log.error("[{}] ❌ Failed to select adjustor - escalating", correlationId);
@@ -394,43 +291,45 @@ public class AutoAssignmentService {
         }
 
         AdjustorEntity selectedAdjustor = assignee.get();
-        long currentLoad = countActiveClaimsForAdjustor(selectedAdjustor.getId());
+        long currentLoad = adjustorWorkloads.getOrDefault(selectedAdjustor.getId(), 0L);
 
-        log.info("[{}] ✅ ADJUSTOR AUTO-ASSIGNED (after survey completed) | Claim: {} | Adjustor: {} ({}) | Current workload: {} active claims",
-                correlationId,
-                claimId,
-                selectedAdjustor.getId(),
-                selectedAdjustor.getName(),
-                currentLoad);
+        log.info("[{}] ✅ ADJUSTOR AUTO-ASSIGNED | Claim: {} | Adjustor: {} ({}) | Workload: {} active",
+                correlationId, claimId, selectedAdjustor.getId(), selectedAdjustor.getName(), currentLoad);
 
-        // Update claim status to UNDER_ADJUDICATION and record the assigned adjustor.
-        // Note: adjustors are NOT stored in the workflow.assignments table (which has a FK to surveyors).
-        // Adjustor tracking is done via the assigned_adjustor_id column on the claims table.
-        jdbcTemplate.update(
-                "UPDATE claims.claims SET status = 'UNDER_ADJUDICATION', assigned_adjustor_id = ?, updated_at = NOW() WHERE id = ?",
-                selectedAdjustor.getId().toString(), claimId);
-        log.info("[{}] 📝 Updated claim {} status → UNDER_ADJUDICATION (assignedAdjustorId: {})",
-                correlationId, claimId, selectedAdjustor.getId());
-
-        // Publish events
+        // Publish events — ClaimWorkflowEventConsumer will persist the adjustor ID via the domain model.
         publishAdjustorAssignedEvent(claimId, assignee.get(), correlationId);
         publishNotificationForAdjustor(claimId, assignee.get(), correlationId);
     }
 
     /**
-     * Count active claims assigned to an adjustor.
-     * Adjustors are tracked on claims.claims table, not in workflow.assignments (which is for surveyors).
+     * Batch-fetches UNDER_ADJUDICATION claim counts for all given adjustors in a single cross-schema
+     * read query. Adjustors are tracked on claims.claims, not in workflow.assignments.
      */
-    private long countActiveClaimsForAdjustor(UUID adjustorId) {
+    private Map<UUID, Long> batchAdjustorWorkloads(List<AdjustorEntity> adjustors) {
+        if (adjustors.isEmpty()) return Map.of();
+        String placeholders = adjustors.stream().map(a -> "?").collect(Collectors.joining(", "));
+        String sql = "SELECT assigned_adjustor_id, COUNT(*) FROM claims.claims " +
+                "WHERE assigned_adjustor_id IN (" + placeholders + ") " +
+                "AND status = 'UNDER_ADJUDICATION' GROUP BY assigned_adjustor_id";
+        Object[] params = adjustors.stream().map(a -> a.getId().toString()).toArray();
+        Map<UUID, Long> result = new HashMap<>();
         try {
-            Long count = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM claims.claims WHERE assigned_adjustor_id = ? AND status IN ('UNDER_ADJUDICATION')",
-                    Long.class, adjustorId.toString());
-            return count != null ? count : 0L;
+            jdbcTemplate.query(
+                con -> {
+                    var ps = con.prepareStatement(sql);
+                    for (int i = 0; i < params.length; i++) {
+                        ps.setString(i + 1, (String) params[i]);
+                    }
+                    return ps;
+                },
+                rs -> {
+                    result.put(UUID.fromString(rs.getString(1)), rs.getLong(2));
+                }
+            );
         } catch (Exception e) {
-            log.warn("Failed to count active claims for adjustor {}: {}", adjustorId, e.getMessage());
-            return 0L;
+            log.warn("Failed to batch-count adjustor workloads: {}", e.getMessage());
         }
+        return result;
     }
 
     private void publishAdjustorAssignedEvent(UUID claimId, AdjustorEntity adjustor, String correlationId) {
@@ -447,26 +346,17 @@ public class AutoAssignmentService {
     }
 
     private void publishNotificationForAdjustor(UUID claimId, AdjustorEntity adjustor, String correlationId) {
-        record NotificationPayload(UUID claimId, String recipientId, String recipientType,
-                                    String notificationType, String channel, String subject, String message) {}
-        var notification = new NotificationPayload(
-                claimId,
-                adjustor.getId().toString(),
-                "ADJUSTOR",
-                "ADJUSTOR_ASSIGNED",
-                "IN_APP",
+        var notification = new NotificationRequestedPayload(
+                claimId, adjustor.getId().toString(), "ADJUSTOR", "ADJUSTOR_ASSIGNED", "IN_APP",
                 "New Claim for Adjudication",
-                String.format("Survey has been completed for claim %s. Please review and adjudicate.", claimId)
+                String.format("Survey has been completed for claim %s. Please review and adjudicate.", claimId),
+                null
         );
         var event = new DomainEvent<>(
-                UUID.randomUUID().toString(), "notification.requested",
-                correlationId, null,
-                claimId.toString(), "Notification",
-                "v1", Instant.now(),
-                notification
+                UUID.randomUUID().toString(), "notification.requested", correlationId, null,
+                claimId.toString(), "Notification", "v1", Instant.now(), notification
         );
-        log.info("[{}] 🔔 Publishing notification for adjustor {} - Survey completed, ready for adjudication",
-                correlationId, adjustor.getName());
+        log.info("[{}] Publishing notification for adjustor {}", correlationId, adjustor.getName());
         kafkaTemplate.send("notification-events", adjustor.getId().toString(), event);
     }
 

@@ -2,6 +2,7 @@ package com.yclaims.notifications.application;
 
 import com.yclaims.contracts.events.v1.ClaimCreatedPayload;
 import com.yclaims.contracts.events.v1.ClaimStatusChangedPayload;
+import com.yclaims.contracts.events.v1.NotificationRequestedPayload;
 import com.yclaims.contracts.events.v1.PaymentSettledPayload;
 import com.yclaims.contracts.events.v1.RepairStatusUpdatedPayload;
 import com.yclaims.notifications.infrastructure.email.EmailNotificationAdapter;
@@ -80,6 +81,24 @@ public class NotificationApplicationService {
                 "Your payment of " + payload.amount() + " " + payload.currency()
                         + " has been processed. Transaction: " + payload.gatewayTransactionId(),
                 payload.claimId());
+    }
+
+    /**
+     * Handles generic notification.requested events from the workflow module.
+     * Persists an in-app notification for the recipient (surveyor, adjustor, etc.).
+     * Email/SMS channels require a recipient email lookup from IAM (Phase 2).
+     */
+    @Transactional
+    public void sendNotificationRequested(NotificationRequestedPayload payload, String correlationId) {
+        log.info("[{}] notification.requested | recipient={} type={} channel={}",
+                correlationId, payload.recipientId(), payload.notificationType(), payload.channel());
+        persistNotification(
+                payload.recipientId(),
+                payload.notificationType(),
+                payload.subject(),
+                payload.message(),
+                payload.claimId()
+        );
     }
 
     @Transactional
