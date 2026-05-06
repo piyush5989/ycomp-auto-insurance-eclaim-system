@@ -18,4 +18,7 @@ public class DocumentMetadataResponse {
     private String downloadUrl;
     private String uploadedByUserId;
     private Instant uploadedAt;
+    private int version;
+    private String status;
+    private String checksumSha256;
 }

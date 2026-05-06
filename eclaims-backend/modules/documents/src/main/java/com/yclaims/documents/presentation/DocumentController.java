@@ -1,6 +1,7 @@
 package com.yclaims.documents.presentation;
 
 import com.yclaims.documents.application.DocumentApplicationService;
+import com.yclaims.documents.infrastructure.persistence.DocumentAuditLogEntity;
 import com.yclaims.documents.presentation.dto.DocumentMetadataResponse;
 import com.yclaims.kernel.security.UserContextHolder;
 import com.yclaims.kernel.web.ApiResponse;
@@ -99,10 +100,19 @@ public class DocumentController {
 
     @DeleteMapping("/{documentId}")
     @PreAuthorize("@authz.isAllowed('document', 'delete')")
-    @Operation(summary = "Delete a document")
+    @Operation(summary = "Archive a document (soft delete — binary preserved for compliance)")
     public ResponseEntity<ApiResponse<Void>> deleteDocument(@PathVariable UUID documentId) {
         documentService.deleteDocument(documentId, UserContextHolder.currentUserId(), correlationId());
         return ResponseEntity.ok(ApiResponse.success(null, correlationId()));
+    }
+
+    @GetMapping("/{documentId}/audit")
+    @PreAuthorize("hasAnyRole('AUDITOR', 'CASE_MANAGER')")
+    @Operation(summary = "Retrieve the full audit trail for a document (auditors and case managers only)")
+    public ResponseEntity<ApiResponse<List<DocumentAuditLogEntity>>> getAuditHistory(
+            @PathVariable UUID documentId) {
+        List<DocumentAuditLogEntity> history = documentService.getAuditHistory(documentId, correlationId());
+        return ResponseEntity.ok(ApiResponse.success(history, correlationId()));
     }
 
     private String correlationId() {
