@@ -79,7 +79,7 @@
             "name": "report", "displayName": "Report Resource",
             "type": "urn:eclaims:resources:report",
             "scopes": [
-              {"name": "kpi"}, {"name": "fraud-ageing"}, {"name": "kpi-regional"}, {"name": "all-regions"}
+              {"name": "kpi"}, {"name": "fraud-ageing"}, {"name": "kpi-regional"}, {"name": "all-regions"}, {"name": "my-claims"}
             ]
           },
           {
@@ -149,10 +149,11 @@
           { "name": "perm:document:download", "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"document\"]", "scopes": "[\"download\"]", "applyPolicies": "[\"customer-policy\",\"surveyor-policy\",\"adjustor-policy\",\"case-manager-policy\",\"auditor-policy\"]" } },
           { "name": "perm:document:delete",   "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"document\"]", "scopes": "[\"delete\"]",   "applyPolicies": "[\"customer-policy\",\"surveyor-policy\",\"adjustor-policy\"]" } },
 
-          { "name": "perm:report:kpi",         "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"report\"]", "scopes": "[\"kpi\"]",         "applyPolicies": "[\"regional-mgr-policy\",\"top-management-policy\",\"auditor-policy\"]" } },
-          { "name": "perm:report:fraud-ageing","type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"report\"]", "scopes": "[\"fraud-ageing\"]", "applyPolicies": "[\"auditor-policy\",\"top-management-policy\"]" } },
+          { "name": "perm:report:kpi",         "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"report\"]", "scopes": "[\"kpi\"]",         "applyPolicies": "[\"case-manager-policy\",\"regional-mgr-policy\",\"top-management-policy\",\"auditor-policy\"]" } },
+          { "name": "perm:report:fraud-ageing","type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"report\"]", "scopes": "[\"fraud-ageing\"]", "applyPolicies": "[\"case-manager-policy\",\"auditor-policy\",\"top-management-policy\"]" } },
           { "name": "perm:report:kpi-regional","type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"report\"]", "scopes": "[\"kpi-regional\"]", "applyPolicies": "[\"regional-mgr-policy\",\"top-management-policy\",\"auditor-policy\"]" } },
-          { "name": "perm:report:all-regions", "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"report\"]", "scopes": "[\"all-regions\"]",  "applyPolicies": "[\"top-management-policy\",\"auditor-policy\"]" } },
+          { "name": "perm:report:all-regions", "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"report\"]", "scopes": "[\"all-regions\"]",  "applyPolicies": "[\"top-management-policy\"]" } },
+          { "name": "perm:report:my-claims",   "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"report\"]", "scopes": "[\"my-claims\"]",    "applyPolicies": "[\"case-manager-policy\"]" } },
 
           { "name": "perm:workflow:list-surveyors", "type": "scope", "logic": "POSITIVE", "decisionStrategy": "AFFIRMATIVE", "config": { "resources": "[\"workflow\"]", "scopes": "[\"list-surveyors\"]", "applyPolicies": "[\"case-manager-policy\",\"surveyor-policy\",\"auditor-policy\"]" } },
 

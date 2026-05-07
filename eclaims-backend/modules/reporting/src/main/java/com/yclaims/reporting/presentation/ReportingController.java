@@ -69,11 +69,11 @@ public class ReportingController {
 
     /**
      * Case Manager personal report — scoped to the authenticated user's claims portfolio.
-     * Only ROLE_CASE_MANAGER can access this endpoint.
+     * Permission 'report#my-claims' is configured in Keycloak: only case-manager-policy applies.
      * The user ID is extracted from the JWT subject — no user-supplied parameter accepted.
      */
     @GetMapping("/my-claims")
-    @PreAuthorize("hasRole('ROLE_CASE_MANAGER')")
+    @PreAuthorize("@authz.isAllowed('report', 'my-claims')")
     @Operation(summary = "Case Manager personal claims report — metrics for claims they have handled")
     public ResponseEntity<ApiResponse<CaseManagerReportResponse>> getMyCaseManagerReport(
             @AuthenticationPrincipal Jwt jwt) {
