@@ -18,7 +18,8 @@ spring:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     consumer:
       group-id: eclaims-prod
-      auto-offset-reset: latest
+      # earliest: safe default — new/reset consumer groups re-read from start, avoiding silent event loss
+      auto-offset-reset: earliest
 
   data:
     redis:
@@ -57,3 +58,18 @@ eclaims:
     base-url: ${ECLAIMS_API_BASE_URL}
   storage:
     path: ${ECLAIMS_STORAGE_PATH:/tmp/eclaims-uploads}
+
+kafka:
+  topics:
+    # 3-way replication — tolerates one broker failure in production cluster
+    replication-factor: 3
+    claim-events:
+      partitions: 6
+    audit-events:
+      partitions: 3
+    payment-events:
+      partitions: 4
+    repair-events:
+      partitions: 4
+    notification-events:
+      partitions: 4
