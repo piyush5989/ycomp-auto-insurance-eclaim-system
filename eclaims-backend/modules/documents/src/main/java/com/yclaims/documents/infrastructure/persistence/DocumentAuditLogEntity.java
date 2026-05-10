@@ -4,13 +4,15 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
 
 /**
  * Append-only audit record for every document access or lifecycle event.
- * Never updated or deleted — provides irrefutable evidence for compliance and no-repudiation.
+ * Never updated or deleted - provides irrefutable evidence for compliance and no-repudiation.
  */
 @Entity
 @Table(
@@ -58,7 +60,13 @@ public class DocumentAuditLogEntity {
     @Column(name = "occurred_at", nullable = false)
     private Instant occurredAt;
 
-    /** Extra context as key=value string (e.g. "filename=report.pdf;version=2"). */
+    /**
+     * Extra context as a JSON string, e.g. {@code {"info":"filename=report.pdf;version=2"}}.
+     * Stored in a Postgres {@code jsonb} column - Hibernate 6 needs {@link SqlTypes#JSON} to bind
+     * the {@code String} via {@code setObject(..., OTHER)} instead of as {@code varchar}, otherwise
+     * Postgres rejects the insert with "expression is of type character varying".
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata", columnDefinition = "jsonb")
     private String metadata;
 }

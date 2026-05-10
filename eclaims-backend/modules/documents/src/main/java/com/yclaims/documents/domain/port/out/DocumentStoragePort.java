@@ -1,5 +1,7 @@
 package com.yclaims.documents.domain.port.out;
 
+import org.springframework.core.io.Resource;
+
 import java.io.InputStream;
 import java.util.UUID;
 
@@ -17,6 +19,12 @@ public interface DocumentStoragePort {
      * Store document bytes. Returns the storage key/path for later retrieval.
      */
     String store(UUID documentId, String filename, String contentType, InputStream content, long contentLength);
+
+    /**
+     * Load document bytes as a Spring {@link Resource} for authenticated streaming via the API.
+     * For MinIO/S3 this is a live stream, not a local file.
+     */
+    Resource loadAsResource(String storageKey);
 
     /**
      * Generate a pre-signed URL for direct browser download (bypasses API — no blocking).

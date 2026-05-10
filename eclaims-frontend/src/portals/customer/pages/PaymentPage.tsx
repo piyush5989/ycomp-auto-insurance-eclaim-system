@@ -5,25 +5,29 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { httpClient } from '@/shared/api/httpClient';
 import { formatCurrency } from '@/shared/utils/formatCurrency';
 import { CheckCircle, CreditCard, Info } from 'lucide-react';
+import type { ApiResponse } from '@/shared/types/ApiResponse';
 
-const PROCESSING_FEE = Number(import.meta.env.VITE_ECLAIMS_PROCESSING_FEE ?? '10')
+export interface BillPreview {
+  approvedAmount: number;
+  workshopFinalCost: number | null;
+  processingFee: number;
+  totalDue: number;
+}
 
 export default function PaymentPage() {
   const { claimId } = useParams<{ claimId: string }>();
   const { data: claim } = useClaimDetails(claimId);
 
-  const { data: finalBillAmount } = useQuery({
-    queryKey: ['final-bill', claimId],
-    queryFn: () => httpClient.get(`/payments/calculate-bill/${claimId}`).then((r) => r.data.data),
+  const { data: billPreview, isLoading: billLoading } = useQuery({
+    queryKey: ['bill-preview', claimId],
+    queryFn: async () => {
+      const res = await httpClient.get<ApiResponse<BillPreview>>(`/payments/calculate-bill/${claimId}`)
+      const payload = res.data.data
+      if (!payload) throw new Error('Unable to load bill preview')
+      return payload
+    },
     enabled: !!claimId,
     staleTime: 30_000,
-  });
-
-  const { data: workOrder } = useQuery({
-    queryKey: ['work-order', claimId],
-    queryFn: () => httpClient.get(`/claims/${claimId}/work-order`).then((r) => r.data.data),
-    enabled: !!claimId,
-    retry: false,
   });
 
   const initiatePayment = useMutation({
@@ -118,6 +122,11 @@ export default function PaymentPage() {
     );
   }
 
+  const workshopCost = billPreview?.workshopFinalCost;
+  const approved = billPreview?.approvedAmount ?? claim?.approvedAmount;
+  const overApproved =
+    workshopCost != null && approved != null && workshopCost > approved;
+
   return (
     <div className="max-w-lg mx-auto space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Payment</h1>
@@ -126,26 +135,26 @@ export default function PaymentPage() {
         <h2 className="text-sm font-semibold text-gray-900 mb-4">Payment Summary</h2>
         <div className="space-y-3 text-sm">
           <div className="flex justify-between"><span className="text-gray-500">Claim ID</span><span className="font-mono text-xs">{claimId?.substring(0, 16)}…</span></div>
-          <div className="flex justify-between"><span className="text-gray-500">Approved Amount</span><span className="text-green-700">{formatCurrency(claim?.approvedAmount)}</span></div>
-          <div className="flex justify-between"><span className="text-gray-500">Workshop Final Cost</span><span className="text-orange-600">{formatCurrency(workOrder?.finalCost || claim?.approvedAmount || 0)}</span></div>
-          <div className="flex justify-between"><span className="text-gray-500">Processing Fee</span><span className="text-gray-600">{formatCurrency(PROCESSING_FEE)}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">Approved Amount</span><span className="text-green-700">{formatCurrency(billPreview?.approvedAmount ?? claim?.approvedAmount)}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">Workshop Final Cost</span><span className="text-orange-600">{billLoading ? '…' : formatCurrency(billPreview?.workshopFinalCost)}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">Processing Fee</span><span className="text-gray-600">{formatCurrency(billPreview?.processingFee)}</span></div>
           <div className="border-t pt-3">
             <div className="flex justify-between">
               <span className="font-semibold">Final Amount Due</span>
               <span className="font-bold text-lg text-blue-700">
-                {finalBillAmount ? formatCurrency(finalBillAmount) : 'Calculating...'}
+                {billPreview ? formatCurrency(billPreview.totalDue) : 'Calculating...'}
               </span>
             </div>
           </div>
         </div>
         
-        {(workOrder?.finalCost || 0) > (claim?.approvedAmount || 0) && (
+        {overApproved && workshopCost != null && approved != null && (
           <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-start gap-2">
               <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
               <div className="text-xs text-blue-800">
                 <p className="font-medium mb-1">Additional Cost Notice</p>
-                <p>The workshop final cost exceeded your approved amount by {formatCurrency(workOrder.finalCost - (claim?.approvedAmount || 0))}. This difference plus a {formatCurrency(PROCESSING_FEE)} processing fee has been added to your bill.</p>
+                <p>The workshop final cost exceeded your approved amount by {formatCurrency(workshopCost - approved)}. This difference plus a {formatCurrency(billPreview?.processingFee)} processing fee has been added to your bill.</p>
               </div>
             </div>
           </div>
@@ -153,12 +162,12 @@ export default function PaymentPage() {
       </div>
 
       <button
-        onClick={() => claim && finalBillAmount && initiatePayment.mutate({ claimId: claim.claimId, amount: finalBillAmount })}
-        disabled={!claim?.approvedAmount || !finalBillAmount || initiatePayment.isPending}
+        onClick={() => claim && billPreview && initiatePayment.mutate({ claimId: claim.claimId, amount: billPreview.totalDue })}
+        disabled={!claim?.approvedAmount || !billPreview || initiatePayment.isPending}
         className="btn-primary w-full justify-center"
       >
         <CreditCard className="w-4 h-4 mr-2" />
-        {initiatePayment.isPending ? 'Processing…' : finalBillAmount ? `Pay ${formatCurrency(finalBillAmount)}` : 'Calculating...'}
+        {initiatePayment.isPending ? 'Processing…' : billPreview ? `Pay ${formatCurrency(billPreview.totalDue)}` : 'Calculating...'}
       </button>
     </div>
   );

@@ -40,11 +40,11 @@ public class NotificationApplicationService {
 
     @Transactional
     public void sendClaimSubmittedNotification(ClaimCreatedPayload payload, String correlationId) {
-        log.info("[{}] Claim submitted → email+SMS to {}", correlationId, payload.customerEmail());
+        log.info("[{}] Claim submitted - email+SMS to {}", correlationId, payload.customerEmail());
 
         emailAdapter.sendEmail(
                 payload.customerEmail(),
-                "eClaims — Your Claim Has Been Submitted",
+                "eClaims - Your Claim Has Been Submitted",
                 buildClaimSubmittedBody(payload));
 
         sendSms(resolveCustomerPhone(payload.customerId()),
@@ -59,11 +59,11 @@ public class NotificationApplicationService {
 
     @Transactional
     public void sendStatusChangeNotification(ClaimStatusChangedPayload payload, String correlationId) {
-        log.info("[{}] Status change → {} | email+SMS to {}", correlationId, payload.newStatus(), payload.customerEmail());
+        log.info("[{}] Status change to {} | email+SMS to {}", correlationId, payload.newStatus(), payload.customerEmail());
 
         emailAdapter.sendEmail(
                 payload.customerEmail(),
-                "eClaims — Claim Status Updated: " + payload.newStatus(),
+                "eClaims - Claim Status Updated: " + payload.newStatus(),
                 buildStatusChangeBody(payload));
 
         sendSms(resolveCustomerPhone(payload.customerId()),
@@ -84,12 +84,12 @@ public class NotificationApplicationService {
      */
     @Transactional
     public void sendClaimAdjudicatedNotification(ClaimAdjudicatedPayload payload, String correlationId) {
-        log.info("[{}] Claim adjudicated → {} | email+SMS to customer {}", correlationId, payload.decision(), payload.customerEmail());
+        log.info("[{}] Claim adjudicated as {} | email+SMS to customer {}", correlationId, payload.decision(), payload.customerEmail());
 
         // Customer email
         emailAdapter.sendEmail(
                 payload.customerEmail(),
-                "eClaims — Claim Decision: " + payload.decision(),
+                "eClaims - Claim Decision: " + payload.decision(),
                 buildAdjudicatedCustomerBody(payload));
 
         // Customer SMS
@@ -107,21 +107,21 @@ public class NotificationApplicationService {
 
         // Workshop email (if the event carries the email address)
         if (payload.workshopEmail() != null && !payload.workshopEmail().isBlank()) {
-            log.info("[{}] Adjudication email → workshop {}", correlationId, payload.workshopEmail());
+            log.info("[{}] Adjudication email to workshop {}", correlationId, payload.workshopEmail());
             emailAdapter.sendEmail(
                     payload.workshopEmail(),
-                    "eClaims — Repair Authorisation: " + payload.decision(),
+                    "eClaims - Repair Authorisation: " + payload.decision(),
                     buildAdjudicatedWorkshopBody(payload));
         }
     }
 
     @Transactional
     public void sendPaymentConfirmation(PaymentSettledPayload payload, String correlationId) {
-        log.info("[{}] Payment confirmed → email+SMS to {}", correlationId, payload.customerEmail());
+        log.info("[{}] Payment confirmed - email+SMS to {}", correlationId, payload.customerEmail());
 
         emailAdapter.sendEmail(
                 payload.customerEmail(),
-                "eClaims — Payment Confirmation",
+                "eClaims - Payment Confirmation",
                 buildPaymentConfirmationBody(payload));
 
         sendSms(resolveCustomerPhone(payload.customerId()),
@@ -137,12 +137,12 @@ public class NotificationApplicationService {
 
     @Transactional
     public void sendRepairStatusNotification(RepairStatusUpdatedPayload payload, String correlationId) {
-        log.info("[{}] Repair status → {} | email+SMS for claim {}", correlationId, payload.repairStatus(), payload.claimId());
+        log.info("[{}] Repair status {} | email+SMS for claim {}", correlationId, payload.repairStatus(), payload.claimId());
 
         if (payload.customerEmail() != null) {
             emailAdapter.sendEmail(
                     payload.customerEmail(),
-                    "eClaims — Repair Status Update: " + payload.repairStatus(),
+                    "eClaims - Repair Status Update: " + payload.repairStatus(),
                     buildRepairStatusBody(payload));
         }
 

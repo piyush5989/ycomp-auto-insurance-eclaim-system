@@ -6,6 +6,7 @@ import com.yclaims.kernel.exception.NotFoundException;
 import com.yclaims.payments.domain.port.out.PaymentGatewayPort;
 import com.yclaims.payments.infrastructure.persistence.PaymentEntity;
 import com.yclaims.payments.infrastructure.persistence.PaymentJpaRepository;
+import com.yclaims.payments.presentation.dto.BillPreviewResponse;
 import com.yclaims.payments.presentation.dto.InitiatePaymentRequest;
 import com.yclaims.payments.presentation.dto.PaymentResponse;
 import lombok.RequiredArgsConstructor;
@@ -53,38 +54,42 @@ public class PaymentApplicationService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final JdbcTemplate jdbcTemplate;
 
-    @Transactional
-    public BigDecimal calculateFinalBill(UUID claimId, String correlationId) {
-        // Get claim approved amount and final cost from workshop
-        Map<String, Object> claimData = jdbcTemplate.queryForMap(
-                """
-                SELECT c.approved_amount, wo.final_cost 
-                FROM claims.claims c 
-                LEFT JOIN workshops.work_orders wo ON c.id = wo.claim_id 
-                WHERE c.id = ?::uuid
-                """, claimId.toString());
+    private static final String APPROVED_AND_LATEST_FINAL_COST_SQL = """
+            SELECT c.approved_amount,
+                   (SELECT wo.final_cost FROM workshops.work_orders wo
+                    WHERE wo.claim_id = c.id
+                    ORDER BY wo.created_at DESC NULLS LAST
+                    LIMIT 1) AS final_cost
+            FROM claims.claims c
+            WHERE c.id = ?::uuid
+            """;
 
+    @Transactional(readOnly = true)
+    public BillPreviewResponse previewBill(UUID claimId, String correlationId) {
+        Map<String, Object> claimData = jdbcTemplate.queryForMap(APPROVED_AND_LATEST_FINAL_COST_SQL, claimId.toString());
         BigDecimal approvedAmount = (BigDecimal) claimData.get("approved_amount");
         BigDecimal finalCost = (BigDecimal) claimData.get("final_cost");
-        
+
         if (approvedAmount == null) {
             throw new IllegalStateException("Claim must be approved before payment calculation");
         }
 
-        // Final Bill = Max(Workshop Final Cost - Approved Amount, 0) + Processing Fee (eclaims.payments.processing-fee)
         BigDecimal processingFee = processingFeeAmount;
         BigDecimal workshopDifference = BigDecimal.ZERO;
-        
         if (finalCost != null && finalCost.compareTo(approvedAmount) > 0) {
             workshopDifference = finalCost.subtract(approvedAmount);
         }
+        BigDecimal totalDue = workshopDifference.add(processingFee);
 
-        BigDecimal finalBill = workshopDifference.add(processingFee);
-        
-        log.info("[{}] Final bill calculation | Claim: {} | Approved: {} | Final Cost: {} | Processing Fee: {} | Final Bill: {}",
-                correlationId, claimId, approvedAmount, finalCost, processingFee, finalBill);
-        
-        return finalBill;
+        log.info("[{}] Bill preview | Claim: {} | Approved: {} | Workshop final: {} | Fee: {} | Total due: {}",
+                correlationId, claimId, approvedAmount, finalCost, processingFee, totalDue);
+
+        return new BillPreviewResponse(approvedAmount, finalCost, processingFee, totalDue);
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal calculateFinalBill(UUID claimId, String correlationId) {
+        return previewBill(claimId, correlationId).totalDue();
     }
 
     @Transactional
@@ -202,10 +207,12 @@ public class PaymentApplicationService {
                 """
                 SELECT c.policy_number, c.vehicle_registration, c.incident_date,
                        c.approved_amount, w.name as workshop_name, w.phone as workshop_phone,
-                       wo.final_cost
+                       (SELECT wo.final_cost FROM workshops.work_orders wo
+                        WHERE wo.claim_id = c.id
+                        ORDER BY wo.created_at DESC NULLS LAST
+                        LIMIT 1) AS final_cost
                 FROM claims.claims c
                 LEFT JOIN workshops.workshops w ON c.workshop_id::uuid = w.id
-                LEFT JOIN workshops.work_orders wo ON c.id = wo.claim_id
                 WHERE c.id = ?::uuid
                 """, payment.getClaimId().toString());
 

@@ -120,7 +120,14 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:24.0
     container_name: eclaims-keycloak
-    command: start-dev --import-realm
+    # On every start, run a forced override-import of eclaims-realm.json (kc.sh import honours
+    # --override true), then hand off to start-dev. This is the only way in Keycloak 24 to make
+    # JSON edits take effect on existing realms - "start-dev --import-realm" hard-codes
+    # IGNORE_EXISTING and silently skips updates.
+    entrypoint: ["/bin/bash", "-c"]
+    command: >
+      "/opt/keycloak/bin/kc.sh import --dir /opt/keycloak/data/import --override true &&
+       exec /opt/keycloak/bin/kc.sh start-dev"
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
@@ -143,8 +150,9 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      # KC 24 management port is 9000 (separate from HTTP 8080)
-      test: ["CMD-SHELL", "curl -f http://localhost:9000/health/ready || exit 1"]
+      # The Keycloak 24 image has neither curl nor wget, and start-dev doesn't expose the
+      # management port 9000. Use a bash TCP probe against the HTTP port instead.
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo OK || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5

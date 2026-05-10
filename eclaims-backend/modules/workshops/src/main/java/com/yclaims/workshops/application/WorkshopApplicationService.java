@@ -83,8 +83,7 @@ public class WorkshopApplicationService {
 
     /**
      * Workshop/provider search — filtered by providerType and location (city or zip).
-     * Cache disabled temporarily due to Redis serialization issues.
-     * TODO: Re-enable with proper JSON serializer configuration.
+     * TODO: enable cache with proper JSON serializer configuration.
      */
     // @Cacheable(value = "workshop",
     //            key = "(#providerType != null ? #providerType : 'ALL') + ':' + (#zip != null ? 'zip:' + #zip : #location != null ? 'city:' + #location : 'all')",
@@ -227,7 +226,7 @@ public class WorkshopApplicationService {
                     "Cannot select workshop: claim is not in SUBMITTED status (current: " + currentStatus + ")");
         }
 
-        log.info("[{}] 🏪 Workshop selected | Claim: {} | Workshop: {} ({}) | Status → WORKSHOP_SELECTED",
+        log.info("[{}] Workshop selected | claim={} | workshop={} ({}) | status -> WORKSHOP_SELECTED",
                 correlationId, claimId, workshopId, workshop.getName());
 
         // Publish workshop.selected event
@@ -284,8 +283,9 @@ public class WorkshopApplicationService {
             }
         }
 
-        log.info("[{}] Vehicle drop-off confirmed | claim={} workshop={} dropOffId={} mileage={} fuel={}",
-                correlationId, claimId, workshopName, dropOffId, request.mileage(), request.fuelLevel());
+        log.info("[{}] Vehicle drop-off confirmed | claim={} | workshop={} | dropOffId={} | mileage={} | fuel={} | status -> VEHICLE_AT_WORKSHOP",
+                correlationId, claimId, workshopName, dropOffId,
+                request.mileage(), request.fuelLevel());
 
         // AutoAssignmentService listens to vehicle.droppedoff to trigger surveyor assignment
         var dropOffPayload = new VehicleDroppedOffPayload(

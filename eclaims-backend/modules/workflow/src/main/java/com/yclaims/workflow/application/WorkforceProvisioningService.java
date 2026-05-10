@@ -114,7 +114,7 @@ public class WorkforceProvisioningService {
         migrated.setActive(stale.isActive());
         surveyorRepository.save(migrated);
 
-        log.info("Surveyor migrated: {} → {} (email={})", oldId, newId, email);
+        log.info("Surveyor migrated: {} -> {} (email={})", oldId, newId, email);
     }
 
     private void insertSurveyor(UUID id, String name, String email) {
@@ -172,7 +172,7 @@ public class WorkforceProvisioningService {
         migrated.setActive(stale.getActive());
         adjustorRepository.save(migrated);
 
-        log.info("Adjustor migrated: {} → {} (email={})", oldId, newId, email);
+        log.info("Adjustor migrated: {} -> {} (email={})", oldId, newId, email);
     }
 
     private void insertAdjustor(UUID id, String name, String email) {

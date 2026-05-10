@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { httpClient } from '@/shared/api/httpClient'
 import { formatCurrency } from '@/shared/utils/formatCurrency'
-import { MapPin, TrendingUp, Clock, DollarSign, AlertTriangle } from 'lucide-react'
+import { MapPin, TrendingUp, Clock, DollarSign, AlertTriangle, Info } from 'lucide-react'
 
 const REGIONS = ['EAST', 'WEST', 'NORTH', 'SOUTH', 'CENTRAL']
 
@@ -83,6 +83,19 @@ export default function RegionalReportPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Regional Reports</h1>
         <p className="text-gray-500 mt-1">Claims performance and metrics by region</p>
+      </div>
+
+      <div
+        role="note"
+        aria-label="Live aggregation notice"
+        className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+      >
+        <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-700" aria-hidden="true" />
+        <p>
+          Numbers are aggregated <strong>live from real claim records</strong> in the database and
+          refreshed every minute. In production this read model would be event-driven via Kafka
+          instead of a scheduled rebuild.
+        </p>
       </div>
 
       <div className="card">

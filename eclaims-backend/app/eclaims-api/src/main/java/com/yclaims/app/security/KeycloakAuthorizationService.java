@@ -75,8 +75,21 @@ public class KeycloakAuthorizationService {
         } catch (HttpClientErrorException.Unauthorized e) {
             log.warn("Authz check returned 401 for user={} — token may be expired", userId);
         } catch (Exception e) {
-            log.error("Keycloak authz check failed for user={} {}#{}: {}", userId, resource, scope, e.getMessage());
+            Throwable root = rootCause(e);
+            log.error("Keycloak authz check failed for user={} {}#{}: {} - root: {}: {}",
+                    userId, resource, scope,
+                    e.getMessage(),
+                    root.getClass().getSimpleName(),
+                    root.getMessage());
         }
         return false;
+    }
+
+    private static Throwable rootCause(Throwable t) {
+        Throwable cur = t;
+        while (cur.getCause() != null && cur.getCause() != cur) {
+            cur = cur.getCause();
+        }
+        return cur;
     }
 }

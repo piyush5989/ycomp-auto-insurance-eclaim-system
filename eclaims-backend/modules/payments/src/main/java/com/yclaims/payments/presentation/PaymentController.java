@@ -3,6 +3,7 @@ package com.yclaims.payments.presentation;
 import com.yclaims.kernel.security.UserContextHolder;
 import com.yclaims.kernel.web.ApiResponse;
 import com.yclaims.payments.application.PaymentApplicationService;
+import com.yclaims.payments.presentation.dto.BillPreviewResponse;
 import com.yclaims.payments.presentation.dto.InitiatePaymentRequest;
 import com.yclaims.payments.presentation.dto.PaymentResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -60,11 +61,12 @@ public class PaymentController {
 
     @GetMapping("/calculate-bill/{claimId}")
     @PreAuthorize("@authz.isAllowed('payment', 'read')")
-    @Operation(summary = "Calculate final bill amount for a claim",
-               description = "Returns: (Workshop Final Cost - Approved Amount) + configured processing fee (eclaims.payments.processing-fee)")
-    public ResponseEntity<ApiResponse<java.math.BigDecimal>> calculateFinalBill(@PathVariable UUID claimId) {
-        java.math.BigDecimal amount = paymentService.calculateFinalBill(claimId, correlationId());
-        return ResponseEntity.ok(ApiResponse.success(amount, correlationId()));
+    @Operation(summary = "Preview bill line items for a claim",
+               description = "Returns approved amount, latest workshop final cost, processing fee, and total due. "
+                       + "Total due = max(workshop final - approved, 0) + eclaims.payments.processing-fee.")
+    public ResponseEntity<ApiResponse<BillPreviewResponse>> calculateFinalBill(@PathVariable UUID claimId) {
+        BillPreviewResponse preview = paymentService.previewBill(claimId, correlationId());
+        return ResponseEntity.ok(ApiResponse.success(preview, correlationId()));
     }
 
     @GetMapping("/{paymentId}/receipt")

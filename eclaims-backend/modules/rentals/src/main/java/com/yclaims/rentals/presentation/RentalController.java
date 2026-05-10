@@ -169,8 +169,13 @@ public class RentalController {
 
         kafkaTemplate.send("claim-events", request.claimId().toString(), event);
 
-        log.info("[{}] Rental reserved | reservation={} claim={} days={} total={}",
-                correlationId, reservationId, request.claimId(), request.rentalDays(), totalCost);
+        log.info("[{}] Rental vehicle reserved | reservation={} | claim={} | vehicle={} | duration={} days | total=${} | event=rental.reserved published",
+                correlationId,
+                reservationId,
+                request.claimId(),
+                request.vehicleId(),
+                request.rentalDays(),
+                totalCost);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, correlationId));
@@ -206,7 +211,8 @@ public class RentalController {
 
         kafkaTemplate.send("claim-events", claimId.toString(), event);
 
-        log.info("[{}] Rental skipped | claim={} customer={}", correlationId, claimId, customerId);
+        log.info("[{}] Rental vehicle skipped | claim={} | customer={} | event=rental.skipped published",
+                correlationId, claimId, customerId);
 
         return ResponseEntity.ok(ApiResponse.success(null, correlationId));
     }

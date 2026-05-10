@@ -7,6 +7,7 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * eClaims API Application Entry Point.
@@ -32,6 +33,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 @EnableJpaRepositories(basePackages = "com.yclaims")
 @EnableCaching
 @EnableAsync
+@EnableScheduling
 @EnableKafka
 public class EClaimsApplication {
 
