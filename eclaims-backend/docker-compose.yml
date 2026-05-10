@@ -130,6 +130,11 @@ services:
       KC_DB_PASSWORD: eclaims_dev
       KC_HOSTNAME_STRICT: "false"
       KC_HTTP_ENABLED: "true"
+      # Fix JWT issuer when backend runs in Docker:
+      # Without KC_HOSTNAME the iss claim reflects the request URL (keycloak:8080 vs localhost:8080).
+      # Setting KC_HOSTNAME=localhost ensures iss is always http://localhost:8080/realms/eclaims
+      # so both browser-obtained tokens and backend JWT validation agree on the issuer.
+      KC_HOSTNAME: "localhost"
     ports:
       - "8080:8080"    # Keycloak Admin: localhost:8080/admin (admin/admin)
     volumes:

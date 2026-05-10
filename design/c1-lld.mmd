@@ -1,0 +1,76 @@
+---
+config:
+  layout: elk
+---
+flowchart LR
+    %% --- External Actor (Top-Left) ---
+    customer["Customer / Policyholder"]
+
+    %% --- Internal Boundary (Left Column) ---
+    subgraph INTERNAL["YCompany Internal Users"]
+        direction TB
+
+        %% --- Operations (Teal) ---
+        subgraph OPS["Operations Team"]
+            direction TB
+            caseMgr["Case Manager"]
+            surveyor["Surveyor"]
+            adjustor["Adjustor"]
+        end
+
+        %% --- Management & Audit (Indigo) ---
+        subgraph MGMT["Management & Audit"]
+            direction TB
+            auditor["Auditor"]
+            regionalMgr["Regional Manager"]
+            topMgmt["Top Management"]
+        end
+
+        %% --- External Partner (Violet, still internal-facing) ---
+        PARTNERS["Workshop Partner"]
+    end
+
+    %% --- Central System (Orange) ---
+    eclaims["eClaims System"]
+
+    %% --- External Dependencies (Right Column) ---
+    subgraph EXT["External Dependencies"]
+        direction TB
+        pms["Policy Management System"]
+        stripe["Payment Gateway (Stripe)"]
+        noti["Notification Services (SES / Twilio / FCM)"]
+    end
+
+    %% --- Relationships (Left → Right Flow) ---
+    customer -->|"Create & track claims, make payments"| eclaims
+    caseMgr -->|"Manage claim queue & assignments"| eclaims
+    surveyor -->|"Upload assessment reports"| eclaims
+    adjustor -->|"Approve or reject claims"| eclaims
+    auditor -->|"Audit & compliance access"| eclaims
+    regionalMgr -->|"Review KPIs & SLAs"| eclaims
+    topMgmt -->|"Analyze performance & fraud data"| eclaims
+    PARTNERS -->|"Update repair progress & billing"| eclaims
+
+    eclaims -->|"Validate policy details"| pms
+    eclaims -->|"Process customer and workshop payments"| stripe
+    eclaims -->|"Send notifications (email, SMS, push)"| noti
+
+    %% --- Visual Grouping Recommendations ---
+    %% The left side represents human actors (external + internal)
+    %% The center is the core system boundary (eClaims)
+    %% The right side contains external technical dependencies
+
+    %% --- Styling ---
+    classDef lime stroke:#a3e635,fill:#f7fee7;
+    classDef teal stroke:#2dd4bf,fill:#f0fdfa;
+    classDef indigo stroke:#818cf8,fill:#eef2ff;
+    classDef violet stroke:#a78bfa,fill:#f5f3ff;
+    classDef orange stroke:#fb923c,fill:#fff7ed;
+    classDef cyan stroke:#22d3ee,fill:#ecfeff;
+
+    class customer lime;
+    class OPS teal;
+    class MGMT indigo;
+    class PARTNERS violet;
+    class eclaims orange;
+    class EXT cyan;
