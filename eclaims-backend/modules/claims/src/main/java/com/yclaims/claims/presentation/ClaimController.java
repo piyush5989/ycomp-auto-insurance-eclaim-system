@@ -65,21 +65,35 @@ public class ClaimController {
                 .body(ApiResponse.success(response, correlationId()));
     }
 
+    @GetMapping("/my-claims/stats")
+    @PreAuthorize("@authz.isAllowed('claim', 'list-own')")
+    @Operation(summary = "Dashboard counts for the authenticated customer")
+    public ResponseEntity<ApiResponse<CustomerClaimsStatsResponse>> getMyClaimsStats() {
+        String customerId = UserContextHolder.currentUserId();
+        CustomerClaimsStatsResponse stats = claimService.getMyClaimsStats(customerId);
+        return ResponseEntity.ok(ApiResponse.success(stats, correlationId()));
+    }
+
+    @GetMapping("/my-claims")
+    @PreAuthorize("@authz.isAllowed('claim', 'list-own')")
+    @Operation(summary = "Paginated list of claims for the authenticated customer")
+    public ResponseEntity<ApiResponse<ClaimsPageResponse>> getMyClaims(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortOrder) {
+        String customerId = UserContextHolder.currentUserId();
+        ClaimsPageResponse response = claimService.getClaimsByCustomerPage(
+                customerId, page, size, sortBy, sortOrder);
+        return ResponseEntity.ok(ApiResponse.success(response, correlationId()));
+    }
+
     @GetMapping("/{claimId}")
     @PreAuthorize("@authz.isAllowed('claim', 'read')")
     @Operation(summary = "Get claim details by ID")
     public ResponseEntity<ApiResponse<ClaimResponse>> getClaim(@PathVariable UUID claimId) {
         ClaimResponse response = claimService.getClaimById(claimId, UserContextHolder.currentUserId());
         return ResponseEntity.ok(ApiResponse.success(response, correlationId()));
-    }
-
-    @GetMapping("/my-claims")
-    @PreAuthorize("@authz.isAllowed('claim', 'list-own')")
-    @Operation(summary = "List all claims for the authenticated customer")
-    public ResponseEntity<ApiResponse<List<ClaimResponse>>> getMyClaims() {
-        String customerId = UserContextHolder.currentUserId();
-        List<ClaimResponse> claims = claimService.getClaimsByCustomer(customerId);
-        return ResponseEntity.ok(ApiResponse.success(claims, correlationId()));
     }
 
     @GetMapping

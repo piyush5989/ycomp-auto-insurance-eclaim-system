@@ -109,11 +109,44 @@ public class ClaimApplicationService {
         return claimDtoMapper.toResponse(claim);
     }
 
+    private static final int MY_CLAIMS_MAX_PAGE_SIZE = 100;
+
     @Transactional(readOnly = true)
-    public List<ClaimResponse> getClaimsByCustomer(String customerId) {
-        return claimRepository.findByCustomerId(customerId).stream()
+    public ClaimsPageResponse getClaimsByCustomerPage(String customerId, int page, int size,
+                                                        String sortBy, String sortOrder) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), MY_CLAIMS_MAX_PAGE_SIZE);
+        ClaimRepository.ClaimsPage claimsPage = claimRepository.findByCustomerIdPaginated(
+                customerId, safePage, safeSize, sortBy, sortOrder);
+        List<ClaimResponse> claimResponses = claimsPage.content().stream()
                 .map(claimDtoMapper::toResponse)
                 .toList();
+        return ClaimsPageResponse.builder()
+                .data(claimResponses)
+                .totalElements(claimsPage.totalElements())
+                .totalPages(claimsPage.totalPages())
+                .currentPage(claimsPage.currentPage())
+                .pageSize(claimsPage.pageSize())
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public CustomerClaimsStatsResponse getMyClaimsStats(String customerId) {
+        var nonActive = List.of(
+                ClaimStatus.SETTLED,
+                ClaimStatus.PAYMENT_PROCESSED,
+                ClaimStatus.REJECTED,
+                ClaimStatus.WITHDRAWN,
+                ClaimStatus.ARCHIVED);
+        var settledKpi = List.of(ClaimStatus.SETTLED, ClaimStatus.PAYMENT_PROCESSED);
+        long total = claimRepository.countByCustomerId(customerId);
+        long active = claimRepository.countByCustomerIdAndStatusNotIn(customerId, nonActive);
+        long settled = claimRepository.countByCustomerIdAndStatusIn(customerId, settledKpi);
+        return CustomerClaimsStatsResponse.builder()
+                .total(total)
+                .active(active)
+                .settled(settled)
+                .build();
     }
 
     @Transactional(readOnly = true)

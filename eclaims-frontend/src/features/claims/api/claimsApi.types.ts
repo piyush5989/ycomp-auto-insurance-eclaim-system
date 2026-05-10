@@ -46,6 +46,20 @@ export interface ClaimResponse {
   updatedAt: string;
 }
 
+export interface ClaimsPageResponse {
+  data: ClaimResponse[];
+  totalElements: number;
+  totalPages: number;
+  currentPage: number;
+  pageSize: number;
+}
+
+export interface CustomerClaimsStats {
+  total: number;
+  active: number;
+  settled: number;
+}
+
 export interface ClaimStatusUpdateRequest {
   targetStatus: ClaimStatus;
   amount?: number;

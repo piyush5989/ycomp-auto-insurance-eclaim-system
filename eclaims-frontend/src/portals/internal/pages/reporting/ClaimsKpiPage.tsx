@@ -39,7 +39,7 @@ export default function ClaimsKpiPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Claims KPI Dashboard</h1>
-        <p className="text-gray-500 mt-1">Pre-aggregated snapshot — refreshed every 15 minutes.</p>
+        <p className="text-gray-500 mt-1">Pre-aggregated snapshot - refreshed every 15 minutes.</p>
       </div>
 
       <div className="grid grid-cols-3 gap-5">

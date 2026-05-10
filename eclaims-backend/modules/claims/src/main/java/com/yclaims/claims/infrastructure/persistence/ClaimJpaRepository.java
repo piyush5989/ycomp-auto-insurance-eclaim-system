@@ -1,6 +1,7 @@
 package com.yclaims.claims.infrastructure.persistence;
 
 import com.yclaims.claims.domain.model.ClaimStatus;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -25,7 +26,15 @@ public interface ClaimJpaRepository extends JpaRepository<ClaimEntity, UUID> {
     Optional<ClaimEntity> findByPolicyNumberAndIncidentDateAndVehicleRegistration(
             String policyNumber, LocalDate incidentDate, String vehicleRegistration);
 
-    List<ClaimEntity> findByCustomerId(String customerId);
+    List<ClaimEntity> findByCustomerIdOrderByCreatedAtDesc(String customerId);
+
+    Page<ClaimEntity> findByCustomerId(String customerId, Pageable pageable);
+
+    long countByCustomerId(String customerId);
+
+    long countByCustomerIdAndStatusIn(String customerId, List<ClaimStatus> statuses);
+
+    long countByCustomerIdAndStatusNotIn(String customerId, List<ClaimStatus> statuses);
 
     List<ClaimEntity> findByCustomerIdAndStatusIn(String customerId, List<ClaimStatus> statuses);
 

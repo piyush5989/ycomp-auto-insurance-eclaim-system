@@ -35,6 +35,14 @@ public interface ClaimRepository {
 
     List<Claim> findByCustomerId(String customerId);
 
+    ClaimsPage findByCustomerIdPaginated(String customerId, int page, int size, String sortBy, String sortOrder);
+
+    long countByCustomerId(String customerId);
+
+    long countByCustomerIdAndStatusIn(String customerId, List<ClaimStatus> statuses);
+
+    long countByCustomerIdAndStatusNotIn(String customerId, List<ClaimStatus> statuses);
+
     List<Claim> findByCustomerIdAndStatusIn(String customerId, List<ClaimStatus> statuses);
 
     /**

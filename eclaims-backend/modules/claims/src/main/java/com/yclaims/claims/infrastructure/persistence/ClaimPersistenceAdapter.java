@@ -6,6 +6,7 @@ import com.yclaims.claims.domain.model.ClaimStatus;
 import com.yclaims.claims.domain.port.out.ClaimRepository;
 import com.yclaims.claims.infrastructure.persistence.mapper.ClaimEntityMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
@@ -50,7 +51,7 @@ public class ClaimPersistenceAdapter implements ClaimRepository {
 
     @Override
     public List<Claim> findByCustomerId(String customerId) {
-        return jpaRepository.findByCustomerId(customerId).stream()
+        return jpaRepository.findByCustomerIdOrderByCreatedAtDesc(customerId).stream()
                 .map(mapper::toDomain)
                 .toList();
     }
@@ -60,6 +61,34 @@ public class ClaimPersistenceAdapter implements ClaimRepository {
         return jpaRepository.findByCustomerIdAndStatusIn(customerId, statuses).stream()
                 .map(mapper::toDomain)
                 .toList();
+    }
+
+    @Override
+    public ClaimsPage findByCustomerIdPaginated(String customerId, int page, int size,
+                                                   String sortBy, String sortOrder) {
+        Sort.Direction direction = "asc".equalsIgnoreCase(sortOrder) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        String sortField = sortBy != null && !sortBy.isBlank() ? sortBy : "createdAt";
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(direction, sortField));
+        Page<ClaimEntity> result = jpaRepository.findByCustomerId(customerId, pageRequest);
+        List<Claim> claims = result.getContent().stream()
+                .map(mapper::toDomain)
+                .toList();
+        return new ClaimsPage(claims, result.getTotalElements(), result.getTotalPages(), page, size);
+    }
+
+    @Override
+    public long countByCustomerId(String customerId) {
+        return jpaRepository.countByCustomerId(customerId);
+    }
+
+    @Override
+    public long countByCustomerIdAndStatusIn(String customerId, List<ClaimStatus> statuses) {
+        return jpaRepository.countByCustomerIdAndStatusIn(customerId, statuses);
+    }
+
+    @Override
+    public long countByCustomerIdAndStatusNotIn(String customerId, List<ClaimStatus> statuses) {
+        return jpaRepository.countByCustomerIdAndStatusNotIn(customerId, statuses);
     }
 
     @Override

@@ -3,6 +3,7 @@ import type { ApiResponse } from '@/shared/types/ApiResponse';
 import type {
   ClaimSubmissionRequest, ClaimResponse, ClaimStatusUpdateRequest,
   PotentialDuplicate, UpdateIncidentDetailsRequest, ClaimEndorsement,
+  ClaimsPageResponse, CustomerClaimsStats,
 } from './claimsApi.types';
 
 /**
@@ -16,8 +17,20 @@ export const claimsApi = {
   getById: (claimId: string) =>
     httpClient.get<ApiResponse<ClaimResponse>>(`/claims/${claimId}`).then((r) => r.data),
 
-  listMyClaims: () =>
-    httpClient.get<ApiResponse<ClaimResponse[]>>('/claims/my-claims').then((r) => r.data),
+  listMyClaimsPage: (params: {
+    page?: number;
+    size?: number;
+    sortBy?: string;
+    sortOrder?: string;
+  }) =>
+    httpClient
+      .get<ApiResponse<ClaimsPageResponse>>('/claims/my-claims', { params })
+      .then((r) => r.data),
+
+  getMyClaimsStats: () =>
+    httpClient
+      .get<ApiResponse<CustomerClaimsStats>>('/claims/my-claims/stats')
+      .then((r) => r.data),
 
   updateStatus: (claimId: string, update: ClaimStatusUpdateRequest) =>
     httpClient.patch<ApiResponse<ClaimResponse>>(`/claims/${claimId}/status`, update).then((r) => r.data),
