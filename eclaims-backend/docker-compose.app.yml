@@ -1,0 +1,118 @@
+# App services overlay — joins the infra stack defined in docker-compose.yml.
+#
+# Usage (from eclaims-backend/ directory):
+#   docker compose -f docker-compose.yml -f docker-compose.app.yml up -d --build
+#
+# Stop everything:
+#   docker compose -f docker-compose.yml -f docker-compose.app.yml down
+#
+# Rebuild only the app images after a code change:
+#   docker compose -f docker-compose.yml -f docker-compose.app.yml up -d --build eclaims-backend eclaims-frontend
+
+version: "3.9"
+
+services:
+
+  # ─── Spring Boot API ───────────────────────────────────────────────────────
+  eclaims-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: eclaims-backend:local
+    container_name: eclaims-backend
+    ports:
+      - "8090:8090"
+    environment:
+      # ── Profile ────────────────────────────────────────────────────────────
+      # minio,local: loads application-local.yml (datasource, redis, kafka, mail)
+      # AND application-minio.yml (uses MinIO object store instead of local disk).
+      # Env vars below override the localhost references with Docker service names.
+      SPRING_PROFILES_ACTIVE: minio,local
+
+      # ── Database ───────────────────────────────────────────────────────────
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/eclaims
+      SPRING_DATASOURCE_USERNAME: eclaims
+      SPRING_DATASOURCE_PASSWORD: eclaims_dev
+      # Use update (not validate) so schema evolves without a migration tool
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+
+      # ── Kafka ──────────────────────────────────────────────────────────────
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      SPRING_KAFKA_CONSUMER_GROUP_ID: eclaims-docker
+
+      # ── Redis ──────────────────────────────────────────────────────────────
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PASSWORD: redis_dev
+
+      # ── Mail ───────────────────────────────────────────────────────────────
+      SPRING_MAIL_HOST: mailhog
+      SPRING_MAIL_PORT: 1025
+
+      # ── JWT / Keycloak ─────────────────────────────────────────────────────
+      # jwk-set-uri uses Docker-internal hostname (no external HTTP needed).
+      # issuer-uri also uses the internal hostname; with KC_HOSTNAME=localhost
+      # set on the Keycloak container, the discovery document returns
+      # iss=http://localhost:8080/realms/eclaims which matches browser-issued tokens.
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/eclaims/protocol/openid-connect/certs
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/eclaims
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: eclaims
+
+      # ── Storage (MinIO) ────────────────────────────────────────────────────
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: eclaims
+      MINIO_SECRET_KEY: eclaims_dev
+      MINIO_BUCKET: eclaims-documents
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8090/actuator/health/liveness || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    networks:
+      - eclaims-net
+
+  # ─── React Frontend (nginx) ────────────────────────────────────────────────
+  eclaims-frontend:
+    build:
+      context: ../eclaims-frontend
+      dockerfile: Dockerfile
+      args:
+        # Keycloak URL must be the browser-visible address (not Docker-internal).
+        # The frontend JS runs in the user's browser — it cannot reach 'keycloak:8080'.
+        VITE_KEYCLOAK_URL: http://localhost:8080
+        VITE_KEYCLOAK_REALM: eclaims
+        VITE_KEYCLOAK_CLIENT_ID: eclaims-web
+    image: eclaims-frontend:local
+    container_name: eclaims-frontend
+    ports:
+      - "3000:80"    # http://localhost:3000
+    depends_on:
+      eclaims-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/index.html | grep -q '<!DOCTYPE html' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - eclaims-net
+
+networks:
+  # eclaims-net is already declared in docker-compose.yml.
+  # When both compose files are merged with -f, the same project shares all networks —
+  # no re-declaration needed here. Services above simply reference 'eclaims-net'.
+  eclaims-net:
