@@ -39,6 +39,8 @@ RUN ./mvnw -pl app/eclaims-api -am package -DskipTests -B -q
 # Minimal JRE image — no compiler, no Maven, ~100 MB smaller.
 FROM eclipse-temurin:21-jre-alpine
 
+RUN apk add --no-cache wget
+
 # Non-root user — principle of least privilege
 RUN addgroup -S eclaims && adduser -S eclaims -G eclaims
 

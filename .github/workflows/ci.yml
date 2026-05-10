@@ -2,11 +2,10 @@ name: CI/CD
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, ci-cd]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, ci-cd]
 
-# Allow one concurrent run per branch; cancel in-progress runs on new pushes.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -18,7 +17,6 @@ env:
   JAVA_VERSION: '21'
   NODE_VERSION: '20'
 
-# ─── Job 1: Backend — Compile + Unit Tests ───────────────────────────────────
 jobs:
   backend-ci:
     name: Backend — Build & Test
@@ -41,7 +39,6 @@ jobs:
       - name: Make Maven wrapper executable
         run: chmod +x mvnw
 
-      # Compile all modules + run unit tests + ArchUnit architecture checks
       - name: Build and test
         run: ./mvnw clean verify -B -Dstyle.color=always
 
@@ -53,7 +50,6 @@ jobs:
           path: eclaims-backend/**/target/surefire-reports/
           retention-days: 7
 
-# ─── Job 2: Frontend — Type-check + Lint + Build ─────────────────────────────
   frontend-ci:
     name: Frontend — Type-check, Lint & Build
     runs-on: ubuntu-latest
@@ -81,7 +77,6 @@ jobs:
       - name: Lint (zero warnings policy)
         run: npm run lint
 
-      # Build with production Keycloak coords — override via repo variables if needed
       - name: Build
         run: npm run build
         env:
@@ -96,20 +91,23 @@ jobs:
           path: eclaims-frontend/dist/
           retention-days: 3
 
-# ─── Job 3: Docker — Build & Push to GHCR ────────────────────────────────────
-# Runs only on pushes to main (not on PRs) after both CI jobs pass.
-  docker-build-push:
-    name: Docker — Build & Push
+  docker-publish:
+    name: Docker — GHCR (+ ECR for ECS)
     needs: [backend-ci, frontend-ci]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/ci-cd')
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
-      packages: write   # required to push to GHCR
+      packages: write
+      id-token: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Short SHA
+        id: sha
+        run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -121,7 +119,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── Backend image ───────────────────────────────────────────────────
       - name: Extract metadata — backend
         id: backend-meta
         uses: docker/metadata-action@v5
@@ -129,9 +126,9 @@ jobs:
           images: ${{ env.BACKEND_IMAGE }}
           tags: |
             type=sha,prefix=sha-,format=short
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
-      - name: Build and push — backend
+      - name: Build and push — backend (GHCR)
         uses: docker/build-push-action@v5
         with:
           context: eclaims-backend
@@ -139,11 +136,9 @@ jobs:
           push: true
           tags: ${{ steps.backend-meta.outputs.tags }}
           labels: ${{ steps.backend-meta.outputs.labels }}
-          # Reuse GitHub Actions cache across builds — cuts image build time ~60%
           cache-from: type=gha,scope=backend
-          cache-to:   type=gha,scope=backend,mode=max
+          cache-to: type=gha,scope=backend,mode=max
 
-      # ── Frontend image ──────────────────────────────────────────────────
       - name: Extract metadata — frontend
         id: frontend-meta
         uses: docker/metadata-action@v5
@@ -151,9 +146,9 @@ jobs:
           images: ${{ env.FRONTEND_IMAGE }}
           tags: |
             type=sha,prefix=sha-,format=short
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
-      - name: Build and push — frontend
+      - name: Build and push — frontend (GHCR)
         uses: docker/build-push-action@v5
         with:
           context: eclaims-frontend
@@ -161,73 +156,163 @@ jobs:
           push: true
           tags: ${{ steps.frontend-meta.outputs.tags }}
           labels: ${{ steps.frontend-meta.outputs.labels }}
-          # Keycloak URL is baked into the JS bundle at image build time.
-          # Set VITE_KEYCLOAK_URL in Settings → Variables → Actions for cloud deployments.
           build-args: |
+            NGINX_CONFIG=nginx.conf
             VITE_KEYCLOAK_URL=${{ vars.VITE_KEYCLOAK_URL || 'http://localhost:8080' }}
             VITE_KEYCLOAK_REALM=${{ vars.VITE_KEYCLOAK_REALM || 'eclaims' }}
             VITE_KEYCLOAK_CLIENT_ID=${{ vars.VITE_KEYCLOAK_CLIENT_ID || 'eclaims-web' }}
-          cache-from: type=gha,scope=frontend
-          cache-to:   type=gha,scope=frontend,mode=max
+          cache-from: type=gha,scope=frontend-ghcr
+          cache-to: type=gha,scope=frontend-ghcr,mode=max
 
-      # ── Summary ─────────────────────────────────────────────────────────
-      - name: Job summary
+      - name: Configure AWS credentials (OIDC)
+        if: vars.AWS_ROLE_ARN != '' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ci-cd')
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: ECR login and registry URL
+        id: ecr-registry
+        if: vars.AWS_ROLE_ARN != '' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ci-cd')
         run: |
-          echo "## Docker images pushed" >> $GITHUB_STEP_SUMMARY
-          echo "| Image | Tag |" >> $GITHUB_STEP_SUMMARY
-          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
-          echo "| Backend  | \`${{ env.BACKEND_IMAGE }}:sha-${{ github.sha }}\`  |" >> $GITHUB_STEP_SUMMARY
-          echo "| Frontend | \`${{ env.FRONTEND_IMAGE }}:sha-${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+          REG="${ACCOUNT}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com"
+          aws ecr get-login-password --region "${{ vars.AWS_REGION }}" | docker login --username AWS --password-stdin "$REG"
+          echo "registry=$REG" >> "$GITHUB_OUTPUT"
 
-# ─── Job 4: Deploy — POC Environment ─────────────────────────────────────────
-# Placeholder — wire up your actual deployment target here.
-# Uses a GitHub Environment ("poc") so you can add a required-reviewer approval gate.
-  deploy:
-    name: Deploy — POC
-    needs: [docker-build-push]
+      - name: Ensure ECR repositories
+        if: vars.AWS_ROLE_ARN != '' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ci-cd')
+        run: |
+          for R in eclaims-backend eclaims-frontend; do
+            aws ecr describe-repositories --repository-names "$R" --region "${{ vars.AWS_REGION }}" 2>/dev/null \
+              || aws ecr create-repository --repository-name "$R" --region "${{ vars.AWS_REGION }}"
+          done
+
+      - name: Build and push — backend (ECR)
+        if: vars.AWS_ROLE_ARN != '' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ci-cd')
+        uses: docker/build-push-action@v5
+        with:
+          context: eclaims-backend
+          file: eclaims-backend/Dockerfile
+          push: true
+          tags: ${{ steps.ecr-registry.outputs.registry }}/eclaims-backend:sha-${{ steps.sha.outputs.short }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+
+      - name: Build and push — frontend (ECR, ECS sidecar nginx)
+        if: vars.AWS_ROLE_ARN != '' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ci-cd')
+        uses: docker/build-push-action@v5
+        with:
+          context: eclaims-frontend
+          file: eclaims-frontend/Dockerfile
+          push: true
+          tags: ${{ steps.ecr-registry.outputs.registry }}/eclaims-frontend:sha-${{ steps.sha.outputs.short }}
+          build-args: |
+            NGINX_CONFIG=nginx.ecs.conf
+            VITE_KEYCLOAK_URL=${{ vars.VITE_KEYCLOAK_URL || 'http://localhost:8080' }}
+            VITE_KEYCLOAK_REALM=${{ vars.VITE_KEYCLOAK_REALM || 'eclaims' }}
+            VITE_KEYCLOAK_CLIENT_ID=${{ vars.VITE_KEYCLOAK_CLIENT_ID || 'eclaims-web' }}
+          cache-from: type=gha,scope=frontend-ecs
+          cache-to: type=gha,scope=frontend-ecs,mode=max
+
+      - name: Summary — images
+        run: |
+          echo "## Docker images" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Registry | Backend | Frontend |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| GHCR | \`${{ env.BACKEND_IMAGE }}:sha-${{ steps.sha.outputs.short }}\` | \`${{ env.FRONTEND_IMAGE }}:sha-${{ steps.sha.outputs.short }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "${{ steps.ecr-registry.outputs.registry }}" ]; then
+            echo "| ECR | \`${{ steps.ecr-registry.outputs.registry }}/eclaims-backend:sha-${{ steps.sha.outputs.short }}\` | \`${{ steps.ecr-registry.outputs.registry }}/eclaims-frontend:sha-${{ steps.sha.outputs.short }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  deploy-ecs:
+    name: Deploy — ECS Fargate
+    needs: [docker-publish]
+    if: >
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ci-cd') &&
+      vars.AWS_ROLE_ARN != '' &&
+      vars.ECS_CLUSTER != '' &&
+      vars.ECS_SERVICE != '' &&
+      vars.ECS_TASK_FAMILY != ''
     runs-on: ubuntu-latest
-    environment: poc   # configure protection rules in Settings → Environments
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: poc
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
 
-      # ── Option A: SSH into a demo VM and pull the new images ────────────
-      # Uncomment and fill in SSH_HOST / SSH_USER / SSH_KEY secrets.
-      #
-      # - name: Deploy via SSH
-      #   uses: appleboy/ssh-action@v1
-      #   with:
-      #     host: ${{ secrets.SSH_HOST }}
-      #     username: ${{ secrets.SSH_USER }}
-      #     key: ${{ secrets.SSH_KEY }}
-      #     script: |
-      #       cd /opt/eclaims
-      #       echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-      #       docker compose -f docker-compose.yml -f docker-compose.app.yml pull eclaims-backend eclaims-frontend
-      #       docker compose -f docker-compose.yml -f docker-compose.app.yml up -d eclaims-backend eclaims-frontend
-      #       docker compose -f docker-compose.yml -f docker-compose.app.yml exec eclaims-backend \
-      #         wget -qO- http://localhost:8090/actuator/health/readiness
-
-      # ── Option B: AWS ECS update-service ────────────────────────────────
-      # Uncomment and configure aws-actions with OIDC or access key secrets.
-      #
-      # - name: Deploy to ECS
-      #   uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-      #   with:
-      #     task-definition: ecs-task-def.json
-      #     service: eclaims-api
-      #     cluster: eclaims-poc
-      #     wait-for-service-stability: true
-
-      - name: Deployment instructions
+      - name: Resolve ECR image URIs
+        id: images
         run: |
-          echo "Deployment step not yet configured."
-          echo ""
-          echo "Images ready to pull:"
-          echo "  ${{ env.BACKEND_IMAGE }}:sha-$(echo ${{ github.sha }} | cut -c1-7)"
-          echo "  ${{ env.FRONTEND_IMAGE }}:sha-$(echo ${{ github.sha }} | cut -c1-7)"
-          echo ""
-          echo "Uncomment Option A (SSH) or Option B (ECS) in .github/workflows/ci.yml"
-          echo "and add the required secrets in Settings → Secrets and variables → Actions."
+          ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+          REG="${ACCOUNT}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com"
+          SHORT=$(echo ${{ github.sha }} | cut -c1-7)
+          echo "backend=${REG}/eclaims-backend:sha-${SHORT}" >> "$GITHUB_OUTPUT"
+          echo "frontend=${REG}/eclaims-frontend:sha-${SHORT}" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch and patch task definition
+        run: |
+          set -euo pipefail
+          aws ecs describe-task-definition \
+            --task-definition "${{ vars.ECS_TASK_FAMILY }}" \
+            --region "${{ vars.AWS_REGION }}" \
+            --query taskDefinition \
+            --output json > td.json
+          jq 'del(
+            .taskDefinitionArn,
+            .revision,
+            .status,
+            .requiresAttributes,
+            .compatibilities,
+            .registeredAt,
+            .registeredBy,
+            .deregisteredAt
+          )' td.json > td-clean.json
+          jq --arg B "${{ steps.images.outputs.backend }}" --arg F "${{ steps.images.outputs.frontend }}" \
+            '(.containerDefinitions[] | select(.name=="eclaims-backend") | .image) = $B
+             | (.containerDefinitions[] | select(.name=="eclaims-frontend") | .image) = $F' \
+            td-clean.json > td-new.json
+          jq -e '[.containerDefinitions[].name] | (index("eclaims-backend") != null) and (index("eclaims-frontend") != null)' td-new.json > /dev/null
+
+      - name: Register task definition
+        id: reg
+        run: |
+          ARN=$(aws ecs register-task-definition \
+            --region "${{ vars.AWS_REGION }}" \
+            --cli-input-json file://td-new.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+          echo "arn=$ARN" >> "$GITHUB_OUTPUT"
+
+      - name: Update ECS service
+        run: |
+          aws ecs update-service \
+            --region "${{ vars.AWS_REGION }}" \
+            --cluster "${{ vars.ECS_CLUSTER }}" \
+            --service "${{ vars.ECS_SERVICE }}" \
+            --task-definition "${{ steps.reg.outputs.arn }}" \
+            --force-new-deployment
+
+      - name: Wait for service stability
+        run: |
+          aws ecs wait services-stable \
+            --region "${{ vars.AWS_REGION }}" \
+            --cluster "${{ vars.ECS_CLUSTER }}" \
+            --services "${{ vars.ECS_SERVICE }}"
+
+      - name: Optional smoke test
+        if: vars.POC_ALB_URL != ''
+        run: |
+          set -euo pipefail
+          BASE="${{ vars.POC_ALB_URL }}"
+          BASE="${BASE%/}"
+          curl -fsS "$BASE/actuator/health/readiness" | head -c 2000
+          echo

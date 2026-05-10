@@ -25,8 +25,9 @@ RUN npm run build
 # Minimal nginx image — serves the Vite dist and proxies /api to the backend.
 FROM nginx:1.27-alpine
 
-# Replace the default nginx vhost with our SPA + proxy config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# docker-compose: nginx.conf (proxy to hostname eclaims-backend). ECS same-task sidecar: nginx.ecs.conf (127.0.0.1).
+ARG NGINX_CONFIG=nginx.conf
+COPY ${NGINX_CONFIG} /etc/nginx/conf.d/default.conf
 
 # Copy the Vite build output
 COPY --from=build /app/dist /usr/share/nginx/html
