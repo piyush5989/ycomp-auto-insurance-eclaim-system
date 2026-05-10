@@ -3,6 +3,7 @@ package com.yclaims.documents.infrastructure.storage;
 import com.yclaims.documents.config.MinioStorageProperties;
 import com.yclaims.documents.domain.port.out.DocumentStoragePort;
 import io.minio.BucketExistsArgs;
+import io.minio.GetObjectArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
@@ -12,8 +13,11 @@ import io.minio.http.Method;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.io.AbstractResource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -92,6 +96,29 @@ public class MinioDocumentStorageAdapter implements DocumentStoragePort {
         } catch (Exception e) {
             throw new RuntimeException("Failed to store document '" + objectKey + "' in MinIO", e);
         }
+    }
+
+    @Override
+    public Resource loadAsResource(String storageKey) {
+        return new AbstractResource() {
+            @Override
+            public String getDescription() {
+                return "MinIO object " + bucketName + "/" + storageKey;
+            }
+
+            @Override
+            public InputStream getInputStream() throws IOException {
+                try {
+                    return minioClient.getObject(
+                            GetObjectArgs.builder()
+                                    .bucket(bucketName)
+                                    .object(storageKey)
+                                    .build());
+                } catch (Exception e) {
+                    throw new IOException("Failed to open MinIO object stream for key: " + storageKey, e);
+                }
+            }
+        };
     }
 
     /**

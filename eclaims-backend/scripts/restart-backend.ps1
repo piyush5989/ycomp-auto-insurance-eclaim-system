@@ -1,3 +1,7 @@
+param(
+  [string]$Profile = $env:SPRING_PROFILES_ACTIVE
+)
+
 # Ensure consistent UTF-8 output so logs render correctly in Windows terminals
 chcp 65001 | Out-Null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -36,6 +40,16 @@ try {
 
   Stop-ProcessOnPort -Port 8090
 
+  if ([string]::IsNullOrWhiteSpace($Profile)) {
+    $Profile = "local"
+  }
+
+  if ($Profile -eq "minio") {
+    Write-Host "Profile=minio - ensuring MinIO container is running ..."
+    & docker compose up -d minio
+    if ($LASTEXITCODE -ne 0) { throw "Failed to start MinIO container via docker compose." }
+  }
+
   Write-Host "Starting backend on http://localhost:8090 ..."
   # Step 1: install all upstream modules (including any newly added ones like eclaims-customers)
   # into the local Maven repo so eclaims-api can resolve them.
@@ -46,7 +60,7 @@ try {
 
   # Step 2: run only the API application.
   Write-Host "Launching Spring Boot ..."
-  & .\mvnw.cmd -pl app/eclaims-api spring-boot:run "-Dspring-boot.run.profiles=local"
+  & .\mvnw.cmd -pl app/eclaims-api spring-boot:run "-Dspring-boot.run.profiles=$Profile"
 } catch {
   Write-Error $_
   exit 1

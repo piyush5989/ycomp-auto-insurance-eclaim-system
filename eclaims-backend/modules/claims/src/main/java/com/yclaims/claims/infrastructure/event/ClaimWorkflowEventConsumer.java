@@ -48,11 +48,11 @@ public class ClaimWorkflowEventConsumer {
     )
     @Transactional
     public void handle(DomainEvent<?> event) {
-        log.info("[{}] 📨 ClaimWorkflowEventConsumer received event: {} (type: {})", 
+        log.info("[{}] ClaimWorkflowEventConsumer received event: {} (type: {})", 
                 event.correlationId(), event.eventId(), event.eventType());
         
         if (!deduplicate(event.eventId())) {
-            log.debug("[{}] ⚠️  Event {} already processed (duplicate), skipping", event.correlationId(), event.eventId());
+            log.debug("[{}] Event {} already processed (duplicate), skipping", event.correlationId(), event.eventId());
             return;
         }
 
@@ -103,7 +103,7 @@ public class ClaimWorkflowEventConsumer {
         );
         claimJpaRepository.save(entity);
 
-        log.info("[{}] 📝 Claim {} updated from workshop.selected | status → WORKSHOP_SELECTED | workshopId={}",
+        log.info("[{}] Claim {} updated from workshop.selected | status -> WORKSHOP_SELECTED | workshopId={}",
                 event.correlationId(), payload.claimId(), payload.workshopId());
     }
 
@@ -143,7 +143,7 @@ public class ClaimWorkflowEventConsumer {
         );
         claimJpaRepository.save(entity);
 
-        log.info("[{}] 📝 Claim {} updated from vehicle.droppedoff | status → VEHICLE_AT_WORKSHOP",
+        log.info("[{}] Claim {} updated from vehicle.droppedoff | status -> VEHICLE_AT_WORKSHOP",
                 event.correlationId(), payload.claimId());
     }
 
@@ -214,7 +214,7 @@ public class ClaimWorkflowEventConsumer {
         );
         claimJpaRepository.save(entity);
 
-        log.info("[{}] 🚙 Claim {} updated from rental.reserved | rentalReservationId={} | rentalStatus=RESERVED",
+        log.info("[{}] Claim {} updated from rental.reserved | rentalReservationId={} | rentalStatus=RESERVED",
                 event.correlationId(), payload.claimId(), payload.reservationId());
     }
 
@@ -254,7 +254,7 @@ public class ClaimWorkflowEventConsumer {
         );
         claimJpaRepository.save(entity);
 
-        log.info("[{}] 🚙 Claim {} updated from rental.skipped | rentalStatus=SKIPPED | reason={}",
+        log.info("[{}] Claim {} updated from rental.skipped | rentalStatus=SKIPPED | reason={}",
                 event.correlationId(), payload.claimId(), payload.reason());
     }
 

@@ -227,7 +227,7 @@ public class WorkshopApplicationService {
                     "Cannot select workshop: claim is not in SUBMITTED status (current: " + currentStatus + ")");
         }
 
-        log.info("[{}] 🏪 Workshop selected | Claim: {} | Workshop: {} ({}) | Status → WORKSHOP_SELECTED",
+        log.info("[{}] Workshop selected | claim={} | workshop={} ({}) | status -> WORKSHOP_SELECTED",
                 correlationId, claimId, workshopId, workshop.getName());
 
         // Publish workshop.selected event
@@ -284,7 +284,7 @@ public class WorkshopApplicationService {
             }
         }
 
-        log.info("[{}] 🚗 Vehicle drop-off confirmed | Claim: {} | Workshop: {} | dropOffId: {} | mileage: {} | fuel: {} | Status → VEHICLE_AT_WORKSHOP",
+        log.info("[{}] Vehicle drop-off confirmed | claim={} | workshop={} | dropOffId={} | mileage={} | fuel={} | status -> VEHICLE_AT_WORKSHOP",
                 correlationId, claimId, workshopName, dropOffId,
                 request.mileage(), request.fuelLevel());
 

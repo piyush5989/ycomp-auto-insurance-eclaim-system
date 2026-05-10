@@ -23,7 +23,7 @@ public class MockPaymentGatewayAdapter implements PaymentGatewayPort {
                                                  BigDecimal amount, String currency,
                                                  String description) {
         String txId = "MOCK-TXN-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-        log.info("[PAYMENT-MOCK] Payment {} initiated: {} {} → txId={}", paymentId, amount, currency, txId);
+        log.info("[PAYMENT-MOCK] Payment {} initiated: {} {} -> txId={}", paymentId, amount, currency, txId);
         return PaymentGatewayResult.success(txId);
     }
 

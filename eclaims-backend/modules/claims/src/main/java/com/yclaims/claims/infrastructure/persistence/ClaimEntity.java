@@ -13,13 +13,13 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 /**
- * JPA entity for the claims table — lives ONLY in the infrastructure layer.
+ * JPA entity for the claims table - lives ONLY in the infrastructure layer.
  * Never exposed via API. The ClaimEntityMapper converts to/from domain Claim.
  *
  * Lombok rules (per coding standards):
- *   ✅ @Getter    — read access without boilerplate
- *   ✅ @NoArgsConstructor(PROTECTED) — JPA proxy requirement; not public
- *   ❌ No @Data, @AllArgsConstructor, @EqualsAndHashCode — breaks JPA proxies
+ *   - @Getter: read access without boilerplate
+ *   - @NoArgsConstructor(PROTECTED): JPA proxy requirement; not public
+ *   - No @Data, @AllArgsConstructor, @EqualsAndHashCode: would break JPA proxies
  */
 @Entity
 @Table(

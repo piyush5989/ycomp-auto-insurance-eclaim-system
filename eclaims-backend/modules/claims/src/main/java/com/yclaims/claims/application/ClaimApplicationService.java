@@ -353,7 +353,7 @@ public class ClaimApplicationService {
                 payload
         );
         eventPublisher.publish("claim-events", event);
-        log.info("[{}] 📋 Assessment submitted | Claim: {} | Surveyor: {} | Amount: ${}", 
+        log.info("[{}] Assessment submitted | claim={} | surveyor={} | amount=${}", 
                 cmd.correlationId(), claim.getId().getValue(), claim.getAssignedSurveyorId(), claim.getAssessedAmount());
     }
 
@@ -387,7 +387,7 @@ public class ClaimApplicationService {
                 payload
         );
         eventPublisher.publish("claim-events", event);
-        log.info("[{}] ⚖️  Claim adjudicated | Claim: {} | Decision: {} | Adjustor: {}", 
+        log.info("[{}] Claim adjudicated | claim={} | decision={} | adjustor={}", 
                 cmd.correlationId(), claim.getId().getValue(), claim.getStatus(), claim.getAssignedAdjustorId());
     }
 

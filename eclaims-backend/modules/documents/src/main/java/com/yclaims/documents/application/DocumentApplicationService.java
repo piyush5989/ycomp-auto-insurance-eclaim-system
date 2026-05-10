@@ -16,16 +16,12 @@ import com.yclaims.kernel.security.UserContextHolder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
-import java.net.MalformedURLException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.EnumSet;
@@ -80,22 +76,14 @@ public class DocumentApplicationService {
         String storageKey = storagePort.store(documentId, file.getOriginalFilename(),
                 file.getContentType(), new ByteArrayInputStream(bytes), bytes.length);
 
-        // Check whether a previous active version exists — if so, supersede it
-        int version = 1;
-        UUID parentId = null;
-        var existing = documentRepository.findFirstByClaimIdAndDocumentTypeAndStatusOrderByVersionDesc(
-                claimId, type, DocumentStatus.ACTIVE);
-        if (existing.isPresent()) {
-            DocumentEntity prev = existing.get();
-            prev.setStatus(DocumentStatus.SUPERSEDED);
-            documentRepository.save(prev);
-            version = prev.getVersion() + 1;
-            parentId = prev.getId();
-            audit(prev.getId(), claimId, "SUPERSEDED", actor, correlationId,
-                    "replacedBy=" + documentId);
-            log.info("[{}] Document {} superseded by new version {}", correlationId, prev.getId(), documentId);
-        }
-
+        // Each upload is treated as an independent document. Earlier auto-supersession
+        // by (claimId, documentType, uploadedByUserId) was removed because it caused
+        // multiple legitimate uploads from the same actor (e.g. a customer adding
+        // several damage photos in one session - all sent as content-type=image/*
+        // with browser-default filename "blob") to retire each other and only the
+        // last one stayed visible. Explicit versioning, if needed for documents
+        // like REPAIR_ESTIMATE or INVOICE, should come through a dedicated "replace"
+        // API that takes the prior documentId as input.
         DocumentEntity entity = new DocumentEntity();
         entity.setId(documentId);
         entity.setClaimId(claimId);
@@ -106,19 +94,18 @@ public class DocumentApplicationService {
         entity.setStorageKey(storageKey);
         entity.setUploadedByUserId(userId);
         entity.setUploadedAt(Instant.now());
-        entity.setVersion(version);
-        entity.setParentId(parentId);
+        entity.setVersion(1);
+        entity.setParentId(null);
         entity.setStatus(DocumentStatus.ACTIVE);
         entity.setChecksumSha256(checksum);
 
         documentRepository.save(entity);
 
-        String action = version == 1 ? "UPLOADED" : "VERSION_ADDED";
-        audit(documentId, claimId, action, actor, correlationId,
-                "filename=" + file.getOriginalFilename() + ";version=" + version + ";checksum=" + checksum);
+        audit(documentId, claimId, "UPLOADED", actor, correlationId,
+                "filename=" + file.getOriginalFilename() + ";checksum=" + checksum);
 
-        log.info("[{}] Document {} v{} ({} bytes, {}) uploaded for claim {}",
-                correlationId, documentId, version, bytes.length, file.getContentType(), claimId);
+        log.info("[{}] Document {} ({} bytes, {}) uploaded for claim {} by user {}",
+                correlationId, documentId, bytes.length, file.getContentType(), claimId, userId);
         return toResponse(entity);
     }
 
@@ -150,7 +137,7 @@ public class DocumentApplicationService {
 
     @Transactional(readOnly = true)
     public Resource loadAsResource(String storageKey, String correlationId) {
-        return resolveFileByStorageKey(storageKey).resource();
+        return storagePort.loadAsResource(storageKey);
     }
 
     @Transactional(readOnly = true)
@@ -159,11 +146,10 @@ public class DocumentApplicationService {
         UserContext actor = UserContextHolder.require();
         checkReadAccess(entity.getDocumentType(), actor);
         audit(documentId, entity.getClaimId(), "VIEWED", actor, correlationId, null);
-        DocumentFileStream stream = resolveFileByStorageKey(entity.getStorageKey());
         String contentType = entity.getContentType() != null && !entity.getContentType().isBlank()
                 ? entity.getContentType()
                 : MediaType.APPLICATION_OCTET_STREAM_VALUE;
-        return new DocumentFileStream(stream.resource(), contentType, entity.getFilename());
+        return new DocumentFileStream(storagePort.loadAsResource(entity.getStorageKey()), contentType, entity.getFilename());
     }
 
     // ─── Soft Delete ─────────────────────────────────────────────────────────
@@ -256,23 +242,6 @@ public class DocumentApplicationService {
         }
         log.debug("[{}] File validation passed: {} ({} bytes, {})",
                 correlationId, file.getOriginalFilename(), file.getSize(), contentType);
-    }
-
-    private DocumentFileStream resolveFileByStorageKey(String storageKey) {
-        Path root = Paths.get(storageProperties.getPath()).toAbsolutePath().normalize();
-        Path file = root.resolve(storageKey).normalize();
-        if (!file.startsWith(root)) {
-            throw new DomainException("DOC_INVALID_PATH", "Resolved path escapes storage root.");
-        }
-        try {
-            Resource resource = new UrlResource(file.toUri());
-            if (resource.exists() && resource.isReadable()) {
-                return new DocumentFileStream(resource, MediaType.APPLICATION_OCTET_STREAM_VALUE, storageKey);
-            }
-            throw new NotFoundException("Document file", storageKey);
-        } catch (MalformedURLException e) {
-            throw new NotFoundException("Document file", storageKey);
-        }
     }
 
     private void audit(UUID documentId, UUID claimId, String action,
