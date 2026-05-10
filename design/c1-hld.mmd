@@ -1,0 +1,50 @@
+---
+config:
+  layout: elk
+---
+flowchart LR
+    %% --- Users (Left) ---
+    subgraph USERS["Internal & External Users"]
+        direction TB
+        customer["Customer / Policyholder"]
+        OPS["Operations Team"]
+        MGMT["Management & Audit"]
+        PARTNERS["Workshop Partner"]
+    end
+
+    %% --- Main System (Center) ---
+    eclaims["eClaims System"]
+
+    %% --- External Systems (Right) ---
+    subgraph EXT["External Dependencies"]
+        direction TB
+        pms["Policy Management System"]
+        stripe["Stripe Payment Gateway"]
+        noti["Notification Services"]
+    end
+
+    %% --- Relationships (Left → Right Flow) ---
+    customer -->|"Submit claim / track status / payments"| eclaims
+    OPS -->|"Claim management & assessment"| eclaims
+    MGMT -->|"Reporting & oversight"| eclaims
+    PARTNERS -->|"Repair status & billing updates"| eclaims
+
+    eclaims -->|"Policy validation"| pms
+    eclaims -->|"Payment operations"| stripe
+    eclaims -->|"Notifications (email, SMS, push)"| noti
+
+    %% --- Styling ---
+    classDef teal stroke:#2dd4bf,fill:#f0fdfa;
+    classDef indigo stroke:#818cf8,fill:#eef2ff;
+    classDef violet stroke:#a78bfa,fill:#f5f3ff;
+    classDef orange stroke:#fb923c,fill:#fff7ed;
+    classDef cyan stroke:#22d3ee,fill:#ecfeff;
+    classDef lime stroke:#a3e635,fill:#f7fee7;
+
+    class USERS teal;
+    class eclaims orange;
+    class EXT cyan;
+    class customer lime;
+    class OPS teal;
+    class MGMT indigo;
+    class PARTNERS violet;

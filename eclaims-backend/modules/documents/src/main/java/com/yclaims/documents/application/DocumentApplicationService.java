@@ -41,9 +41,7 @@ public class DocumentApplicationService {
     private final DocumentAuditLogJpaRepository auditLogRepository;
     private final StorageProperties storageProperties;
 
-    // ─── Role-based access policy ────────────────────────────────────────────
-    // Defines which document types each role may READ or WRITE.
-    // CASE_MANAGER and AUDITOR have unrestricted access to all types.
+    // Type-specific write restrictions; CASE_MANAGER and AUDITOR bypass all checks.
     private static final Map<DocumentType, Set<String>> WRITE_ROLES = Map.of(
             DocumentType.REPAIR_ESTIMATE,           Set.of("ROLE_WORKSHOP", "ROLE_ADJUSTOR"),
             DocumentType.INVOICE,                   Set.of("ROLE_WORKSHOP"),
@@ -57,8 +55,6 @@ public class DocumentApplicationService {
             DocumentType.MEDICAL_REPORT,
             DocumentType.DRIVING_LICENSE
     );
-
-    // ─── Upload ──────────────────────────────────────────────────────────────
 
     @Transactional
     public DocumentMetadataResponse uploadDocument(UUID claimId, String documentType,
@@ -109,8 +105,6 @@ public class DocumentApplicationService {
         return toResponse(entity);
     }
 
-    // ─── List ────────────────────────────────────────────────────────────────
-
     @Transactional(readOnly = true)
     public List<DocumentMetadataResponse> listDocumentsByClaimId(UUID claimId, String correlationId) {
         UserContext actor = UserContextHolder.require();
@@ -123,8 +117,6 @@ public class DocumentApplicationService {
                 .map(this::toResponse)
                 .toList();
     }
-
-    // ─── Download URL ────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
     public String getDownloadUrl(UUID documentId, String correlationId) {
@@ -152,12 +144,9 @@ public class DocumentApplicationService {
         return new DocumentFileStream(storagePort.loadAsResource(entity.getStorageKey()), contentType, entity.getFilename());
     }
 
-    // ─── Soft Delete ─────────────────────────────────────────────────────────
-
     /**
-     * Marks a document ARCHIVED instead of physically deleting it.
-     * Physical deletion is only permitted for GDPR right-to-erasure workflows
-     * via a dedicated compliance job — never on user request.
+     * Soft-delete: marks the document ARCHIVED rather than physically removing it.
+     * Physical deletion is handled by a separate GDPR compliance job.
      */
     @Transactional
     public void deleteDocument(UUID documentId, String requestingUserId, String correlationId) {
@@ -170,8 +159,6 @@ public class DocumentApplicationService {
         log.info("[{}] Document {} archived (soft-deleted) by user {}", correlationId, documentId, requestingUserId);
     }
 
-    // ─── Audit history ────────────────────────────────────────────────────────
-
     @Transactional(readOnly = true)
     public List<DocumentAuditLogEntity> getAuditHistory(UUID documentId, String correlationId) {
         if (!documentRepository.existsById(documentId)) {
@@ -183,8 +170,6 @@ public class DocumentApplicationService {
         }
         return auditLogRepository.findByDocumentIdOrderByOccurredAtDesc(documentId);
     }
-
-    // ─── Private helpers ─────────────────────────────────────────────────────
 
     private DocumentEntity requireActive(UUID documentId) {
         DocumentEntity entity = documentRepository.findById(documentId)

@@ -71,12 +71,9 @@ export default function AssessClaimPage() {
 
   const submitAssessment = useMutation({
     mutationFn: async () => {
-      // Upload any pending files first
       if (uploadingFiles.length > 0) {
         await uploadAllFiles()
       }
-      
-      // Then submit assessment
       return httpClient.patch(`/claims/${claimId}/status`, {
         targetStatus: 'SURVEYED',
         amount: parseFloat(assessedAmount),
@@ -235,7 +232,6 @@ export default function AssessClaimPage() {
                 </label>
               </div>
 
-              {/* Inline validation errors — replaces browser alert() */}
               {fileErrors.length > 0 && (
                 <div className="mt-3 rounded-md bg-red-50 border border-red-200 p-3">
                   <ul className="list-disc list-inside space-y-1">
@@ -253,7 +249,6 @@ export default function AssessClaimPage() {
                 </div>
               )}
 
-              {/* Preview pending uploads */}
               {uploadingFiles.length > 0 && (
                 <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
                   {uploadingFiles.map((file, idx) => (
@@ -280,7 +275,6 @@ export default function AssessClaimPage() {
                 </div>
               )}
 
-              {/* Show already uploaded documents */}
               {documents.length > 0 && (
                 <div className="mt-4">
                   <p className="text-xs font-medium text-gray-700 mb-2">Already Uploaded ({documents.length})</p>

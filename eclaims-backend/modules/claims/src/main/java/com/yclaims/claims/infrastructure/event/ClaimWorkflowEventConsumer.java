@@ -24,12 +24,8 @@ import java.time.Duration;
 import java.util.Optional;
 
 /**
- * Claims-side consumer for workflow/workshop integration events.
- *
- * Enterprise pattern:
- * - Modules publish domain facts to Kafka
- * - The Claims module owns the claim aggregate and persists status transitions based on events
- * - Consumers are idempotent (Redis SETNX)
+ * Claims-side Kafka consumer for workflow and workshop integration events.
+ * All handlers are idempotent (Redis SETNX deduplication on eventId).
  */
 @Component
 @RequiredArgsConstructor
@@ -264,11 +260,6 @@ public class ClaimWorkflowEventConsumer {
         return Boolean.TRUE.equals(isNew);
     }
 
-    /**
-     * Helper method to convert payload from LinkedHashMap (Kafka deserialization) to proper type.
-     * This is needed because Jackson deserializes the generic DomainEvent<T> payload as LinkedHashMap
-     * when type information is not preserved.
-     */
     private <T> T convertPayload(Object payload, Class<T> targetClass, String correlationId) {
         try {
             return objectMapper.convertValue(payload, targetClass);

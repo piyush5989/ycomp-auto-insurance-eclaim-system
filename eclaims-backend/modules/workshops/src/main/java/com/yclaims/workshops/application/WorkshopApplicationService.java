@@ -83,8 +83,7 @@ public class WorkshopApplicationService {
 
     /**
      * Workshop/provider search — filtered by providerType and location (city or zip).
-     * Cache disabled temporarily due to Redis serialization issues.
-     * TODO: Re-enable with proper JSON serializer configuration.
+     * TODO: enable cache with proper JSON serializer configuration.
      */
     // @Cacheable(value = "workshop",
     //            key = "(#providerType != null ? #providerType : 'ALL') + ':' + (#zip != null ? 'zip:' + #zip : #location != null ? 'city:' + #location : 'all')",
@@ -288,7 +287,7 @@ public class WorkshopApplicationService {
                 correlationId, claimId, workshopName, dropOffId,
                 request.mileage(), request.fuelLevel());
 
-        // Publish vehicle.droppedoff event — AutoAssignmentService listens to this to trigger surveyor assignment
+        // AutoAssignmentService listens to vehicle.droppedoff to trigger surveyor assignment
         var dropOffPayload = new VehicleDroppedOffPayload(
                 claimId,
                 workshopId,

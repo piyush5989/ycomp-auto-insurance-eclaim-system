@@ -15,8 +15,6 @@ import { format } from 'date-fns'
 const STEPS = ['Policy & Vehicle', 'Incident Details', 'Review & Submit'] as const
 const CLAIM_TYPES = ['COLLISION','COMPREHENSIVE','THEFT','FIRE','FLOOD','VANDALISM','GLASS_DAMAGE','ROADSIDE_ASSISTANCE']
 
-// ─── Duplicate Warning Modal ──────────────────────────────────────────────────
-
 interface DuplicateWarningModalProps {
   duplicates: PotentialDuplicate[]
   onCreateNew: () => void
@@ -79,8 +77,6 @@ const DuplicateWarningModal = ({ duplicates, onCreateNew, onGoToExisting }: Dupl
     </div>
   </div>
 )
-
-// ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function SubmitClaimPage() {
   const navigate = useNavigate()
@@ -188,7 +184,6 @@ export default function SubmitClaimPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Duplicate warning modal */}
       {duplicates && (
         <DuplicateWarningModal
           duplicates={duplicates}
@@ -221,7 +216,6 @@ export default function SubmitClaimPage() {
         )}
       </div>
 
-      {/* Stepper */}
       <div className="flex items-center gap-2">
         {STEPS.map((label, i) => (
           <React.Fragment key={i}>
@@ -386,7 +380,6 @@ export default function SubmitClaimPage() {
           )}
         </div>
 
-        {/* Navigation */}
         <div className="flex justify-between mt-4">
           <button
             type="button"

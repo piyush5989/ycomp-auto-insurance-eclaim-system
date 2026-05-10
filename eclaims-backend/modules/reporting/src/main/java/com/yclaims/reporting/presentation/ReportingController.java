@@ -19,12 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Reporting API — pre-aggregated read model.
- * Reports are never generated on-demand; they are materialised by Kafka consumers.
- * Complex reports: async batch — cached snapshots served here.
- * Target: simple KPI p95 < 2000ms.
- */
+/** Pre-aggregated report endpoints; read-model snapshots materialised by Kafka consumers. */
 @RestController
 @RequestMapping("/api/v1/reports")
 @RequiredArgsConstructor
@@ -34,7 +29,7 @@ public class ReportingController {
     private final ReportingApplicationService reportingService;
 
     @GetMapping("/kpi")
-    @PreAuthorize("@authz.isAllowed('report', 'kpi')")
+    @PreAuthorize("hasAnyRole('CASE_MANAGER', 'REGIONAL_MGR', 'TOP_MANAGEMENT', 'AUDITOR')")
     @Operation(summary = "Get claims KPI summary — pre-aggregated, cached snapshot")
     public ResponseEntity<ApiResponse<ClaimsKpiResponse>> getKpiSummary(
             @RequestParam(defaultValue = "global") String region) {
@@ -43,7 +38,7 @@ public class ReportingController {
     }
 
     @GetMapping("/fraud-ageing")
-    @PreAuthorize("@authz.isAllowed('report', 'fraud-ageing')")
+    @PreAuthorize("hasAnyRole('REGIONAL_MGR', 'TOP_MANAGEMENT', 'AUDITOR')")
     @Operation(summary = "Fraud ageing report — claims flagged for fraud by age bucket")
     public ResponseEntity<ApiResponse<List<FraudAgeingResponse>>> getFraudAgeing() {
         List<FraudAgeingResponse> response = reportingService.getFraudAgeing(correlationId());
@@ -51,7 +46,7 @@ public class ReportingController {
     }
 
     @GetMapping("/regional")
-    @PreAuthorize("@authz.isAllowed('report', 'kpi-regional')")
+    @PreAuthorize("hasAnyRole('REGIONAL_MGR', 'TOP_MANAGEMENT', 'AUDITOR')")
     @Operation(summary = "Get regional KPI summary for a specific region")
     public ResponseEntity<ApiResponse<RegionalKpiResponse>> getRegionalKpi(
             @RequestParam String region) {
@@ -60,20 +55,15 @@ public class ReportingController {
     }
 
     @GetMapping("/regional/all")
-    @PreAuthorize("@authz.isAllowed('report', 'all-regions')")
+    @PreAuthorize("hasRole('TOP_MANAGEMENT')")
     @Operation(summary = "Get KPI comparison across all regions for top management")
     public ResponseEntity<ApiResponse<List<RegionalKpiResponse>>> getAllRegionalKpis() {
         List<RegionalKpiResponse> response = reportingService.getAllRegionalKpis(correlationId());
         return ResponseEntity.ok(ApiResponse.success(response, correlationId()));
     }
 
-    /**
-     * Case Manager personal report — scoped to the authenticated user's claims portfolio.
-     * Permission 'report#my-claims' is configured in Keycloak: only case-manager-policy applies.
-     * The user ID is extracted from the JWT subject — no user-supplied parameter accepted.
-     */
     @GetMapping("/my-claims")
-    @PreAuthorize("@authz.isAllowed('report', 'my-claims')")
+    @PreAuthorize("hasRole('CASE_MANAGER')")
     @Operation(summary = "Case Manager personal claims report — metrics for claims they have handled")
     public ResponseEntity<ApiResponse<CaseManagerReportResponse>> getMyCaseManagerReport(
             @AuthenticationPrincipal Jwt jwt) {

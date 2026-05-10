@@ -29,59 +29,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Redis configuration with per-cache TTL policy.
- *
- * Cache key naming convention:
- *   claim:{claimId}                  - NOT cached (always live - status changes)
- *   policy:{policyNumber}            - 15 min (reference data)
- *   workshop:nearby:{zipCode}        - 30 min (changes infrequently)
- *   report:kpi:{region}              - 15 min (pre-aggregated snapshots)
- *   idempotency:{key}                - 24 hr (payment dedup)
- *   kafka:processed:{eventId}        - 24 hr (Kafka consumer dedup)
- *
- * What MUST NOT be cached:
- *   - Current claim status (customers see latest)
- *   - Payment amounts pending settlement
- *   - Audit log entries (append-only)
- *   - JWT validity (checked live against Keycloak)
- *   - Fraud flags (real-time decision)
- *
- * Three robustness behaviours that earlier caused production-style outages:
- *
- *   1. Default typing on a *dedicated* {@link ObjectMapper}: cached DTOs need
- *      {@code @class} metadata so they round-trip back to the right type.
- *      Without it, every cache hit explodes with
- *      {@code ClassCastException: LinkedHashMap cannot be cast to ...}.
- *
- *   2. The polymorphic-typing mapper is built as a private helper, NEVER as
- *      a {@code @Bean ObjectMapper}. Exposing it as a bean activates Spring
- *      Boot's {@code @ConditionalOnMissingBean} on the auto-configured
- *      primary {@link ObjectMapper}, which means the *application-wide*
- *      Jackson would inherit default typing too. That breaks every
- *      {@code RestTemplate} call - notably the Keycloak UMA decision call,
- *      which returns a plain {@code {"result":true}} that suddenly can't be
- *      parsed because Jackson expects {@code @class} at the root - causing
- *      every authz check to fail and every user to see empty data.
- *
- *   3. {@link CacheErrorHandler}: even with correct typing, a stale entry
- *      written by an older build, or a transient Redis outage, must never
- *      surface as a 500 to the user. The handler logs a warning, evicts the
- *      offending key, and lets the @Cacheable method recompute.
- */
+/** Redis cache manager with per-cache TTLs: policy 15 min, workshop 30 min, reports 15 min. */
 @Slf4j
 @Configuration
 @EnableCaching
 public class RedisConfig implements CachingConfigurer {
 
-    /**
-     * Builds the Jackson {@link ObjectMapper} used ONLY for serialising values
-     * into Redis. Intentionally NOT a {@code @Bean} - exposing it would suppress
-     * Spring Boot's primary {@link ObjectMapper} auto-configuration and turn
-     * default typing on for every HTTP client and controller in the app, which
-     * silently breaks {@link org.springframework.web.client.RestTemplate} JSON
-     * parsing across the system.
-     */
+
     private ObjectMapper buildRedisObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
@@ -132,9 +86,10 @@ public class RedisConfig implements CachingConfigurer {
                         .fromSerializer(jsonSerializer));
 
         Map<String, RedisCacheConfiguration> cacheConfigs = new HashMap<>();
-        cacheConfigs.put("policy", defaults.entryTtl(Duration.ofMinutes(15)));
+
+        cacheConfigs.put("policy",   defaults.entryTtl(Duration.ofMinutes(15)));
         cacheConfigs.put("workshop", defaults.entryTtl(Duration.ofMinutes(30)));
-        cacheConfigs.put("report", defaults.entryTtl(Duration.ofMinutes(15)));
+        cacheConfigs.put("report",   defaults.entryTtl(Duration.ofMinutes(15)));
 
         return RedisCacheManager.builder(factory)
                 .cacheDefaults(defaults.entryTtl(Duration.ofMinutes(10)))
@@ -142,21 +97,6 @@ public class RedisConfig implements CachingConfigurer {
                 .build();
     }
 
-    /**
-     * Wipes the Redis-backed application caches once on startup.
-     *
-     * Why this exists: a previous build wrote KPI report entries to Redis without
-     * Jackson default-typing metadata ({@code @class}). After this config was
-     * patched to enable default typing, those legacy entries still poisoned the
-     * first request of every restart - they deserialised back to
-     * {@link java.util.LinkedHashMap} and blew up the {@code @Cacheable} return
-     * cast with {@link ClassCastException}. Clearing on startup costs at most
-     * one cache miss per cache after deploy and prevents the entire class of
-     * "old DTO shape stuck in Redis after deploy" outages.
-     *
-     * Auth decisions live in the in-memory {@code authzDecisions} cache and are
-     * intentionally NOT cleared here.
-     */
     @Bean
     public ApplicationRunner clearStaleRedisCachesOnStartup(CacheManager cacheManager) {
         return args -> {
@@ -178,12 +118,6 @@ public class RedisConfig implements CachingConfigurer {
         };
     }
 
-    /**
-     * Defence-in-depth: never let a Redis problem (connection blip, stale
-     * entry from an older build, type drift after a deploy) propagate to the
-     * caller as a 500. We log, evict the offending key, and let the
-     * {@code @Cacheable} method recompute against the database.
-     */
     @Override
     public CacheErrorHandler errorHandler() {
         return new CacheErrorHandler() {
