@@ -19,24 +19,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Redis configuration with per-cache TTL policy.
- *
- * Cache key naming convention:
- *   claim:{claimId}                  ← NOT cached (always live — status changes)
- *   policy:{policyNumber}            ← 15 min (reference data)
- *   workshop:nearby:{zipCode}        ← 30 min (changes infrequently)
- *   report:kpi:{region}              ← 15 min (pre-aggregated snapshots)
- *   idempotency:{key}                ← 24 hr (payment dedup)
- *   kafka:processed:{eventId}        ← 24 hr (Kafka consumer dedup)
- *
- * What MUST NOT be cached:
- *   - Current claim status (customers see latest)
- *   - Payment amounts pending settlement
- *   - Audit log entries (append-only)
- *   - JWT validity (checked live against Keycloak)
- *   - Fraud flags (real-time decision)
- */
+/** Redis cache manager with per-cache TTLs: policy 15 min, workshop 30 min, reports 15 min. */
 @Configuration
 public class RedisConfig {
 
@@ -73,14 +56,9 @@ public class RedisConfig {
 
         Map<String, RedisCacheConfiguration> cacheConfigs = new HashMap<>();
 
-        // Policy reference data — 15 min TTL
-        cacheConfigs.put("policy", defaults.entryTtl(Duration.ofMinutes(15)));
-
-        // Workshop search by location — 30 min TTL
+        cacheConfigs.put("policy",   defaults.entryTtl(Duration.ofMinutes(15)));
         cacheConfigs.put("workshop", defaults.entryTtl(Duration.ofMinutes(30)));
-
-        // KPI report snapshots — 15 min TTL
-        cacheConfigs.put("report", defaults.entryTtl(Duration.ofMinutes(15)));
+        cacheConfigs.put("report",   defaults.entryTtl(Duration.ofMinutes(15)));
 
         return RedisCacheManager.builder(factory)
                 .cacheDefaults(defaults.entryTtl(Duration.ofMinutes(10)))

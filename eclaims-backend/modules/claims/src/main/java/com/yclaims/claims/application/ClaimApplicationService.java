@@ -30,16 +30,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Claim Application Service — owns all use case orchestration for the claims module.
- *
- * Responsibilities:
- *   - Validates inbound commands
- *   - Coordinates domain model, repositories, and ports
- *   - Owns transaction boundaries (@Transactional)
- *   - Publishes domain events AFTER successful persistence
- *   - Returns DTOs (never domain objects) to the presentation layer
- */
+/** Orchestrates all claims use cases; owns transaction boundaries and event publishing. */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -54,24 +45,17 @@ public class ClaimApplicationService {
     private final ClaimEndorsementJpaRepository endorsementRepository;
     private final WorkshopEmailPort workshopEmailPort;
 
-    /**
-     * Submit a new claim — idempotent via natural key deduplication.
-     * Sync: validates policy, persists claim, returns claim ID.
-     * Async: publishes claim.created event for notifications + reporting.
-     */
     @Transactional
     public ClaimResponse submitClaim(SubmitClaimCommand cmd) {
         log.info("[{}] Submitting claim for policy {} vehicle {}",
                 cmd.correlationId(), cmd.policyNumber(), cmd.vehicleRegistration());
 
-        // Sync: validate policy (must succeed before claim is created)
         PolicyServicePort.PolicyValidationResult policy =
                 policyServicePort.validate(cmd.policyNumber(), cmd.vehicleRegistration());
         if (!policy.valid()) {
             throw new PolicyValidationException(cmd.policyNumber(), policy.failureReason());
         }
 
-        // Create domain aggregate
         AccidentDetails accidentDetails = new AccidentDetails(
                 cmd.incidentDate(),
                 cmd.incidentLocation(),
@@ -96,7 +80,6 @@ public class ClaimApplicationService {
                 accidentDetails
         );
 
-        // Fraud check
         int recentClaims = claimRepository.countRecentClaimsForVehicle(cmd.vehicleRegistration(), 90);
         var fraudCtx = new FraudDetectionService.FraudContext(recentClaims, null);
         var fraudResult = fraudDetectionService.evaluate(claim, fraudCtx);
@@ -105,13 +88,8 @@ public class ClaimApplicationService {
             log.warn("[{}] Fraud flag raised for claim {}: {}", cmd.correlationId(), claim.getId(), fraudResult.reason());
         }
 
-        // Persist
         Claim saved = claimRepository.save(claim);
-
-        // Async: publish domain events after successful save
         publishClaimCreatedEvent(saved, cmd.correlationId());
-
-        // Audit
         auditPublisher.publish(new AuditEvent(
                 UUID.randomUUID().toString(), cmd.correlationId(),
                 cmd.requestingUserId(), "ROLE_CUSTOMER",
@@ -255,7 +233,6 @@ public class ClaimApplicationService {
 
         Claim saved = claimRepository.save(claim);
 
-        // Auto-persist surveyor/adjustor notes as endorsements so customers and staff can see them
         if (cmd.targetStatus() == ClaimStatus.SURVEYED
                 && cmd.reason() != null && !cmd.reason().isBlank()) {
             addEndorsement(cmd.claimId(), cmd.reason(), cmd.performedByUserId(), "SURVEYOR_NOTE");
@@ -265,7 +242,6 @@ public class ClaimApplicationService {
             addEndorsement(cmd.claimId(), cmd.reason(), cmd.performedByUserId(), "ADJUDICATOR_NOTE");
         }
 
-        // Publish status change event
         publishStatusChangedEvent(saved, previous, cmd);
 
         return claimDtoMapper.toResponse(saved);
@@ -320,12 +296,9 @@ public class ClaimApplicationService {
         );
         eventPublisher.publish("claim-events", event);
 
-        // If surveyor submitted assessment, also publish assessment.submitted event
         if (claim.getStatus() == ClaimStatus.SURVEYED && previous != ClaimStatus.SURVEYED) {
             publishAssessmentSubmittedEvent(claim, cmd);
         }
-
-        // If adjustor adjudicated claim, also publish claim.adjudicated event
         if ((claim.getStatus() == ClaimStatus.APPROVED || claim.getStatus() == ClaimStatus.REJECTED) 
                 && (previous != ClaimStatus.APPROVED && previous != ClaimStatus.REJECTED)) {
             publishClaimAdjudicatedEvent(claim, cmd);
@@ -353,7 +326,7 @@ public class ClaimApplicationService {
                 payload
         );
         eventPublisher.publish("claim-events", event);
-        log.info("[{}] 📋 Assessment submitted | Claim: {} | Surveyor: {} | Amount: ${}", 
+        log.info("[{}] Assessment submitted | claim={} surveyor={} amount={}",
                 cmd.correlationId(), claim.getId().getValue(), claim.getAssignedSurveyorId(), claim.getAssessedAmount());
     }
 
@@ -387,7 +360,7 @@ public class ClaimApplicationService {
                 payload
         );
         eventPublisher.publish("claim-events", event);
-        log.info("[{}] ⚖️  Claim adjudicated | Claim: {} | Decision: {} | Adjustor: {}", 
+        log.info("[{}] Claim adjudicated | claim={} decision={} adjustor={}",
                 cmd.correlationId(), claim.getId().getValue(), claim.getStatus(), claim.getAssignedAdjustorId());
     }
 
@@ -401,7 +374,6 @@ public class ClaimApplicationService {
         claim.reassignSurveyor(newSurveyorId, reassignedBy, reason);
         Claim saved = claimRepository.save(claim);
 
-        // Add endorsement for audit trail
         String endorsementNote = String.format("Surveyor reassigned from %s to %s. Reason: %s",
                 previousSurveyorId != null ? previousSurveyorId : "unassigned",
                 newSurveyorId, reason);
@@ -423,7 +395,6 @@ public class ClaimApplicationService {
         claim.reassignAdjustor(newAdjustorId, reassignedBy, reason);
         Claim saved = claimRepository.save(claim);
 
-        // Add endorsement for audit trail
         String endorsementNote = String.format("Adjustor reassigned from %s to %s. Reason: %s",
                 previousAdjustorId != null ? previousAdjustorId : "unassigned",
                 newAdjustorId, reason);
@@ -459,13 +430,11 @@ public class ClaimApplicationService {
         claim.markOverridden(overrideBy, reason, newAmount);
         Claim saved = claimRepository.save(claim);
 
-        // Add endorsement for audit trail
         String endorsementNote = String.format("Decision overridden by case manager. Previous amount: %s, New amount: %s. Reason: %s",
                 previousAmount != null ? previousAmount.toString() : "none",
                 newAmount.toString(), reason);
         addEndorsement(claimId, endorsementNote, overrideBy, "OVERRIDE");
 
-        // Publish audit event
         auditPublisher.publish(new AuditEvent(
                 UUID.randomUUID().toString(), correlationId,
                 overrideBy, "ROLE_CASE_MANAGER",

@@ -29,10 +29,6 @@ public class ClaimKpiSnapshotRepository {
 
     private final JdbcTemplate jdbcTemplate;
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // Global KPI snapshot (pre-aggregated)
-    // ──────────────────────────────────────────────────────────────────────────
-
     public Optional<ClaimsKpiResponse> getLatestSnapshot(String region) {
         try {
             ClaimsKpiResponse snapshot = jdbcTemplate.queryForObject(
@@ -68,10 +64,6 @@ public class ClaimKpiSnapshotRepository {
             return Optional.empty();
         }
     }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // Regional KPI snapshots (Regional Manager and Top Management)
-    // ──────────────────────────────────────────────────────────────────────────
 
     public Optional<RegionalKpiResponse> getLatestRegionalSnapshot(String region) {
         try {
@@ -137,11 +129,7 @@ public class ClaimKpiSnapshotRepository {
                         .build());
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // Case Manager personal report — live query against claims table
-    // Only shows claims where assigned_adjustor_id matches or case-manager overrode
-    // ──────────────────────────────────────────────────────────────────────────
-
+    /** Live query — shows claims where this case manager acted as adjustor or overrode a decision. */
     public CaseManagerReportResponse getCaseManagerReport(String caseManagerUserId) {
         String sql = """
                 SELECT
@@ -178,10 +166,6 @@ public class ClaimKpiSnapshotRepository {
                         .build(),
                 caseManagerUserId, caseManagerUserId);
     }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // Fraud ageing — live query, active fraud-flagged claims only
-    // ──────────────────────────────────────────────────────────────────────────
 
     public List<FraudAgeingResponse> getFraudAgeingReport() {
         return jdbcTemplate.query(

@@ -1,15 +1,6 @@
 import axios, { AxiosError } from 'axios';
 import { getToken } from '@/shared/auth/keycloakInstance';
 
-/**
- * Shared Axios instance for all API calls.
- *
- * Features:
- *   - Base URL from env var
- *   - JWT Bearer token injected on every request
- *   - X-Correlation-ID forwarded in requests (generated if not set)
- *   - Unified error handling
- */
 export const httpClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
   timeout: 10_000,
@@ -18,7 +9,6 @@ export const httpClient = axios.create({
   },
 });
 
-// Request interceptor — attach JWT + correlation ID
 httpClient.interceptors.request.use((config) => {
   const token = getToken();
   if (token) {
@@ -30,7 +20,6 @@ httpClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor — extract correlation ID for error messages
 httpClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {

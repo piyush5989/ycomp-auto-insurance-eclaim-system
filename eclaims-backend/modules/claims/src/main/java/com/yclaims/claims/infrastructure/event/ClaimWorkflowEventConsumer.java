@@ -24,12 +24,8 @@ import java.time.Duration;
 import java.util.Optional;
 
 /**
- * Claims-side consumer for workflow/workshop integration events.
- *
- * Enterprise pattern:
- * - Modules publish domain facts to Kafka
- * - The Claims module owns the claim aggregate and persists status transitions based on events
- * - Consumers are idempotent (Redis SETNX)
+ * Claims-side Kafka consumer for workflow and workshop integration events.
+ * All handlers are idempotent (Redis SETNX deduplication on eventId).
  */
 @Component
 @RequiredArgsConstructor
@@ -48,11 +44,9 @@ public class ClaimWorkflowEventConsumer {
     )
     @Transactional
     public void handle(DomainEvent<?> event) {
-        log.info("[{}] 📨 ClaimWorkflowEventConsumer received event: {} (type: {})", 
-                event.correlationId(), event.eventId(), event.eventType());
-        
+        log.debug("[{}] Received event type={}", event.correlationId(), event.eventType());
+
         if (!deduplicate(event.eventId())) {
-            log.debug("[{}] ⚠️  Event {} already processed (duplicate), skipping", event.correlationId(), event.eventId());
             return;
         }
 
@@ -214,8 +208,7 @@ public class ClaimWorkflowEventConsumer {
         );
         claimJpaRepository.save(entity);
 
-        log.info("[{}] 🚙 Claim {} updated from rental.reserved | rentalReservationId={} | rentalStatus=RESERVED",
-                event.correlationId(), payload.claimId(), payload.reservationId());
+        log.info("[{}] Claim {} rental reserved | reservationId={}", event.correlationId(), payload.claimId(), payload.reservationId());
     }
 
     private void handleRentalSkipped(DomainEvent<?> event) {
@@ -254,8 +247,7 @@ public class ClaimWorkflowEventConsumer {
         );
         claimJpaRepository.save(entity);
 
-        log.info("[{}] 🚙 Claim {} updated from rental.skipped | rentalStatus=SKIPPED | reason={}",
-                event.correlationId(), payload.claimId(), payload.reason());
+        log.info("[{}] Claim {} rental skipped | reason={}", event.correlationId(), payload.claimId(), payload.reason());
     }
 
     private boolean deduplicate(String eventId) {
@@ -264,11 +256,6 @@ public class ClaimWorkflowEventConsumer {
         return Boolean.TRUE.equals(isNew);
     }
 
-    /**
-     * Helper method to convert payload from LinkedHashMap (Kafka deserialization) to proper type.
-     * This is needed because Jackson deserializes the generic DomainEvent<T> payload as LinkedHashMap
-     * when type information is not preserved.
-     */
     private <T> T convertPayload(Object payload, Class<T> targetClass, String correlationId) {
         try {
             return objectMapper.convertValue(payload, targetClass);

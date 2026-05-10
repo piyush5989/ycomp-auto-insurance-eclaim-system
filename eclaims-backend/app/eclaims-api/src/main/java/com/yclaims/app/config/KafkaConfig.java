@@ -21,15 +21,8 @@ import java.util.Map;
 
 /**
  * Kafka topic definitions and consumer factory configuration.
- * Topics created on application startup via Spring's KafkaAdmin.
- *
- * Topic naming:      hyphen-case  (claim-events, payment-events, audit-events)
- * Event type naming: dot notation (claim.created, payment.settled, audit.event)
- *
- * audit-events: 7-year retention (compliance — configured at broker level)
- *
- * Error handling: failed messages are retried 3 times (1 s apart) then published
- * to a Dead Letter Topic (<topic>.DLT) via DeadLetterPublishingRecoverer.
+ * Failed messages retry 3× (1 s apart) then land on &lt;topic&gt;.DLT via
+ * {@link DeadLetterPublishingRecoverer}.
  */
 @Configuration
 public class KafkaConfig {
@@ -43,7 +36,6 @@ public class KafkaConfig {
     @Value("${spring.kafka.consumer.auto-offset-reset:earliest}")
     private String autoOffsetReset;
 
-    // Replication factor — override in prod profile (kafka.topics.replication-factor: 3)
     @Value("${kafka.topics.replication-factor:1}")
     private int replicationFactor;
 
@@ -61,10 +53,6 @@ public class KafkaConfig {
 
     @Value("${kafka.topics.notification-events.partitions:2}")
     private int notificationEventsPartitions;
-
-    // -------------------------------------------------------------------------
-    // Topic definitions
-    // -------------------------------------------------------------------------
 
     @Bean
     public NewTopic claimEventsTopic() {
@@ -106,24 +94,12 @@ public class KafkaConfig {
                 .build();
     }
 
-    // -------------------------------------------------------------------------
-    // Consumer factories
-    // -------------------------------------------------------------------------
-
     @Bean
     public ConsumerFactory<String, Object> consumerFactory() {
         return new DefaultKafkaConsumerFactory<>(baseConsumerProps(
                 "com.yclaims.contracts.events.DomainEvent"));
     }
 
-    /**
-     * Consumer factory for {@code audit-events}: payloads are
-     * {@link com.yclaims.kernel.audit.AuditEvent}, not {@code DomainEvent}.
-     *
-     * TODO: wire a dedicated {@code @KafkaListener} with
-     *       {@code containerFactory = "auditKafkaListenerContainerFactory"}
-     *       so audit events are deserialized directly into AuditEvent.
-     */
     @Bean
     public ConsumerFactory<String, Object> auditConsumerFactory() {
         return new DefaultKafkaConsumerFactory<>(baseConsumerProps(
@@ -142,10 +118,6 @@ public class KafkaConfig {
         props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, valueDefaultType);
         return props;
     }
-
-    // -------------------------------------------------------------------------
-    // Listener container factories
-    // -------------------------------------------------------------------------
 
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(

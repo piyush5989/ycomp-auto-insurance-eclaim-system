@@ -38,8 +38,6 @@ public class NotificationApplicationService {
     private final CustomerNotificationJpaRepository notificationRepository;
     private final JdbcTemplate jdbcTemplate;
 
-    // ── Customer: claim submitted ─────────────────────────────────────────────
-
     @Transactional
     public void sendClaimSubmittedNotification(ClaimCreatedPayload payload, String correlationId) {
         log.info("[{}] Claim submitted → email+SMS to {}", correlationId, payload.customerEmail());
@@ -58,8 +56,6 @@ public class NotificationApplicationService {
                 "Your claim for policy " + payload.policyNumber() + " has been received.",
                 payload.claimId());
     }
-
-    // ── Customer: claim status changed ───────────────────────────────────────
 
     @Transactional
     public void sendStatusChangeNotification(ClaimStatusChangedPayload payload, String correlationId) {
@@ -80,8 +76,6 @@ public class NotificationApplicationService {
                         + " to " + payload.newStatus() + ".",
                 payload.claimId());
     }
-
-    // ── Customer + Workshop: claim adjudicated (approved / rejected) ──────────
 
     /**
      * Sends decision notifications to both the customer and the partner workshop.
@@ -121,8 +115,6 @@ public class NotificationApplicationService {
         }
     }
 
-    // ── Customer: payment settled ─────────────────────────────────────────────
-
     @Transactional
     public void sendPaymentConfirmation(PaymentSettledPayload payload, String correlationId) {
         log.info("[{}] Payment confirmed → email+SMS to {}", correlationId, payload.customerEmail());
@@ -142,8 +134,6 @@ public class NotificationApplicationService {
                         + " has been processed. Transaction: " + payload.gatewayTransactionId(),
                 payload.claimId());
     }
-
-    // ── Customer: repair status updated ──────────────────────────────────────
 
     @Transactional
     public void sendRepairStatusNotification(RepairStatusUpdatedPayload payload, String correlationId) {
@@ -173,8 +163,6 @@ public class NotificationApplicationService {
         }
     }
 
-    // ── Staff: surveyor / adjustor assigned (via notification-events) ─────────
-
     /**
      * Handles notification.requested events from AutoAssignmentService.
      * recipientEmail is now carried in the payload (n2) so staff receive email directly.
@@ -203,8 +191,6 @@ public class NotificationApplicationService {
                 payload.claimId()
         );
     }
-
-    // ── Shared helpers ────────────────────────────────────────────────────────
 
     /**
      * Delegates to the active SmsNotificationPort implementation.
@@ -263,8 +249,6 @@ public class NotificationApplicationService {
         entity.setRead(false);
         notificationRepository.save(entity);
     }
-
-    // ── Email body builders ───────────────────────────────────────────────────
 
     private String buildClaimSubmittedBody(ClaimCreatedPayload p) {
         return """

@@ -46,8 +46,7 @@ public class RentalController {
         String correlationId = correlationId();
         log.info("[{}] Fetching rental vehicles (availableOnly: {})", correlationId, availableOnly);
 
-        // TODO: Implement actual query from rentals.rental_vehicles table
-        // For now, return mock data matching database seed
+        // POC stub — returns hardcoded data matching rentals.rental_vehicles seed
         List<RentalVehicleResponse> vehicles = List.of(
                 RentalVehicleResponse.builder()
                         .vehicleId(UUID.fromString("c1c1c1c1-0000-0000-0000-000000000001"))
@@ -122,15 +121,10 @@ public class RentalController {
         log.info("[{}] Reserving rental vehicle {} for claim {} ({} days)",
                 correlationId, request.vehicleId(), request.claimId(), request.rentalDays());
 
-        // TODO: Implement actual reservation logic
-        // 1. Validate claim exists and belongs to customer
-        // 2. Validate vehicle is available
-        // 3. Calculate dates and cost
-        // 4. Create reservation in rentals.rental_reservations
-        // 5. Update vehicle availability status
-
+        // POC stub — full reservation logic (validate claim ownership, vehicle availability,
+        // DB write to rental_reservations) to be implemented in production
         UUID reservationId = UUID.randomUUID();
-        BigDecimal dailyRate = new BigDecimal("45.00"); // Mock - should fetch from vehicle
+        BigDecimal dailyRate = new BigDecimal("45.00"); // stub rate; fetch from vehicle record in production
         BigDecimal totalCost = dailyRate.multiply(new BigDecimal(request.rentalDays()));
         Instant now = Instant.now();
         Instant reservationEnd = now.plusSeconds(request.rentalDays() * 86400L);
@@ -147,14 +141,13 @@ public class RentalController {
                 .status("RESERVED")
                 .build();
 
-        // Publish rental.reserved event
         RentalVehicleReservedPayload payload = new RentalVehicleReservedPayload(
                 request.claimId(),
                 reservationId,
                 request.vehicleId(),
-                UUID.fromString("d1d1d1d1-0000-0000-0000-000000000001"), // Mock provider ID
+                UUID.fromString("d1d1d1d1-0000-0000-0000-000000000001"),
                 customerId,
-                "SEDAN", // Mock - should fetch from vehicle
+                "SEDAN",
                 "Honda",
                 "Accord",
                 dailyRate,
@@ -176,13 +169,8 @@ public class RentalController {
 
         kafkaTemplate.send("claim-events", request.claimId().toString(), event);
 
-        log.info("[{}] 🚙 Rental vehicle reserved | Reservation: {} | Claim: {} | Vehicle: {} | Duration: {} days | Total: ${} | Event: rental.reserved published",
-                correlationId,
-                reservationId,
-                request.claimId(),
-                request.vehicleId(),
-                request.rentalDays(),
-                totalCost);
+        log.info("[{}] Rental reserved | reservation={} claim={} days={} total={}",
+                correlationId, reservationId, request.claimId(), request.rentalDays(), totalCost);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, correlationId));
@@ -198,7 +186,6 @@ public class RentalController {
         String customerId = authentication.getName();
         log.info("[{}] Customer {} skipping rental vehicle for claim {}", correlationId, customerId, claimId);
 
-        // Publish rental.skipped event
         RentalSkippedPayload payload = new RentalSkippedPayload(
                 claimId,
                 customerId,
@@ -219,8 +206,7 @@ public class RentalController {
 
         kafkaTemplate.send("claim-events", claimId.toString(), event);
 
-        log.info("[{}] 🚙 Rental vehicle skipped | Claim: {} | Customer: {} | Event: rental.skipped published",
-                correlationId, claimId, customerId);
+        log.info("[{}] Rental skipped | claim={} customer={}", correlationId, claimId, customerId);
 
         return ResponseEntity.ok(ApiResponse.success(null, correlationId));
     }
@@ -232,8 +218,6 @@ public class RentalController {
         String correlationId = correlationId();
         log.info("[{}] Fetching rental reservation for claim {}", correlationId, claimId);
 
-        // TODO: Implement actual query
-        // For now, return empty (no reservation found)
         return ResponseEntity.ok(ApiResponse.success(null, correlationId));
     }
 

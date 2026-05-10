@@ -16,10 +16,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * Centralised exception-to-HTTP mapping.
- * Every exception handled here produces an ApiResponse envelope — no raw exception reaches the client.
- */
+/** Centralised exception-to-HTTP mapping; all responses use the {@link ApiResponse} envelope. */
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
@@ -55,11 +52,6 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("FORBIDDEN", ex.getMessage(), correlationId()));
     }
 
-    /**
-     * Spring Security @PreAuthorize denial — expected 403, not a server error.
-     * Log at WARN (one line) so operations can audit access attempts without flooding logs.
-     * Stack trace is intentionally suppressed — there is no useful diagnostic value in it.
-     */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
         log.warn("Access denied [correlationId={}]: {}", correlationId(), ex.getMessage());

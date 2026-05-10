@@ -16,15 +16,8 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Reporting service — serves pre-aggregated read model snapshots.
- *
- * Global KPI and regional KPI are served from materialised snapshots
- * (populated by DB seed or Kafka consumer in production).
- *
- * Case Manager report is a live query scoped to the caller's user ID
- * so it always reflects the current state of their claims portfolio.
- *
- * Cache TTL: 15 minutes (configured in application.yml under spring.cache)
+ * Serves pre-aggregated KPI snapshots (global, regional) and a live case-manager report.
+ * Snapshots are populated by the Kafka consumer; cache TTL keeps reads cheap.
  */
 @Service
 @RequiredArgsConstructor
@@ -32,10 +25,6 @@ import java.util.List;
 public class ReportingApplicationService {
 
     private final ClaimKpiSnapshotRepository kpiRepository;
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // Global KPI — Case Manager and general dashboard
-    // ──────────────────────────────────────────────────────────────────────────
 
     @Cacheable(value = "report", key = "'kpi:' + #region", unless = "#result == null")
     @Transactional(readOnly = true)
@@ -52,19 +41,11 @@ public class ReportingApplicationService {
         });
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // Case Manager personal report — scoped to their own claims
-    // ──────────────────────────────────────────────────────────────────────────
-
     @Transactional(readOnly = true)
     public CaseManagerReportResponse getCaseManagerReport(String caseManagerUserId, String correlationId) {
         log.debug("[{}] Fetching case manager report for userId={}", correlationId, caseManagerUserId);
         return kpiRepository.getCaseManagerReport(caseManagerUserId);
     }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // Regional KPI — Regional Manager dashboard
-    // ──────────────────────────────────────────────────────────────────────────
 
     @Cacheable(value = "report", key = "'regional:' + #region", unless = "#result == null")
     @Transactional(readOnly = true)
@@ -85,28 +66,20 @@ public class ReportingApplicationService {
         });
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // All-region KPI — Top Management dashboard
-    // ──────────────────────────────────────────────────────────────────────────
-
     @Cacheable(value = "report", key = "'all-regions'", unless = "#result == null || #result.isEmpty()")
     @Transactional(readOnly = true)
     public List<RegionalKpiResponse> getAllRegionalKpis(String correlationId) {
-        log.debug("[{}] Fetching all regional KPIs for top management", correlationId);
+        log.debug("[{}] Fetching all regional KPIs", correlationId);
         List<RegionalKpiResponse> snapshots = kpiRepository.getAllRegionalSnapshots();
         if (!snapshots.isEmpty()) {
             return snapshots;
         }
-        // Fallback: return empty shells for all known regions so the UI always has rows
-        log.warn("[{}] No regional snapshots found — returning empty shells for all regions", correlationId);
+        // Fallback: return empty shells so the UI always has rows for all regions
+        log.warn("[{}] No regional snapshots found — returning empty shells", correlationId);
         return List.of("EAST", "WEST", "NORTH", "SOUTH", "CENTRAL").stream()
                 .map(region -> getRegionalKpi(region, correlationId))
                 .toList();
     }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // Fraud ageing — live query, used by Case Managers and Auditors
-    // ──────────────────────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
     public List<FraudAgeingResponse> getFraudAgeing(String correlationId) {

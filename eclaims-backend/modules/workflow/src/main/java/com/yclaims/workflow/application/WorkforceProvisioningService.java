@@ -58,8 +58,6 @@ public class WorkforceProvisioningService {
         return authorities.stream().anyMatch(a -> ROLE_ADJUSTOR.equals(a.getAuthority()));
     }
 
-    // ── Surveyor ─────────────────────────────────────────────────────────────
-
     @Transactional
     public void upsertSurveyorFromJwt(Jwt jwt) {
         UUID keycloakId = parseUserId(jwt);
@@ -130,8 +128,6 @@ public class WorkforceProvisioningService {
         log.info("Inserted workflow.surveyors for Keycloak sub={} ({}) — set region for routing", id, email);
     }
 
-    // ── Adjustor ─────────────────────────────────────────────────────────────
-
     @Transactional
     public void upsertAdjustorFromJwt(Jwt jwt) {
         UUID keycloakId = parseUserId(jwt);
@@ -189,8 +185,6 @@ public class WorkforceProvisioningService {
         adjustorRepository.save(row);
         log.info("Inserted workflow.adjustors for Keycloak sub={} ({}) — set region for routing", id, email);
     }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static UUID parseUserId(Jwt jwt) {
         try {

@@ -284,11 +284,10 @@ public class WorkshopApplicationService {
             }
         }
 
-        log.info("[{}] 🚗 Vehicle drop-off confirmed | Claim: {} | Workshop: {} | dropOffId: {} | mileage: {} | fuel: {} | Status → VEHICLE_AT_WORKSHOP",
-                correlationId, claimId, workshopName, dropOffId,
-                request.mileage(), request.fuelLevel());
+        log.info("[{}] Vehicle drop-off confirmed | claim={} workshop={} dropOffId={} mileage={} fuel={}",
+                correlationId, claimId, workshopName, dropOffId, request.mileage(), request.fuelLevel());
 
-        // Publish vehicle.droppedoff event — AutoAssignmentService listens to this to trigger surveyor assignment
+        // AutoAssignmentService listens to vehicle.droppedoff to trigger surveyor assignment
         var dropOffPayload = new VehicleDroppedOffPayload(
                 claimId,
                 workshopId,

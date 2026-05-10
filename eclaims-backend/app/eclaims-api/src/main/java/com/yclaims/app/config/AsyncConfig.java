@@ -8,14 +8,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/**
- * Async configuration using Java 21 Virtual Threads.
- * Virtual threads (Project Loom) allow near-Node.js concurrency without explicit reactive code.
- * A new virtual thread is spawned per task — no thread pool contention under load.
- *
- * Direct impact on 200M customer scale: the JVM can handle hundreds of thousands of
- * concurrent I/O-bound requests (DB, Redis, Kafka) without blocking OS threads.
- */
+/** Virtual-thread executor — one thread per task, no pool contention for I/O-bound work. */
 @Configuration
 @EnableAsync
 public class AsyncConfig {

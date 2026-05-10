@@ -18,17 +18,8 @@ import org.springframework.web.client.RestTemplate;
 import java.util.Map;
 
 /**
- * Delegates authorization decisions to Keycloak Authorization Services via
- * the UMA 2.0 token endpoint with response_mode=decision.
- *
- * Keycloak evaluates which role-based policies apply to the requested
- * resource#scope and returns {"result": true/false}.
- *
- * Results are cached in-memory (Caffeine) for 5 minutes to eliminate per-request
- * HTTP round-trips. Cache is keyed by userId:resource#scope.
- *
- * Policy changes in Keycloak Admin UI take effect within the next cache window (≤5 min).
- * No application code change or redeploy needed to update who can do what.
+ * Evaluates resource+scope permissions via Keycloak UMA 2.0 token endpoint.
+ * Decisions are cached (Caffeine, 5 min) to avoid per-request HTTP round-trips.
  */
 @Service
 @Slf4j
@@ -49,15 +40,6 @@ public class KeycloakAuthorizationService {
         this.restTemplate = builder.build();
     }
 
-    /**
-     * Checks if the given user is permitted to perform {@code scope} on {@code resource}.
-     *
-     * @param userId    JWT subject (used only as cache key — not sent to Keycloak)
-     * @param resource  Keycloak resource name, e.g. {@code "claim"}
-     * @param scope     Keycloak scope name, e.g. {@code "submit"}
-     * @param userToken Raw Bearer token value from the current request
-     * @return {@code true} if Keycloak grants access, {@code false} otherwise (fail-closed)
-     */
     @Cacheable(
         value = "authzDecisions",
         cacheManager = "caffeineCacheManager",
