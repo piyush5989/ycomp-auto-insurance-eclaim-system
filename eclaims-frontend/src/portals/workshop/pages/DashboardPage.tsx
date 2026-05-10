@@ -15,7 +15,9 @@ export default function DashboardPage() {
   )
 
   const claimsWithoutWorkOrder = claims.filter(
-    (c) => !workOrders.some((wo) => wo.claimId === c.claim_id)
+    (c) =>
+      c.status === 'APPROVED' &&
+      !workOrders.some((wo) => wo.claimId === c.claim_id)
   )
 
   return (
@@ -109,7 +111,7 @@ export default function DashboardPage() {
               {claimsWithoutWorkOrder.length} claim{claimsWithoutWorkOrder.length > 1 ? 's' : ''} pending work order
             </p>
             <p className="text-xs text-amber-700 mt-0.5">
-              Vehicles have been received but no work order has been submitted yet.
+              These claims are approved by an adjustor but no work order has been submitted yet.
             </p>
             <Link to="/workshop/claims" className="text-xs text-amber-800 underline font-medium mt-1 inline-block">
               View claims

@@ -105,7 +105,7 @@ public class WorkshopController {
 
     @PostMapping("/work-orders")
     @PreAuthorize("@authz.isAllowed('workshop', 'work-order-submit')")
-    @Operation(summary = "Submit a work order estimate for an approved claim")
+    @Operation(summary = "Submit a work order estimate (claim must be APPROVED by an adjustor)")
     public ResponseEntity<ApiResponse<WorkOrderResponse>> submitWorkOrder(
             @Valid @RequestBody WorkOrderRequest request) {
         WorkOrderResponse response = workshopService.submitWorkOrder(request, correlationId());

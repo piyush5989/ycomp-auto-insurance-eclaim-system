@@ -3,6 +3,8 @@ package com.yclaims.payments.application;
 import com.yclaims.contracts.events.DomainEvent;
 import com.yclaims.contracts.events.v1.PaymentSettledPayload;
 import com.yclaims.kernel.exception.NotFoundException;
+import com.yclaims.kernel.exception.UnauthorisedException;
+import com.yclaims.kernel.security.ClaimAccessPolicy;
 import com.yclaims.payments.domain.port.out.PaymentGatewayPort;
 import com.yclaims.payments.infrastructure.persistence.PaymentEntity;
 import com.yclaims.payments.infrastructure.persistence.PaymentJpaRepository;
@@ -53,6 +55,7 @@ public class PaymentApplicationService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final JdbcTemplate jdbcTemplate;
+    private final ClaimAccessPolicy claimAccessPolicy;
 
     private static final String APPROVED_AND_LATEST_FINAL_COST_SQL = """
             SELECT c.approved_amount,
@@ -66,6 +69,7 @@ public class PaymentApplicationService {
 
     @Transactional(readOnly = true)
     public BillPreviewResponse previewBill(UUID claimId, String correlationId) {
+        claimAccessPolicy.assertCanAccessClaim(claimId);
         Map<String, Object> claimData = jdbcTemplate.queryForMap(APPROVED_AND_LATEST_FINAL_COST_SQL, claimId.toString());
         BigDecimal approvedAmount = (BigDecimal) claimData.get("approved_amount");
         BigDecimal finalCost = (BigDecimal) claimData.get("final_cost");
@@ -101,10 +105,16 @@ public class PaymentApplicationService {
         String cacheKey = "idempotency:" + idempotencyKey;
         Object cached = redisTemplate.opsForValue().get(cacheKey);
         if (cached instanceof PaymentResponse existing) {
+            if (!existing.getClaimId().equals(request.claimId())) {
+                throw new UnauthorisedException("Idempotency key does not match this claim.");
+            }
+            claimAccessPolicy.assertCanAccessClaim(existing.getClaimId());
             log.info("[{}] Idempotency hit for key {} — returning cached payment {}",
                     correlationId, idempotencyKey, existing.getPaymentId());
             return existing;
         }
+
+        claimAccessPolicy.assertCanAccessClaim(request.claimId());
 
         // Calculate the actual final bill amount (override request amount)
         BigDecimal finalBillAmount = calculateFinalBill(request.claimId(), correlationId);
@@ -148,6 +158,7 @@ public class PaymentApplicationService {
     public PaymentResponse getPayment(UUID paymentId, String correlationId) {
         PaymentEntity entity = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new NotFoundException("Payment", paymentId.toString()));
+        claimAccessPolicy.assertCanAccessClaim(entity.getClaimId());
         return toResponse(entity, false);
     }
 
@@ -184,6 +195,7 @@ public class PaymentApplicationService {
     public Map<String, Object> generateReceipt(UUID paymentId, String correlationId) {
         PaymentEntity payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new NotFoundException("Payment", paymentId.toString()));
+        claimAccessPolicy.assertCanAccessClaim(payment.getClaimId());
         Map<String, Object> receipt = buildReceiptData(payment);
 
         log.info("[{}] Generated receipt for payment {}", correlationId, paymentId);
@@ -192,6 +204,7 @@ public class PaymentApplicationService {
 
     @Transactional(readOnly = true)
     public byte[] generateReceiptPdfByClaimId(UUID claimId, String correlationId) {
+        claimAccessPolicy.assertCanAccessClaim(claimId);
         PaymentEntity payment = paymentRepository
                 .findTopByClaimIdAndStatusOrderBySettledAtDesc(claimId, "SETTLED")
                 .orElseThrow(() -> new NotFoundException("SettledPaymentForClaim", claimId.toString()));

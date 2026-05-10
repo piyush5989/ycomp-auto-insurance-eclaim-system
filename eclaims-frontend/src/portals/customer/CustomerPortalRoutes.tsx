@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { KeyByClaimPage } from '@/shared/components/routing/KeyByClaimPage';
 import CustomerLayout from './CustomerLayout';
 import DashboardPage from './pages/DashboardPage';
 import SubmitClaimPage from './pages/SubmitClaimPage';
@@ -21,12 +22,12 @@ export default function CustomerPortalRoutes() {
         <Route path="profile"          element={<ProfilePage />} />
         <Route path="claims"           element={<ClaimsListPage />} />
         <Route path="claims/submit"    element={<SubmitClaimPage />} />
-        <Route path="claims/:claimId"  element={<ClaimDetailPage />} />
-        <Route path="claims/:claimId/select-workshop"  element={<SelectWorkshopPage />} />
-        <Route path="claims/:claimId/vehicle-dropoff"  element={<VehicleDropOffPage />} />
-        <Route path="claims/:claimId/rental-vehicle"   element={<RentalVehiclePage />} />
+        <Route path="claims/:claimId"  element={<KeyByClaimPage Page={ClaimDetailPage} />} />
+        <Route path="claims/:claimId/select-workshop"  element={<KeyByClaimPage Page={SelectWorkshopPage} />} />
+        <Route path="claims/:claimId/vehicle-dropoff"  element={<KeyByClaimPage Page={VehicleDropOffPage} />} />
+        <Route path="claims/:claimId/rental-vehicle"   element={<KeyByClaimPage Page={RentalVehiclePage} />} />
         <Route path="workshops"        element={<WorkshopSearchPage />} />
-        <Route path="payment/:claimId" element={<PaymentPage />} />
+        <Route path="payment/:claimId" element={<KeyByClaimPage Page={PaymentPage} />} />
       </Routes>
     </CustomerLayout>
   );

@@ -11,6 +11,7 @@ import com.yclaims.documents.infrastructure.persistence.DocumentJpaRepository;
 import com.yclaims.documents.presentation.dto.DocumentMetadataResponse;
 import com.yclaims.kernel.exception.DomainException;
 import com.yclaims.kernel.exception.NotFoundException;
+import com.yclaims.kernel.security.ClaimAccessPolicy;
 import com.yclaims.kernel.security.UserContext;
 import com.yclaims.kernel.security.UserContextHolder;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ public class DocumentApplicationService {
     private final DocumentJpaRepository documentRepository;
     private final DocumentAuditLogJpaRepository auditLogRepository;
     private final StorageProperties storageProperties;
+    private final ClaimAccessPolicy claimAccessPolicy;
 
     // Type-specific write restrictions; CASE_MANAGER and AUDITOR bypass all checks.
     private static final Map<DocumentType, Set<String>> WRITE_ROLES = Map.of(
@@ -60,6 +62,7 @@ public class DocumentApplicationService {
     public DocumentMetadataResponse uploadDocument(UUID claimId, String documentType,
                                                    MultipartFile file, String userId,
                                                    String correlationId) throws Exception {
+        claimAccessPolicy.assertCanAccessClaim(claimId);
         DocumentType type = parseType(documentType);
         UserContext actor = UserContextHolder.require();
         checkWriteAccess(type, actor);
@@ -107,6 +110,7 @@ public class DocumentApplicationService {
 
     @Transactional(readOnly = true)
     public List<DocumentMetadataResponse> listDocumentsByClaimId(UUID claimId, String correlationId) {
+        claimAccessPolicy.assertCanAccessClaim(claimId);
         UserContext actor = UserContextHolder.require();
         boolean isAuditor = actor.isAuditor() || actor.isCaseManager();
         List<DocumentEntity> docs = isAuditor
@@ -121,6 +125,7 @@ public class DocumentApplicationService {
     @Transactional(readOnly = true)
     public String getDownloadUrl(UUID documentId, String correlationId) {
         DocumentEntity entity = requireActive(documentId);
+        claimAccessPolicy.assertCanAccessClaim(entity.getClaimId());
         UserContext actor = UserContextHolder.require();
         checkReadAccess(entity.getDocumentType(), actor);
         audit(documentId, entity.getClaimId(), "DOWNLOADED", actor, correlationId, null);
@@ -135,6 +140,7 @@ public class DocumentApplicationService {
     @Transactional(readOnly = true)
     public DocumentFileStream streamDocumentById(UUID documentId, String correlationId) {
         DocumentEntity entity = requireActive(documentId);
+        claimAccessPolicy.assertCanAccessClaim(entity.getClaimId());
         UserContext actor = UserContextHolder.require();
         checkReadAccess(entity.getDocumentType(), actor);
         audit(documentId, entity.getClaimId(), "VIEWED", actor, correlationId, null);
@@ -152,6 +158,7 @@ public class DocumentApplicationService {
     public void deleteDocument(UUID documentId, String requestingUserId, String correlationId) {
         DocumentEntity doc = documentRepository.findById(documentId)
                 .orElseThrow(() -> new NotFoundException("Document", documentId.toString()));
+        claimAccessPolicy.assertCanAccessClaim(doc.getClaimId());
         doc.setStatus(DocumentStatus.ARCHIVED);
         documentRepository.save(doc);
         UserContext actor = UserContextHolder.require();
@@ -161,9 +168,9 @@ public class DocumentApplicationService {
 
     @Transactional(readOnly = true)
     public List<DocumentAuditLogEntity> getAuditHistory(UUID documentId, String correlationId) {
-        if (!documentRepository.existsById(documentId)) {
-            throw new NotFoundException("Document", documentId.toString());
-        }
+        DocumentEntity doc = documentRepository.findById(documentId)
+                .orElseThrow(() -> new NotFoundException("Document", documentId.toString()));
+        claimAccessPolicy.assertCanAccessClaim(doc.getClaimId());
         UserContext actor = UserContextHolder.require();
         if (!actor.isAuditor() && !actor.isCaseManager()) {
             throw new DomainException("DOC_FORBIDDEN", "Only auditors and case managers may view audit history.");

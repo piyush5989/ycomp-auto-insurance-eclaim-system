@@ -21,8 +21,17 @@ export default function WorkOrderPage() {
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   const claimIdForLookup = form.claimId.trim() || undefined
-  const { data: linkedClaim, isSuccess: claimLoaded } = useClaimDetails(claimIdForLookup)
+  const hasClaimId = !!claimIdForLookup
+  const {
+    data: linkedClaim,
+    isSuccess: claimLoaded,
+    isPending: claimPending,
+    isError: claimLookupError,
+  } = useClaimDetails(claimIdForLookup)
   const isRejectedClaim = claimLoaded && linkedClaim?.status === 'REJECTED'
+  const isApprovedForWorkOrder = claimLoaded && linkedClaim?.status === 'APPROVED'
+  const isWrongStatusForWorkOrder =
+    claimLoaded && linkedClaim && !isApprovedForWorkOrder && !isRejectedClaim
 
   const submitWorkOrder = useMutation({
     mutationFn: async () => {
@@ -47,9 +56,7 @@ export default function WorkOrderPage() {
           : 'WORKSHOP_PROGRESS_PHOTO'
         formData.append('documentType', docType)
         
-        await httpClient.post(`/work-orders/${workOrderId}/upload-media`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        })
+        await httpClient.post(`/work-orders/${workOrderId}/upload-media`, formData)
       }
 
       return workOrderResponse
@@ -112,6 +119,20 @@ export default function WorkOrderPage() {
       {isRejectedClaim && (
         <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-800">
           This claim was rejected. You cannot create a work order for it.
+        </div>
+      )}
+
+      {isWrongStatusForWorkOrder && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-900">
+          This claim is not approved yet (current status:{' '}
+          <strong>{linkedClaim?.status}</strong>). Work orders can only be submitted after an adjustor
+          sets the claim to <strong>APPROVED</strong>.
+        </div>
+      )}
+
+      {hasClaimId && claimLookupError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-800">
+          Could not load this claim. Check the claim ID or your access, then try again.
         </div>
       )}
 
@@ -224,7 +245,10 @@ export default function WorkOrderPage() {
             !form.estimatedCost ||
             !isReady ||
             submitWorkOrder.isPending ||
-            isRejectedClaim
+            isRejectedClaim ||
+            (hasClaimId && claimPending) ||
+            (hasClaimId && claimLookupError) ||
+            (hasClaimId && claimLoaded && !isApprovedForWorkOrder)
           }
           className="btn-primary w-full justify-center"
         >

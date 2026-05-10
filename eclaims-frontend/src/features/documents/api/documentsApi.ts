@@ -48,12 +48,9 @@ export const documentsApi = {
   uploadDocument: (claimId: string, file: File, documentType: DocumentType) => {
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('documentType', documentType)
-    formData.append('claimId', claimId)
+    const qs = new URLSearchParams({ claimId, documentType })
     return httpClient
-      .post<ApiResponse<DocumentMetadata>>('/documents/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      .post<ApiResponse<DocumentMetadata>>(`/documents/upload?${qs.toString()}`, formData)
       .then((r) => r.data)
   },
 

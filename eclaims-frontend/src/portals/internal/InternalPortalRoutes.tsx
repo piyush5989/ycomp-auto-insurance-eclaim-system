@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { KeyByClaimPage } from '@/shared/components/routing/KeyByClaimPage';
 import InternalLayout from './InternalLayout';
 import { ProtectedRoute } from '@/shared/components/layout/ProtectedRoute';
 import DashboardPage from './pages/DashboardPage';
@@ -34,7 +35,7 @@ export default function InternalPortalRoutes() {
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard"       element={<DashboardPage />} />
         <Route path="claims-queue"    element={<ClaimsQueuePage />} />
-        <Route path="claims/:claimId" element={<ClaimDetailPage />} />
+        <Route path="claims/:claimId" element={<KeyByClaimPage Page={ClaimDetailPage} />} />
         <Route path="audit"           element={<AuditViewPage />} />
 
         {/* ── Case Manager: personal portfolio report ── */}
@@ -87,11 +88,11 @@ export default function InternalPortalRoutes() {
 
         {/* ── Surveyor workflow ── */}
         <Route path="surveyor/my-assignments"      element={<MyAssignmentsPage />} />
-        <Route path="surveyor/assess/:claimId"     element={<AssessClaimPage />} />
+        <Route path="surveyor/assess/:claimId"     element={<KeyByClaimPage Page={AssessClaimPage} />} />
 
         {/* ── Adjustor workflow ── */}
         <Route path="adjustor/my-claims"           element={<AdjustorMyClaimsPage />} />
-        <Route path="adjustor/adjudicate/:claimId" element={<AdjudicateClaimPage />} />
+        <Route path="adjustor/adjudicate/:claimId" element={<KeyByClaimPage Page={AdjudicateClaimPage} />} />
       </Routes>
     </InternalLayout>
   );

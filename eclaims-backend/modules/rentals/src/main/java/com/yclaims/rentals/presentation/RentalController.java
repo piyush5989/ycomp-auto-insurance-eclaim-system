@@ -3,6 +3,7 @@ package com.yclaims.rentals.presentation;
 import com.yclaims.contracts.events.DomainEvent;
 import com.yclaims.contracts.events.v1.RentalSkippedPayload;
 import com.yclaims.contracts.events.v1.RentalVehicleReservedPayload;
+import com.yclaims.kernel.security.ClaimAccessPolicy;
 import com.yclaims.kernel.web.ApiResponse;
 import com.yclaims.rentals.presentation.dto.RentalVehicleResponse;
 import com.yclaims.rentals.presentation.dto.ReserveVehicleRequest;
@@ -37,6 +38,7 @@ import java.util.UUID;
 public class RentalController {
 
     private final KafkaTemplate<String, DomainEvent<?>> kafkaTemplate;
+    private final ClaimAccessPolicy claimAccessPolicy;
 
     @GetMapping("/vehicles")
     @PreAuthorize("@authz.isAllowed('rental', 'list-vehicles')")
@@ -118,6 +120,7 @@ public class RentalController {
             Authentication authentication) {
         String correlationId = correlationId();
         String customerId = authentication.getName();
+        claimAccessPolicy.assertCanAccessClaim(request.claimId());
         log.info("[{}] Reserving rental vehicle {} for claim {} ({} days)",
                 correlationId, request.vehicleId(), request.claimId(), request.rentalDays());
 
@@ -189,6 +192,7 @@ public class RentalController {
             Authentication authentication) {
         String correlationId = correlationId();
         String customerId = authentication.getName();
+        claimAccessPolicy.assertCanAccessClaim(claimId);
         log.info("[{}] Customer {} skipping rental vehicle for claim {}", correlationId, customerId, claimId);
 
         RentalSkippedPayload payload = new RentalSkippedPayload(
@@ -222,6 +226,7 @@ public class RentalController {
     @Operation(summary = "Get rental reservation for a claim")
     public ResponseEntity<ApiResponse<ReservationResponse>> getReservation(@PathVariable UUID claimId) {
         String correlationId = correlationId();
+        claimAccessPolicy.assertCanAccessClaim(claimId);
         log.info("[{}] Fetching rental reservation for claim {}", correlationId, claimId);
 
         return ResponseEntity.ok(ApiResponse.success(null, correlationId));

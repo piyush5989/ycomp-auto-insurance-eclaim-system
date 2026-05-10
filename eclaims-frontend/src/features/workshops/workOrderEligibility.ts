@@ -1,5 +1,4 @@
 /**
- * Partner workshops may only create work orders after adjustor approval (claim APPROVED or later payment states).
+ * Partner workshops may only create work orders when the claim is APPROVED (matches API rule).
  */
-export const canWorkshopSubmitWorkOrderForClaim = (status: string): boolean =>
-  status === 'APPROVED' || status === 'PAYMENT_INITIATED' || status === 'SETTLED'
+export const canWorkshopSubmitWorkOrderForClaim = (status: string): boolean => status === 'APPROVED'

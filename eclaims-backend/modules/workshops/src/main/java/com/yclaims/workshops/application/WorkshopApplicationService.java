@@ -4,7 +4,9 @@ import com.yclaims.contracts.events.DomainEvent;
 import com.yclaims.contracts.events.v1.RepairStatusUpdatedPayload;
 import com.yclaims.contracts.events.v1.VehicleDroppedOffPayload;
 import com.yclaims.documents.application.DocumentApplicationService;
+import com.yclaims.kernel.exception.DomainException;
 import com.yclaims.kernel.exception.NotFoundException;
+import com.yclaims.kernel.security.ClaimAccessPolicy;
 import com.yclaims.kernel.security.UserContextHolder;
 import com.yclaims.workshops.infrastructure.persistence.*;
 import com.yclaims.workshops.presentation.dto.*;
@@ -32,6 +34,7 @@ public class WorkshopApplicationService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final JdbcTemplate jdbcTemplate;
     private final DocumentApplicationService documentService;
+    private final ClaimAccessPolicy claimAccessPolicy;
 
     @Transactional(readOnly = true)
     public WorkshopResponse getWorkshopById(UUID workshopId) {
@@ -115,7 +118,8 @@ public class WorkshopApplicationService {
                                      MultipartFile file, String userId, String correlationId) {
         WorkOrderEntity workOrder = workOrderRepository.findById(workOrderId)
                 .orElseThrow(() -> new NotFoundException("WorkOrder", workOrderId.toString()));
-        
+        claimAccessPolicy.assertCanAccessClaim(workOrder.getClaimId());
+
         try {
             var response = documentService.uploadDocument(
                     workOrder.getClaimId(), documentType, file, userId, correlationId);
@@ -130,20 +134,53 @@ public class WorkshopApplicationService {
 
     @Transactional
     public WorkOrderResponse submitWorkOrder(WorkOrderRequest request, String correlationId) {
-        WorkOrderEntity entity = new WorkOrderEntity();
-        entity.setId(UUID.randomUUID());
-        entity.setClaimId(request.claimId());
-        entity.setWorkshopId(request.workshopId());
-        entity.setEstimatedCost(request.estimatedCost());
-        entity.setEstimatedCompletionDate(request.estimatedCompletionDate());
-        entity.setWorkDescription(request.workDescription());
-        entity.setRepairStatus("PENDING");
-        entity.setCreatedAt(Instant.now());
-        entity.setUpdatedAt(Instant.now());
-
-        workOrderRepository.save(entity);
-        log.info("[{}] Work order {} created for claim {}", correlationId, entity.getId(), request.claimId());
-        return toWorkOrderResponse(entity, null);
+        claimAccessPolicy.assertCanAccessClaim(request.claimId());
+        UUID workOrderId = UUID.randomUUID();
+        Instant now = Instant.now();
+        String workshopIdOnClaim = request.workshopId().toString();
+        int inserted = jdbcTemplate.update(
+                """
+                INSERT INTO workshops.work_orders (
+                    id, claim_id, workshop_id, estimated_cost, final_cost, repair_status,
+                    estimated_completion_date, work_description, created_at, updated_at
+                )
+                SELECT ?::uuid, ?::uuid, ?::uuid, ?, NULL, 'PENDING', ?, ?, ?, ?
+                FROM claims.claims c
+                WHERE c.id = ?::uuid
+                  AND upper(trim(c.status)) = 'APPROVED'
+                  AND c.workshop_id IS NOT NULL
+                  AND trim(c.workshop_id) = trim(?)
+                """,
+                workOrderId,
+                request.claimId(),
+                request.workshopId(),
+                request.estimatedCost(),
+                request.estimatedCompletionDate(),
+                request.workDescription(),
+                now,
+                now,
+                request.claimId(),
+                workshopIdOnClaim);
+        if (inserted == 0) {
+            throw new DomainException(
+                    "WORK_ORDER_REQUIRES_APPROVED_CLAIM",
+                    "A work order can only be created after the adjustor has approved the claim (APPROVED), "
+                            + "and the claim must be assigned to your workshop.");
+        }
+        log.info("[{}] Work order {} created for claim {}", correlationId, workOrderId, request.claimId());
+        return WorkOrderResponse.builder()
+                .workOrderId(workOrderId)
+                .claimId(request.claimId())
+                .workshopId(request.workshopId())
+                .workshopName(null)
+                .estimatedCost(request.estimatedCost())
+                .finalCost(null)
+                .repairStatus("PENDING")
+                .estimatedCompletionDate(request.estimatedCompletionDate())
+                .workDescription(request.workDescription())
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
     }
 
     @Transactional
@@ -153,6 +190,7 @@ public class WorkshopApplicationService {
                                                  String correlationId) {
         WorkOrderEntity entity = workOrderRepository.findById(workOrderId)
                 .orElseThrow(() -> new NotFoundException("WorkOrder", workOrderId.toString()));
+        claimAccessPolicy.assertCanAccessClaim(entity.getClaimId());
 
         entity.setRepairStatus(status);
         if (finalCost != null) entity.setFinalCost(finalCost);
@@ -179,6 +217,7 @@ public class WorkshopApplicationService {
 
     @Transactional(readOnly = true)
     public WorkOrderResponse getWorkOrderByClaimId(UUID claimId, String correlationId) {
+        claimAccessPolicy.assertCanAccessClaim(claimId);
         return workOrderRepository
                 .findFirstByClaimIdOrderByCreatedAtDesc(claimId)
                 .map(entity -> {
@@ -190,6 +229,9 @@ public class WorkshopApplicationService {
 
     @Transactional(readOnly = true)
     public List<WorkOrderStatusHistoryResponse> getWorkOrderStatusHistory(UUID workOrderId) {
+        WorkOrderEntity workOrder = workOrderRepository.findById(workOrderId)
+                .orElseThrow(() -> new NotFoundException("WorkOrder", workOrderId.toString()));
+        claimAccessPolicy.assertCanAccessClaim(workOrder.getClaimId());
         return statusHistoryRepository.findByWorkOrderIdOrderByChangedAtAsc(workOrderId).stream()
                 .map(entity -> new WorkOrderStatusHistoryResponse(
                         entity.getId(),
@@ -207,14 +249,16 @@ public class WorkshopApplicationService {
      */
     @Transactional
     public void selectWorkshopForClaim(UUID claimId, UUID workshopId, String customerId, String correlationId) {
+        claimAccessPolicy.assertCanAccessClaim(claimId);
         // Validate workshop exists
         WorkshopEntity workshop = workshopRepository.findById(workshopId)
                 .orElseThrow(() -> new NotFoundException("Workshop", workshopId.toString()));
 
         // Update claim status to WORKSHOP_SELECTED and record workshopId (cross-schema write in modular monolith)
         int updated = jdbcTemplate.update(
-                "UPDATE claims.claims SET status = 'WORKSHOP_SELECTED', workshop_id = ?, updated_at = NOW() WHERE id = ? AND status = 'SUBMITTED'",
-                workshopId.toString(), claimId);
+                "UPDATE claims.claims SET status = 'WORKSHOP_SELECTED', workshop_id = ?, updated_at = NOW() "
+                        + "WHERE id = ? AND status = 'SUBMITTED' AND customer_id = ?",
+                workshopId.toString(), claimId, customerId);
 
         if (updated == 0) {
             // Claim may already be past SUBMITTED — check current status
@@ -249,12 +293,14 @@ public class WorkshopApplicationService {
     @Transactional
     public UUID confirmVehicleDropOff(UUID claimId, VehicleDropOffRequest request,
                                       String customerId, String correlationId) {
+        claimAccessPolicy.assertCanAccessClaim(claimId);
         UUID dropOffId = UUID.randomUUID();
 
         // Update claim status to VEHICLE_AT_WORKSHOP (cross-schema write in modular monolith)
         int updated = jdbcTemplate.update(
-                "UPDATE claims.claims SET status = 'VEHICLE_AT_WORKSHOP', updated_at = NOW() WHERE id = ? AND status = 'WORKSHOP_SELECTED'",
-                claimId);
+                "UPDATE claims.claims SET status = 'VEHICLE_AT_WORKSHOP', updated_at = NOW() "
+                        + "WHERE id = ? AND status = 'WORKSHOP_SELECTED' AND customer_id = ?",
+                claimId, customerId);
 
         if (updated == 0) {
             String currentStatus = jdbcTemplate.queryForObject(

@@ -35,13 +35,13 @@ public class DocumentController {
 
     private final DocumentApplicationService documentService;
 
-    @PostMapping("/upload")
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("@authz.isAllowed('document', 'upload')")
     @Operation(summary = "Upload a document for a claim")
     public ResponseEntity<ApiResponse<DocumentMetadataResponse>> uploadDocument(
             @RequestParam UUID claimId,
             @RequestParam String documentType,
-            @RequestPart MultipartFile file) throws Exception {
+            @RequestParam("file") MultipartFile file) throws Exception {
 
         DocumentMetadataResponse response = documentService.uploadDocument(
                 claimId, documentType, file, UserContextHolder.currentUserId(), correlationId());

@@ -77,9 +77,7 @@ export default function RepairUpdatePage() {
         }
         formData.append('documentType', docType)
         
-        await httpClient.post(`/work-orders/${workOrderId}/upload-media`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        })
+        await httpClient.post(`/work-orders/${workOrderId}/upload-media`, formData)
       }
 
       return response

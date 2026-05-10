@@ -1,4 +1,4 @@
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError, AxiosHeaders } from 'axios';
 import { getToken } from '@/shared/auth/keycloakInstance';
 
 export const httpClient = axios.create({
@@ -16,6 +16,15 @@ httpClient.interceptors.request.use((config) => {
   }
   if (!config.headers['X-Correlation-ID']) {
     config.headers['X-Correlation-ID'] = crypto.randomUUID();
+  }
+  if (config.data instanceof FormData) {
+    const headers = config.headers
+    if (headers instanceof AxiosHeaders) {
+      headers.delete('Content-Type')
+    } else if (headers && typeof headers === 'object') {
+      delete (headers as Record<string, unknown>)['Content-Type']
+      delete (headers as Record<string, unknown>)['content-type']
+    }
   }
   return config;
 });

@@ -19,6 +19,7 @@ import com.yclaims.contracts.events.v1.ClaimCreatedPayload;
 import com.yclaims.contracts.events.v1.ClaimStatusChangedPayload;
 import com.yclaims.kernel.audit.AuditEvent;
 import com.yclaims.kernel.audit.AuditPublisher;
+import com.yclaims.kernel.security.ClaimAccessPolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -44,6 +45,7 @@ public class ClaimApplicationService {
     private final ClaimDtoMapper claimDtoMapper;
     private final ClaimEndorsementJpaRepository endorsementRepository;
     private final WorkshopEmailPort workshopEmailPort;
+    private final ClaimAccessPolicy claimAccessPolicy;
 
     @Transactional
     public ClaimResponse submitClaim(SubmitClaimCommand cmd) {
@@ -104,6 +106,7 @@ public class ClaimApplicationService {
 
     @Transactional(readOnly = true)
     public ClaimResponse getClaimById(UUID claimId, String requestingUserId) {
+        claimAccessPolicy.assertCanAccessClaim(claimId);
         Claim claim = claimRepository.findById(ClaimId.of(claimId))
                 .orElseThrow(() -> new ClaimNotFoundException(claimId.toString()));
         return claimDtoMapper.toResponse(claim);
@@ -114,6 +117,7 @@ public class ClaimApplicationService {
     @Transactional(readOnly = true)
     public ClaimsPageResponse getClaimsByCustomerPage(String customerId, int page, int size,
                                                         String sortBy, String sortOrder) {
+        claimAccessPolicy.assertCustomerMayOnlyAccessOwnData(customerId);
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), MY_CLAIMS_MAX_PAGE_SIZE);
         ClaimRepository.ClaimsPage claimsPage = claimRepository.findByCustomerIdPaginated(
@@ -132,6 +136,7 @@ public class ClaimApplicationService {
 
     @Transactional(readOnly = true)
     public CustomerClaimsStatsResponse getMyClaimsStats(String customerId) {
+        claimAccessPolicy.assertCustomerMayOnlyAccessOwnData(customerId);
         var nonActive = List.of(
                 ClaimStatus.SETTLED,
                 ClaimStatus.PAYMENT_PROCESSED,
@@ -203,6 +208,7 @@ public class ClaimApplicationService {
     @Transactional
     public ClaimResponse updateIncidentDetails(UUID claimId, String incidentLocation,
                                                String description, String requestingUserId) {
+        claimAccessPolicy.assertCanAccessClaim(claimId);
         Claim claim = claimRepository.findById(ClaimId.of(claimId))
                 .orElseThrow(() -> new ClaimNotFoundException(claimId.toString()));
 
@@ -220,6 +226,7 @@ public class ClaimApplicationService {
     @Transactional
     public ClaimEndorsementResponse addEndorsement(UUID claimId, String note,
                                                     String addedBy, String endorsementType) {
+        claimAccessPolicy.assertCanAccessClaim(claimId);
         if (!claimRepository.findById(ClaimId.of(claimId)).isPresent()) {
             throw new ClaimNotFoundException(claimId.toString());
         }
@@ -231,6 +238,7 @@ public class ClaimApplicationService {
 
     @Transactional(readOnly = true)
     public List<ClaimEndorsementResponse> getEndorsements(UUID claimId) {
+        claimAccessPolicy.assertCanAccessClaim(claimId);
         return endorsementRepository.findByClaimIdOrderByCreatedAtAsc(claimId)
                 .stream().map(this::toEndorsementResponse).toList();
     }
@@ -248,6 +256,7 @@ public class ClaimApplicationService {
 
     @Transactional
     public ClaimResponse updateClaimStatus(UpdateClaimStatusCommand cmd) {
+        claimAccessPolicy.assertCanAccessClaim(cmd.claimId());
         Claim claim = claimRepository.findById(ClaimId.of(cmd.claimId()))
                 .orElseThrow(() -> new ClaimNotFoundException(cmd.claimId().toString()));
 
@@ -400,6 +409,7 @@ public class ClaimApplicationService {
     @Transactional
     public ClaimResponse reassignSurveyor(UUID claimId, String newSurveyorId, String reason,
                                           String reassignedBy, String correlationId) {
+        claimAccessPolicy.assertCanAccessClaim(claimId);
         Claim claim = claimRepository.findById(ClaimId.of(claimId))
                 .orElseThrow(() -> new ClaimNotFoundException(claimId.toString()));
 
@@ -421,6 +431,7 @@ public class ClaimApplicationService {
     @Transactional
     public ClaimResponse reassignAdjustor(UUID claimId, String newAdjustorId, String reason,
                                           String reassignedBy, String correlationId) {
+        claimAccessPolicy.assertCanAccessClaim(claimId);
         Claim claim = claimRepository.findById(ClaimId.of(claimId))
                 .orElseThrow(() -> new ClaimNotFoundException(claimId.toString()));
 
@@ -456,6 +467,7 @@ public class ClaimApplicationService {
     @Transactional
     public ClaimResponse overrideDecision(UUID claimId, BigDecimal newAmount, String reason,
                                           String overrideBy, String correlationId) {
+        claimAccessPolicy.assertCanAccessClaim(claimId);
         Claim claim = claimRepository.findById(ClaimId.of(claimId))
                 .orElseThrow(() -> new ClaimNotFoundException(claimId.toString()));
 
