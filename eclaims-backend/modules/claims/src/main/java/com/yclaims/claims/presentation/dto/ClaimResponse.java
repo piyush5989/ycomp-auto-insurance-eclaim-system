@@ -36,6 +36,7 @@ public class ClaimResponse {
     private String assignedAdjustorId;
 
     // Financial
+    private BigDecimal estimatedAmount;
     private BigDecimal assessedAmount;
     private BigDecimal approvedAmount;
 
@@ -48,7 +49,13 @@ public class ClaimResponse {
     // Fraud
     private boolean fraudFlag;
 
+    // Rental vehicle
+    private UUID rentalReservationId;
+    private String rentalStatus; // NOT_SELECTED, RESERVED, SKIPPED
+
     // Timestamps
+    private Instant surveyCompletedAt;
+    private Instant adjudicatedAt;
     private Instant createdAt;
     private Instant updatedAt;
 }

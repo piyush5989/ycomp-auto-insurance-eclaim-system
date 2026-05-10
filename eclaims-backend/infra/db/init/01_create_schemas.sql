@@ -10,7 +10,9 @@ CREATE SCHEMA IF NOT EXISTS workshops;
 CREATE SCHEMA IF NOT EXISTS payments;
 CREATE SCHEMA IF NOT EXISTS reporting;
 CREATE SCHEMA IF NOT EXISTS audit;
+CREATE SCHEMA IF NOT EXISTS customers;
+CREATE SCHEMA IF NOT EXISTS notifications;
 
 -- Confirm schemas created
 SELECT schema_name FROM information_schema.schemata
-WHERE schema_name IN ('claims','documents','workflow','workshops','payments','reporting','audit');
+WHERE schema_name IN ('claims','documents','workflow','workshops','payments','reporting','audit','customers','notifications');

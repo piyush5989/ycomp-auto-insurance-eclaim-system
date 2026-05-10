@@ -1,0 +1,83 @@
+# App services overlay — start with:
+#   docker compose -f docker-compose.yml -f docker-compose.app.yml up -d --build
+
+version: "3.9"
+
+services:
+
+  eclaims-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: eclaims-backend:local
+    container_name: eclaims-backend
+    ports:
+      - "8090:8090"
+    environment:
+      SPRING_PROFILES_ACTIVE: minio,local
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/eclaims
+      SPRING_DATASOURCE_USERNAME: eclaims
+      SPRING_DATASOURCE_PASSWORD: eclaims_dev
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      SPRING_KAFKA_CONSUMER_GROUP_ID: eclaims-docker
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PASSWORD: redis_dev
+      SPRING_MAIL_HOST: mailhog
+      SPRING_MAIL_PORT: 1025
+      # KC_HOSTNAME=localhost on the Keycloak container ensures tokens always carry
+      # iss=http://localhost:8080/... matching what browsers receive.
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/eclaims/protocol/openid-connect/certs
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/eclaims
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: eclaims
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: eclaims
+      MINIO_SECRET_KEY: eclaims_dev
+      MINIO_BUCKET: eclaims-documents
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8090/actuator/health/liveness || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    networks:
+      - eclaims-net
+
+  eclaims-frontend:
+    build:
+      context: ../eclaims-frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_KEYCLOAK_URL: http://localhost:8080
+        VITE_KEYCLOAK_REALM: eclaims
+        VITE_KEYCLOAK_CLIENT_ID: eclaims-web
+    image: eclaims-frontend:local
+    container_name: eclaims-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      eclaims-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/index.html | grep -q '<!DOCTYPE html' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - eclaims-net
+
+networks:
+  eclaims-net:

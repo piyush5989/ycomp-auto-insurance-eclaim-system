@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/shared/auth/KeycloakProvider';
 import { getPortalPath } from '@/shared/auth/roleUtils';
 import { Shield, LogIn } from 'lucide-react';
@@ -40,6 +40,13 @@ export default function LoginPage() {
           <LogIn className="w-5 h-5 mr-2" />
           Sign In with Keycloak
         </button>
+
+        <p className="text-center text-sm text-gray-500 mt-5">
+          New customer?{' '}
+          <Link to="/register" className="text-primary-700 font-medium hover:underline">
+            Register with your policy details
+          </Link>
+        </p>
 
         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
           <p className="text-xs text-gray-500 font-medium mb-2">Demo Accounts (password: Test@1234)</p>

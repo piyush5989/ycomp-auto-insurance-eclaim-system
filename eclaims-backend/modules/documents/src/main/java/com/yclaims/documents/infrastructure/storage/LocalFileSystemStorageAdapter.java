@@ -1,5 +1,6 @@
 package com.yclaims.documents.infrastructure.storage;
 
+import com.yclaims.documents.config.StorageProperties;
 import com.yclaims.documents.domain.port.out.DocumentStoragePort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,11 +16,16 @@ import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
 /**
- * POC document storage: local filesystem.
+ * Dev/test document storage: local filesystem.
+ * Active when Spring profile = "local", "test", or "default" (the startup default).
  * Documents stored in: ${eclaims.storage.path} (default: ./uploads/)
  *
- * Production replacement: S3DocumentStorageAdapter behind the same DocumentStoragePort.
- * Extraction requires zero domain/application code change — only the adapter swaps.
+ * To switch to MinIO (S3-compatible object store):
+ *   set SPRING_PROFILES_ACTIVE=minio  (in .env or as an environment variable)
+ *   then start docker-compose — MinIO runs on localhost:9000, Console on localhost:9001.
+ *
+ * For production AWS S3: same MinioDocumentStorageAdapter, different endpoint + IAM credentials.
+ * Zero domain/application code change needed — only the Spring profile and config change.
  */
 @Component
 @Profile({"local", "test", "default"})
@@ -30,14 +36,14 @@ public class LocalFileSystemStorageAdapter implements DocumentStoragePort {
     private final String baseDownloadUrl;
 
     public LocalFileSystemStorageAdapter(
-            @Value("${eclaims.storage.path:./uploads}") String storagePath,
+            StorageProperties storageProperties,
             @Value("${eclaims.api.base-url:http://localhost:8090}") String baseUrl) {
-        this.storageRoot = Paths.get(storagePath);
+        this.storageRoot = Paths.get(storageProperties.getPath());
         this.baseDownloadUrl = baseUrl + "/api/v1/documents/download/";
         try {
             Files.createDirectories(this.storageRoot);
         } catch (IOException e) {
-            throw new RuntimeException("Cannot create document storage directory: " + storagePath, e);
+            throw new RuntimeException("Cannot create document storage directory: " + this.storageRoot, e);
         }
     }
 

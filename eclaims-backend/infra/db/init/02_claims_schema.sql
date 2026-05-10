@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS claims.claims (
     customer_id             VARCHAR(100)    NOT NULL,
     customer_email          VARCHAR(255)    NOT NULL,
     vehicle_registration    VARCHAR(20)     NOT NULL,
+    idempotency_key         VARCHAR(120),
     claim_type              VARCHAR(30)     NOT NULL,
     status                  VARCHAR(30)     NOT NULL DEFAULT 'SUBMITTED',
     incident_date           DATE            NOT NULL,
@@ -29,10 +30,8 @@ CREATE TABLE IF NOT EXISTS claims.claims (
     updated_at              TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
 
--- Natural key uniqueness — idempotent claim creation
-ALTER TABLE claims.claims
-    ADD CONSTRAINT IF NOT EXISTS uq_claim_natural_key
-    UNIQUE (policy_number, incident_date, vehicle_registration);
+-- NOTE: We do NOT enforce a "natural key" uniqueness constraint here.
+-- Idempotency must be explicit (idempotency key) to avoid blocking valid repeated submissions.
 
 -- Performance indexes
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_claims_customer_id
@@ -44,8 +43,10 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_claims_status_date
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_claims_policy_number
     ON claims.claims(policy_number);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_claims_natural_key
-    ON claims.claims(policy_number, incident_date, vehicle_registration);
+-- Idempotency key uniqueness (only when key provided)
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS uq_claims_idempotency_key
+    ON claims.claims(idempotency_key)
+    WHERE idempotency_key IS NOT NULL;
 
 -- Partial index for assigned surveyor queue — only for ASSIGNED status
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_claims_assigned_surveyor

@@ -1,0 +1,6 @@
+1> Critical	AutoAssignmentService	Direct cross-schema JDBC writes bypass the domain state machine	Publish claim.assigned event; let ClaimApplicationService handle the status update
+2> Critical	notification-events topic	workflow publishes notification.requested but no consumer exists for this topic	Wire ClaimEventConsumer to also subscribe to notification-events, or consolidate into claim-events
+3> Critical	AutoAssignmentService.autoAssign()	Method that handles claim.created is dead code — workflow now triggers on vehicle.droppedoff	Remove the stale autoAssign() method and the unreachable ClaimCreatedPayload import
+4> High	AutoAssignmentService N+1	countActiveBySurveyorId() called per candidate inside a comparator — O(n) queries	Pre-fetch all workload counts in a single batch query before sorting
+5> High	ZIP coverage routing	coversZipCode() only handles Boston (021xx) and San Francisco (941xx) — all others fall to global fallback	Introduce a surveyor_coverage table with ZIP ranges; query it from AutoAssignmentService
+6> Low	AssessClaimPage alert()	Uses browser alert() for validation errors — poor UX, not accessible	Replace with inline error state displayed via React UI components

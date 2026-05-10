@@ -7,6 +7,10 @@ import ClaimDetailPage from './pages/ClaimDetailPage';
 import ClaimsListPage from './pages/ClaimsListPage';
 import WorkshopSearchPage from './pages/WorkshopSearchPage';
 import PaymentPage from './pages/PaymentPage';
+import ProfilePage from './pages/ProfilePage';
+import SelectWorkshopPage from './pages/SelectWorkshopPage';
+import VehicleDropOffPage from './pages/VehicleDropOffPage';
+import RentalVehiclePage from './pages/RentalVehiclePage';
 
 export default function CustomerPortalRoutes() {
   return (
@@ -14,9 +18,13 @@ export default function CustomerPortalRoutes() {
       <Routes>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard"        element={<DashboardPage />} />
+        <Route path="profile"          element={<ProfilePage />} />
         <Route path="claims"           element={<ClaimsListPage />} />
         <Route path="claims/submit"    element={<SubmitClaimPage />} />
         <Route path="claims/:claimId"  element={<ClaimDetailPage />} />
+        <Route path="claims/:claimId/select-workshop"  element={<SelectWorkshopPage />} />
+        <Route path="claims/:claimId/vehicle-dropoff"  element={<VehicleDropOffPage />} />
+        <Route path="claims/:claimId/rental-vehicle"   element={<RentalVehiclePage />} />
         <Route path="workshops"        element={<WorkshopSearchPage />} />
         <Route path="payment/:claimId" element={<PaymentPage />} />
       </Routes>

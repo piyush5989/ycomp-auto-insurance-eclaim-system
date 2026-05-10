@@ -9,7 +9,8 @@ import { ProtectedRoute } from '@/shared/components/layout/ProtectedRoute';
 import CustomerPortalRoutes from '@/portals/customer/CustomerPortalRoutes';
 import InternalPortalRoutes from '@/portals/internal/InternalPortalRoutes';
 import WorkshopPortalRoutes from '@/portals/workshop/WorkshopPortalRoutes';
-import LoginPage from '@/shared/pages/LoginPage';
+import LoginPage from '@/shared/pages/LoginPage'
+import RegisterPage from '@/shared/pages/RegisterPage';
 
 /**
  * App entry point:
@@ -43,6 +44,7 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
 
             <Route
               path="/customer/*"

@@ -23,7 +23,7 @@ public class Claim extends AggregateRoot {
     private final String customerEmail;
     private final String vehicleRegistration;
     private final ClaimType claimType;
-    private final AccidentDetails accidentDetails;
+    private AccidentDetails accidentDetails;
 
     private ClaimStatus status;
     private String assignedSurveyorId;
@@ -34,6 +34,12 @@ public class Claim extends AggregateRoot {
     private String rejectionReason;
     private boolean fraudFlag;
     private String fraudReason;
+    private String region;
+    private String overrideByUserId;
+    private String overrideReason;
+    private Instant overrideAt;
+    private UUID rentalReservationId;
+    private String rentalStatus; // NOT_SELECTED, RESERVED, SKIPPED
 
     private final Instant createdAt;
     private Instant updatedAt;
@@ -99,6 +105,12 @@ public class Claim extends AggregateRoot {
                                      String rejectionReason,
                                      boolean fraudFlag,
                                      String fraudReason,
+                                     String region,
+                                     String overrideByUserId,
+                                     String overrideReason,
+                                     Instant overrideAt,
+                                     UUID rentalReservationId,
+                                     String rentalStatus,
                                      Instant createdAt,
                                      Instant updatedAt) {
         Claim claim = new Claim(id, policyNumber, customerId, customerEmail,
@@ -112,17 +124,32 @@ public class Claim extends AggregateRoot {
         claim.rejectionReason = rejectionReason;
         claim.fraudFlag = fraudFlag;
         claim.fraudReason = fraudReason;
+        claim.region = region;
+        claim.overrideByUserId = overrideByUserId;
+        claim.overrideReason = overrideReason;
+        claim.overrideAt = overrideAt;
+        claim.rentalReservationId = rentalReservationId;
+        claim.rentalStatus = rentalStatus;
         // Override timestamps from DB
         return claim;
     }
 
+    /**
+     * Auto-assignment is triggered after vehicle drop-off (VEHICLE_AT_WORKSHOP → ASSIGNED).
+     * The legacy SUBMITTED → ASSIGNED path is kept for backward-compatible direct assignment.
+     */
     public void assignSurveyor(String surveyorId, String correlationId) {
-        requireStatus(ClaimStatus.SUBMITTED, "assign surveyor");
+        if (status != ClaimStatus.SUBMITTED && status != ClaimStatus.VEHICLE_AT_WORKSHOP) {
+            throw new InvalidClaimStateException(id,
+                    "Cannot assign surveyor when claim is in status " + status +
+                    ". Expected: SUBMITTED or VEHICLE_AT_WORKSHOP");
+        }
+        ClaimStatus previous = this.status;
         this.assignedSurveyorId = surveyorId;
         this.status = ClaimStatus.ASSIGNED;
         this.updatedAt = Instant.now();
         registerEvent(new ClaimAssignedEvent(id, surveyorId, correlationId));
-        registerEvent(new ClaimStatusChangedEvent(id, ClaimStatus.SUBMITTED, ClaimStatus.ASSIGNED, surveyorId, correlationId));
+        registerEvent(new ClaimStatusChangedEvent(id, previous, ClaimStatus.ASSIGNED, surveyorId, correlationId));
     }
 
     public void beginSurvey() {
@@ -131,11 +158,24 @@ public class Claim extends AggregateRoot {
         this.updatedAt = Instant.now();
     }
 
-    public void completeSurvey(BigDecimal assessedAmount, String adjustorId) {
+    /**
+     * Surveyor submits assessment results. The adjustor is assigned separately by AutoAssignmentService
+     * via an adjustor.assigned event — surveyors do not pick their own adjustor.
+     */
+    public void completeSurvey(BigDecimal assessedAmount) {
         requireStatus(ClaimStatus.UNDER_SURVEY, "complete survey");
         this.assessedAmount = assessedAmount;
-        this.assignedAdjustorId = adjustorId;
         this.status = ClaimStatus.SURVEYED;
+        this.updatedAt = Instant.now();
+    }
+
+    /**
+     * Assigns an adjustor to the claim after survey completion.
+     * Does not change status — the adjustor explicitly begins adjudication via {@link #beginAdjudication()}.
+     */
+    public void assignAdjudicator(String adjustorId) {
+        requireStatus(ClaimStatus.SURVEYED, "assign adjustor");
+        this.assignedAdjustorId = adjustorId;
         this.updatedAt = Instant.now();
     }
 
@@ -151,7 +191,10 @@ public class Claim extends AggregateRoot {
             throw new InvalidClaimStateException(id, "Approved amount must be positive");
         }
         this.approvedAmount = approvedAmount;
-        this.workshopId = workshopId;
+        // Only update workshopId if explicitly provided; preserve the existing value set during workshop selection
+        if (workshopId != null && !workshopId.isBlank()) {
+            this.workshopId = workshopId;
+        }
         this.status = ClaimStatus.APPROVED;
         this.updatedAt = Instant.now();
         registerEvent(new ClaimStatusChangedEvent(id, ClaimStatus.UNDER_ADJUDICATION, ClaimStatus.APPROVED, "adjustor", correlationId));
@@ -187,6 +230,27 @@ public class Claim extends AggregateRoot {
         registerEvent(new ClaimStatusChangedEvent(id, previous, ClaimStatus.WITHDRAWN, customerId, correlationId));
     }
 
+    /**
+     * Allows the customer to correct incident description and location while the claim is
+     * still in SUBMITTED state (i.e. before a surveyor has been assigned).
+     * Once ASSIGNED or beyond, changes must be recorded as endorsements.
+     */
+    public void updateIncidentDetails(String incidentLocation, String description) {
+        if (this.status != ClaimStatus.SUBMITTED) {
+            throw new InvalidClaimStateException(id,
+                    "Incident details can only be edited when the claim is in SUBMITTED status. " +
+                    "Current status: " + this.status + ". Please add an endorsement instead.");
+        }
+        this.accidentDetails = new AccidentDetails(
+                accidentDetails.incidentDate(),
+                incidentLocation,
+                description,
+                accidentDetails.policeReportFiled(),
+                accidentDetails.policeReportNumber()
+        );
+        this.updatedAt = Instant.now();
+    }
+
     public void flagFraud(String reason) {
         this.fraudFlag = true;
         this.fraudReason = reason;
@@ -199,6 +263,45 @@ public class Claim extends AggregateRoot {
                     "Cannot " + operation + " when claim is in status " + this.status +
                     ". Expected: " + expected);
         }
+    }
+
+    public void setRegion(String region) {
+        this.region = region;
+        this.updatedAt = Instant.now();
+    }
+
+    public void markOverridden(String overrideByUserId, String overrideReason, BigDecimal newAmount) {
+        this.overrideByUserId = overrideByUserId;
+        this.overrideReason = overrideReason;
+        this.overrideAt = Instant.now();
+        if (newAmount != null) {
+            this.approvedAmount = newAmount;
+        }
+        this.updatedAt = Instant.now();
+    }
+
+    public void reassignSurveyor(String newSurveyorId, String reassignedBy, String reason) {
+        if (this.status.isTerminal()) {
+            throw new InvalidClaimStateException(id, 
+                "Cannot reassign surveyor for claim in terminal status: " + this.status);
+        }
+        this.assignedSurveyorId = newSurveyorId;
+        this.updatedAt = Instant.now();
+    }
+
+    public void reassignAdjustor(String newAdjustorId, String reassignedBy, String reason) {
+        if (this.status.isTerminal()) {
+            throw new InvalidClaimStateException(id, 
+                "Cannot reassign adjustor for claim in terminal status: " + this.status);
+        }
+        this.assignedAdjustorId = newAdjustorId;
+        
+        // If claim was in SURVEYED status, transition to UNDER_ADJUDICATION when adjustor is assigned
+        if (this.status == ClaimStatus.SURVEYED) {
+            this.status = ClaimStatus.UNDER_ADJUDICATION;
+        }
+        
+        this.updatedAt = Instant.now();
     }
 
     // Getters (Lombok @Getter not used on Aggregate — explicit control)
@@ -218,6 +321,12 @@ public class Claim extends AggregateRoot {
     public String getRejectionReason() { return rejectionReason; }
     public boolean isFraudFlag() { return fraudFlag; }
     public String getFraudReason() { return fraudReason; }
+    public String getRegion() { return region; }
+    public String getOverrideByUserId() { return overrideByUserId; }
+    public String getOverrideReason() { return overrideReason; }
+    public Instant getOverrideAt() { return overrideAt; }
+    public UUID getRentalReservationId() { return rentalReservationId; }
+    public String getRentalStatus() { return rentalStatus; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

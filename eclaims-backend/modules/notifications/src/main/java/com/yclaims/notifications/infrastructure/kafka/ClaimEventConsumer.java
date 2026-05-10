@@ -1,9 +1,13 @@
 package com.yclaims.notifications.infrastructure.kafka;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yclaims.contracts.events.DomainEvent;
+import com.yclaims.contracts.events.v1.ClaimAdjudicatedPayload;
 import com.yclaims.contracts.events.v1.ClaimCreatedPayload;
 import com.yclaims.contracts.events.v1.ClaimStatusChangedPayload;
+import com.yclaims.contracts.events.v1.NotificationRequestedPayload;
 import com.yclaims.contracts.events.v1.PaymentSettledPayload;
+import com.yclaims.contracts.events.v1.RepairStatusUpdatedPayload;
 import com.yclaims.notifications.application.NotificationApplicationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,9 +19,9 @@ import java.time.Duration;
 
 /**
  * Kafka consumers for the notifications module.
- * Subscribes to claim-events and payment-events topics.
+ * Subscribes to claim-events, payment-events, and repair-events topics.
  *
- * Idempotent consumer pattern: every event is deduplicated via Redis SETNX on eventId.
+ * Idempotent consumer: every event deduplicated via Redis SETNX on eventId.
  * Duplicate delivery (Kafka at-least-once) is silently skipped — no duplicate notifications.
  */
 @Component
@@ -27,6 +31,7 @@ public class ClaimEventConsumer {
 
     private final NotificationApplicationService notificationService;
     private final RedisTemplate<String, String> stringRedisTemplate;
+    private final ObjectMapper objectMapper;
 
     @KafkaListener(
         topics = "claim-events",
@@ -44,16 +49,36 @@ public class ClaimEventConsumer {
 
         switch (event.eventType()) {
             case "claim.created" -> {
-                if (event.payload() instanceof ClaimCreatedPayload payload) {
+                try {
+                    ClaimCreatedPayload payload =
+                            objectMapper.convertValue(event.payload(), ClaimCreatedPayload.class);
                     notificationService.sendClaimSubmittedNotification(payload, event.correlationId());
+                } catch (IllegalArgumentException e) {
+                    log.error("Failed to deserialise claim.created payload [{}]: {}",
+                            event.eventId(), e.getMessage());
                 }
             }
             case "claim.status.changed" -> {
-                if (event.payload() instanceof ClaimStatusChangedPayload payload) {
+                try {
+                    ClaimStatusChangedPayload payload =
+                            objectMapper.convertValue(event.payload(), ClaimStatusChangedPayload.class);
                     notificationService.sendStatusChangeNotification(payload, event.correlationId());
+                } catch (IllegalArgumentException e) {
+                    log.error("Failed to deserialise claim.status.changed payload [{}]: {}",
+                            event.eventId(), e.getMessage());
                 }
             }
-            default -> log.debug("No notification handler for event type: {}", event.eventType());
+            case "claim.adjudicated" -> {
+                try {
+                    ClaimAdjudicatedPayload payload =
+                            objectMapper.convertValue(event.payload(), ClaimAdjudicatedPayload.class);
+                    notificationService.sendClaimAdjudicatedNotification(payload, event.correlationId());
+                } catch (IllegalArgumentException e) {
+                    log.error("Failed to deserialise claim.adjudicated payload [{}]: {}",
+                            event.eventId(), e.getMessage());
+                }
+            }
+            default -> log.debug("No notification handler for claim event type: {}", event.eventType());
         }
     }
 
@@ -65,9 +90,64 @@ public class ClaimEventConsumer {
     public void handlePaymentEvent(DomainEvent<?> event) {
         if (!deduplicate(event.eventId())) return;
 
-        if ("payment.settled".equals(event.eventType()) &&
-                event.payload() instanceof PaymentSettledPayload payload) {
-            notificationService.sendPaymentConfirmation(payload, event.correlationId());
+        if ("payment.settled".equals(event.eventType())) {
+            try {
+                PaymentSettledPayload payload =
+                        objectMapper.convertValue(event.payload(), PaymentSettledPayload.class);
+                notificationService.sendPaymentConfirmation(payload, event.correlationId());
+            } catch (IllegalArgumentException e) {
+                log.error("Failed to deserialise payment.settled payload [{}]: {}",
+                        event.eventId(), e.getMessage());
+            }
+        }
+    }
+
+    @KafkaListener(
+        topics = "repair-events",
+        groupId = "notification-service",
+        containerFactory = "kafkaListenerContainerFactory"
+    )
+    public void handleRepairEvent(DomainEvent<?> event) {
+        if (!deduplicate(event.eventId())) return;
+
+        log.info("Processing repair event [{}] type={}", event.eventId(), event.eventType());
+
+        if ("repair.status.updated".equals(event.eventType())) {
+            try {
+                RepairStatusUpdatedPayload payload =
+                        objectMapper.convertValue(event.payload(), RepairStatusUpdatedPayload.class);
+                notificationService.sendRepairStatusNotification(payload, event.correlationId());
+            } catch (IllegalArgumentException e) {
+                log.error("Failed to deserialise repair.status.updated payload [{}]: {}",
+                        event.eventId(), e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Consumes notification.requested events published by AutoAssignmentService
+     * (e.g. SURVEYOR_ASSIGNED, ADJUSTOR_ASSIGNED after vehicle drop-off / survey completion).
+     * Previously this topic had no consumer — in-app notifications were silently dropped.
+     */
+    @KafkaListener(
+        topics = "notification-events",
+        groupId = "notification-service",
+        containerFactory = "kafkaListenerContainerFactory"
+    )
+    public void handleNotificationEvent(DomainEvent<?> event) {
+        if (!deduplicate(event.eventId())) return;
+
+        log.info("Processing notification event [{}] type={}", event.eventId(), event.eventType());
+
+        if ("notification.requested".equals(event.eventType())) {
+            try {
+                NotificationRequestedPayload payload =
+                        objectMapper.convertValue(event.payload(), NotificationRequestedPayload.class);
+                notificationService.sendNotificationRequested(payload, event.correlationId());
+            } catch (IllegalArgumentException e) {
+                log.error("Failed to deserialise notification.requested payload [{}]: {}",
+                        event.eventId(), e.getMessage());
+            }
         }
     }
 

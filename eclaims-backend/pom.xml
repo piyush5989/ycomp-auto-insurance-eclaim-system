@@ -15,12 +15,14 @@
         <module>shared/kernel</module>
         <module>shared/contracts</module>
         <module>modules/claims</module>
+        <module>modules/customers</module>
         <module>modules/documents</module>
         <module>modules/workflow</module>
         <module>modules/notifications</module>
         <module>modules/workshops</module>
         <module>modules/payments</module>
         <module>modules/reporting</module>
+        <module>modules/rentals</module>
         <module>app/eclaims-api</module>
     </modules>
 
@@ -58,6 +60,51 @@
             <dependency>
                 <groupId>com.yclaims</groupId>
                 <artifactId>eclaims-contracts</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yclaims</groupId>
+                <artifactId>eclaims-claims</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yclaims</groupId>
+                <artifactId>eclaims-customers</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yclaims</groupId>
+                <artifactId>eclaims-documents</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yclaims</groupId>
+                <artifactId>eclaims-workflow</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yclaims</groupId>
+                <artifactId>eclaims-notifications</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yclaims</groupId>
+                <artifactId>eclaims-workshops</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yclaims</groupId>
+                <artifactId>eclaims-payments</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yclaims</groupId>
+                <artifactId>eclaims-reporting</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yclaims</groupId>
+                <artifactId>eclaims-rentals</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
@@ -159,6 +206,7 @@
                         </annotationProcessorPaths>
                         <compilerArgs>
                             <arg>-Amapstruct.defaultComponentModel=spring</arg>
+                            <arg>-parameters</arg>
                         </compilerArgs>
                     </configuration>
                 </plugin>

@@ -6,4 +6,5 @@ import java.util.UUID;
 
 public interface SurveyorJpaRepository extends JpaRepository<SurveyorEntity, UUID> {
     List<SurveyorEntity> findByActiveTrue();
+    java.util.Optional<SurveyorEntity> findByEmail(String email);
 }

@@ -5,9 +5,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import com.yclaims.workflow.application.WorkforceProvisioningService;
+import com.yclaims.workflow.infrastructure.web.WorkforceProvisioningFilter;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
@@ -19,23 +22,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * Security configuration:
- *   - OAuth2 Resource Server (JWT via Keycloak)
- *   - Keycloak realm roles mapped to Spring Security ROLE_* authorities
- *   - @PreAuthorize on controllers enforces RBAC (8 roles from Keycloak)
- *   - Stateless sessions (JWT — no server-side session state)
- *   - CORS configured for React dev server
- *   - Public: Swagger UI, Actuator health probes
- */
+/** Stateless JWT resource server; maps Keycloak realm roles to ROLE_* Spring authorities. */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+    private final WorkforceProvisioningService workforceProvisioningService;
+
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public WorkforceProvisioningFilter workforceProvisioningFilter() {
+        return new WorkforceProvisioningFilter(workforceProvisioningService);
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http, WorkforceProvisioningFilter workforceProvisioningFilter) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
@@ -47,30 +49,19 @@ public class SecurityConfig {
                             "/swagger-ui/**", "/swagger-ui.html",
                             "/v3/api-docs/**", "/api-docs/**",
                             "/actuator/health/**",
-                            "/actuator/info"
+                            "/actuator/info",
+                            "/api/v1/onboarding/**"
                     ).permitAll()
-                    // All other endpoints require valid JWT
                     .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2
                     .jwt(jwt -> jwt.jwtAuthenticationConverter(keycloakJwtConverter()))
-            );
+            )
+            .addFilterAfter(workforceProvisioningFilter, BearerTokenAuthenticationFilter.class);
 
         return http.build();
     }
 
-    /**
-     * Converts Keycloak realm roles to Spring Security ROLE_* authorities.
-     *
-     * Keycloak JWT structure:
-     *   realm_access.roles: ["customer", "surveyor", "adjustor", ...]
-     *
-     * Spring Security authority mapping:
-     *   "customer"     → ROLE_CUSTOMER
-     *   "surveyor"     → ROLE_SURVEYOR
-     *   "case_manager" → ROLE_CASE_MANAGER
-     *   ... (8 roles total — see UserRole enum)
-     */
     @Bean
     public JwtAuthenticationConverter keycloakJwtConverter() {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
@@ -93,8 +84,8 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of(
-                "http://localhost:5173",  // Vite dev server
-                "http://localhost:3000"   // Alternative dev port
+                "http://localhost:5173",
+                "http://localhost:3000"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));

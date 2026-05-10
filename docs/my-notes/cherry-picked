@@ -1,0 +1,12 @@
+1. Java 21 Virtual Threads — Not in Our Plan Yet (High Value)
+Enterprise-Architecture-Decision.md specifically calls out Java 21 Virtual Threads (Project Loom) as the reason modern Spring Boot matches Node.js concurrency. We listed Java 21 as the version but never mentioned this.
+
+Why it matters for the POC: It directly answers the evaluator's implicit question "can Spring Boot handle 200M customer scale?" — and the answer is yes, because Virtual Threads let a single Spring Boot instance handle millions of concurrent connections without reactive programming complexity.
+
+Add to our plan: Enable Virtual Threads in application.yml:
+
+spring:
+  threads:
+    virtual:
+      enabled: true
+One line. Huge justification value.

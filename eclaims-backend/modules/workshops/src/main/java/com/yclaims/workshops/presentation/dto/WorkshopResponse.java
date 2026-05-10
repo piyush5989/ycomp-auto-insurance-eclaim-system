@@ -16,4 +16,5 @@ public class WorkshopResponse {
     private String email;
     private double rating;
     private boolean active;
+    private String providerType;
 }

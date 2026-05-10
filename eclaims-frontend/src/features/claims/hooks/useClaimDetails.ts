@@ -11,7 +11,7 @@ export function useClaimDetails(claimId: string | undefined) {
     queryKey: ['claim', claimId],
     queryFn: () => claimsApi.getById(claimId!),
     enabled: !!claimId,
-    staleTime: 30_000,
+    staleTime: 0,
     select: (data) => data.data,
   });
 }

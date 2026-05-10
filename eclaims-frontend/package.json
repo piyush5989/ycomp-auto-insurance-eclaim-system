@@ -11,21 +11,22 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.23.1",
+    "@hookform/resolvers": "^3.6.0",
     "@tanstack/react-query": "^5.40.0",
     "@tanstack/react-query-devtools": "^5.40.0",
     "axios": "^1.7.2",
-    "keycloak-js": "^24.0.4",
-    "zustand": "^4.5.2",
-    "zod": "^3.23.8",
-    "react-hook-form": "^7.51.5",
-    "@hookform/resolvers": "^3.6.0",
-    "date-fns": "^3.6.0",
-    "lucide-react": "^0.395.0",
+    "browser-image-compression": "^2.0.2",
     "clsx": "^2.1.1",
-    "tailwind-merge": "^2.3.0"
+    "date-fns": "^3.6.0",
+    "keycloak-js": "^24.0.4",
+    "lucide-react": "^0.395.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.51.5",
+    "react-router-dom": "^6.23.1",
+    "tailwind-merge": "^2.3.0",
+    "zod": "^3.23.8",
+    "zustand": "^4.5.2"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
@@ -44,7 +45,12 @@
     "vite-plugin-pwa": "^0.20.1"
   },
   "lint-staged": {
-    "*.{ts,tsx}": ["eslint --fix", "prettier --write"],
-    "*.{json,css,md}": ["prettier --write"]
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,md}": [
+      "prettier --write"
+    ]
   }
 }

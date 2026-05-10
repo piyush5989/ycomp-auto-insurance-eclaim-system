@@ -54,6 +54,14 @@ logging:
     org.springframework.security: INFO
     org.apache.kafka: WARN
 
+# Local dev: allow readiness group to reference optional contributors (e.g. kafka)
+management:
+  endpoint:
+    health:
+      validate-group-membership: false
+
 eclaims:
   storage:
+    # Relative to JVM working directory (eclaims-api when using spring-boot:run).
+    # Prefer an absolute path in production so uploads and downloads always resolve the same folder.
     path: ./uploads

@@ -1,8 +1,8 @@
 package com.yclaims.documents.infrastructure.persistence;
 
+import com.yclaims.documents.domain.model.DocumentStatus;
 import com.yclaims.documents.domain.model.DocumentType;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -15,12 +15,14 @@ import java.util.UUID;
     name = "documents",
     schema = "documents",
     indexes = {
-        @Index(name = "idx_documents_claim_id", columnList = "claim_id")
+        @Index(name = "idx_documents_claim_id", columnList = "claim_id"),
+        @Index(name = "idx_documents_status",   columnList = "status"),
+        @Index(name = "idx_documents_parent_id", columnList = "parent_id")
     }
 )
 @Getter
 @Setter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 public class DocumentEntity {
 
     @Id
@@ -52,10 +54,21 @@ public class DocumentEntity {
     @Column(name = "uploaded_at", nullable = false)
     private Instant uploadedAt;
 
-    @Column(name = "archived")
-    private boolean archived = false;
+    /** Version counter — starts at 1, increments each time a new version is uploaded. */
+    @Column(name = "version", nullable = false)
+    private int version = 1;
 
-    public DocumentEntity() {}
+    /** Points to the document this one supersedes; null for the first upload. */
+    @Column(name = "parent_id", columnDefinition = "uuid")
+    private UUID parentId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private DocumentStatus status = DocumentStatus.ACTIVE;
+
+    /** SHA-256 hex digest of the stored bytes — used for integrity verification. */
+    @Column(name = "checksum_sha256", length = 64)
+    private String checksumSha256;
 
     @Override
     public boolean equals(Object o) {

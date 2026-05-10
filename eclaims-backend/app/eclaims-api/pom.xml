@@ -20,12 +20,21 @@
         <dependency><groupId>com.yclaims</groupId><artifactId>eclaims-kernel</artifactId></dependency>
         <dependency><groupId>com.yclaims</groupId><artifactId>eclaims-contracts</artifactId></dependency>
         <dependency><groupId>com.yclaims</groupId><artifactId>eclaims-claims</artifactId></dependency>
+        <dependency><groupId>com.yclaims</groupId><artifactId>eclaims-customers</artifactId></dependency>
         <dependency><groupId>com.yclaims</groupId><artifactId>eclaims-documents</artifactId></dependency>
         <dependency><groupId>com.yclaims</groupId><artifactId>eclaims-workflow</artifactId></dependency>
         <dependency><groupId>com.yclaims</groupId><artifactId>eclaims-notifications</artifactId></dependency>
         <dependency><groupId>com.yclaims</groupId><artifactId>eclaims-workshops</artifactId></dependency>
         <dependency><groupId>com.yclaims</groupId><artifactId>eclaims-payments</artifactId></dependency>
         <dependency><groupId>com.yclaims</groupId><artifactId>eclaims-reporting</artifactId></dependency>
+        <dependency><groupId>com.yclaims</groupId><artifactId>eclaims-rentals</artifactId></dependency>
+
+        <!-- Keycloak Admin Client — used by OnboardingApplicationService for self-registration via policy -->
+        <dependency>
+            <groupId>org.keycloak</groupId>
+            <artifactId>keycloak-admin-client</artifactId>
+            <version>24.0.3</version>
+        </dependency>
 
         <!-- Spring Boot starters needed at app level -->
         <dependency>
@@ -35,6 +44,10 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

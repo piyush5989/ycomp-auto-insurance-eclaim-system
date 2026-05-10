@@ -1,0 +1,161 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE:  ghcr.io/${{ github.repository_owner }}/eclaims-backend
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/eclaims-frontend
+
+jobs:
+  backend-ci:
+    name: Backend — Build & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: eclaims-backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+      - run: chmod +x mvnw
+      - name: Build and test
+        run: ./mvnw clean verify -B -Dstyle.color=always
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: eclaims-backend/**/target/surefire-reports/
+          retention-days: 7
+
+  frontend-ci:
+    name: Frontend — Type-check, Lint & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: eclaims-frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: eclaims-frontend/package-lock.json
+      - run: npm ci
+      - run: npm run type-check
+      - run: npm run lint
+      - name: Build
+        run: npm run build
+        env:
+          VITE_KEYCLOAK_URL: ${{ vars.VITE_KEYCLOAK_URL || 'http://localhost:8080' }}
+          VITE_KEYCLOAK_REALM: ${{ vars.VITE_KEYCLOAK_REALM || 'eclaims' }}
+          VITE_KEYCLOAK_CLIENT_ID: ${{ vars.VITE_KEYCLOAK_CLIENT_ID || 'eclaims-web' }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: eclaims-frontend/dist/
+          retention-days: 3
+
+  docker-build-push:
+    name: Docker — Build & Push
+    needs: [backend-ci, frontend-ci]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Backend metadata
+        id: backend-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.BACKEND_IMAGE }}
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v5
+        with:
+          context: eclaims-backend
+          file: eclaims-backend/Dockerfile
+          push: true
+          tags: ${{ steps.backend-meta.outputs.tags }}
+          labels: ${{ steps.backend-meta.outputs.labels }}
+          cache-from: type=gha,scope=backend
+          cache-to:   type=gha,scope=backend,mode=max
+
+      - name: Frontend metadata
+        id: frontend-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.FRONTEND_IMAGE }}
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: eclaims-frontend
+          file: eclaims-frontend/Dockerfile
+          push: true
+          tags: ${{ steps.frontend-meta.outputs.tags }}
+          labels: ${{ steps.frontend-meta.outputs.labels }}
+          build-args: |
+            VITE_KEYCLOAK_URL=${{ vars.VITE_KEYCLOAK_URL || 'http://localhost:8080' }}
+            VITE_KEYCLOAK_REALM=${{ vars.VITE_KEYCLOAK_REALM || 'eclaims' }}
+            VITE_KEYCLOAK_CLIENT_ID=${{ vars.VITE_KEYCLOAK_CLIENT_ID || 'eclaims-web' }}
+          cache-from: type=gha,scope=frontend
+          cache-to:   type=gha,scope=frontend,mode=max
+
+  deploy:
+    name: Deploy — POC
+    needs: [docker-build-push]
+    runs-on: ubuntu-latest
+    environment: poc
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      # Uncomment and configure one of the options below:
+      #
+      # Option A — SSH into a VM:
+      # - uses: appleboy/ssh-action@v1
+      #   with:
+      #     host: ${{ secrets.SSH_HOST }}
+      #     username: ${{ secrets.SSH_USER }}
+      #     key: ${{ secrets.SSH_KEY }}
+      #     script: |
+      #       cd /opt/eclaims
+      #       echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      #       docker compose -f docker-compose.yml -f docker-compose.app.yml pull eclaims-backend eclaims-frontend
+      #       docker compose -f docker-compose.yml -f docker-compose.app.yml up -d eclaims-backend eclaims-frontend
+      #
+      # Option B — AWS ECS:
+      # - uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      #   with:
+      #     task-definition: ecs-task-def.json
+      #     service: eclaims-api
+      #     cluster: eclaims-poc
+      #     wait-for-service-stability: true
+      - run: echo "Deploy target not configured. Add Option A or B above."

@@ -1,7 +1,8 @@
 export type ClaimStatus =
-  | 'DRAFT' | 'SUBMITTED' | 'ASSIGNED' | 'UNDER_SURVEY' | 'SURVEYED'
+  | 'DRAFT' | 'SUBMITTED' | 'WORKSHOP_SELECTED' | 'VEHICLE_AT_WORKSHOP'
+  | 'ASSIGNED' | 'UNDER_SURVEY' | 'SURVEYED'
   | 'UNDER_ADJUDICATION' | 'APPROVED' | 'REJECTED' | 'PAYMENT_INITIATED'
-  | 'SETTLED' | 'WITHDRAWN' | 'ARCHIVED';
+  | 'PAYMENT_PROCESSED' | 'SETTLED' | 'WITHDRAWN' | 'ARCHIVED';
 
 export type ClaimType =
   | 'COLLISION' | 'COMPREHENSIVE' | 'THEFT' | 'FIRE'
@@ -31,11 +32,16 @@ export interface ClaimResponse {
   policeReportFiled: boolean;
   assignedSurveyorId?: string;
   assignedAdjustorId?: string;
+  estimatedAmount?: number;
   assessedAmount?: number;
   approvedAmount?: number;
   workshopId?: string;
   rejectionReason?: string;
   fraudFlag: boolean;
+  rentalReservationId?: string;
+  rentalStatus?: 'NOT_SELECTED' | 'RESERVED' | 'SKIPPED';
+  surveyCompletedAt?: string;
+  adjudicatedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -45,4 +51,29 @@ export interface ClaimStatusUpdateRequest {
   amount?: number;
   reason?: string;
   workshopId?: string;
+}
+
+export interface PotentialDuplicate {
+  claimId: string;
+  policyNumber: string;
+  vehicleRegistration: string;
+  claimType: ClaimType;
+  status: ClaimStatus;
+  incidentDate: string;
+  incidentLocation?: string;
+  createdAt: string;
+}
+
+export interface UpdateIncidentDetailsRequest {
+  incidentLocation?: string;
+  description?: string;
+}
+
+export interface ClaimEndorsement {
+  endorsementId: string;
+  claimId: string;
+  note: string;
+  addedBy: string;
+  endorsementType: string;
+  createdAt: string;
 }

@@ -39,9 +39,10 @@ class ClaimStateMachineTest {
         claim.beginSurvey();
         assertThat(claim.getStatus()).isEqualTo(ClaimStatus.UNDER_SURVEY);
 
-        claim.completeSurvey(new BigDecimal("15000.00"), "adjustor-1");
+        claim.completeSurvey(new BigDecimal("15000.00"));
         assertThat(claim.getStatus()).isEqualTo(ClaimStatus.SURVEYED);
 
+        claim.assignAdjudicator("adjustor-1");
         claim.beginAdjudication();
         assertThat(claim.getStatus()).isEqualTo(ClaimStatus.UNDER_ADJUDICATION);
 
@@ -62,7 +63,8 @@ class ClaimStateMachineTest {
         Claim claim = buildClaim();
         claim.assignSurveyor("s1", "c1");
         claim.beginSurvey();
-        claim.completeSurvey(new BigDecimal("5000"), "a1");
+        claim.completeSurvey(new BigDecimal("5000"));
+        claim.assignAdjudicator("a1");
         claim.beginAdjudication();
         claim.reject("Fraudulent claim", "c2");
         assertThat(claim.getStatus()).isEqualTo(ClaimStatus.REJECTED);
@@ -90,7 +92,8 @@ class ClaimStateMachineTest {
         Claim claim = buildClaim();
         claim.assignSurveyor("s1", "c1");
         claim.beginSurvey();
-        claim.completeSurvey(new BigDecimal("5000"), "a1");
+        claim.completeSurvey(new BigDecimal("5000"));
+        claim.assignAdjudicator("a1");
         claim.beginAdjudication();
         claim.approve(new BigDecimal("4500"), "w1", "c2");
         claim.markPaymentInitiated();
@@ -112,7 +115,8 @@ class ClaimStateMachineTest {
         Claim claim = buildClaim();
         claim.assignSurveyor("s1", "c1");
         claim.beginSurvey();
-        claim.completeSurvey(new BigDecimal("5000"), "a1");
+        claim.completeSurvey(new BigDecimal("5000"));
+        claim.assignAdjudicator("a1");
         claim.beginAdjudication();
 
         assertThatThrownBy(() -> claim.approve(BigDecimal.ZERO, "w1", "c"))

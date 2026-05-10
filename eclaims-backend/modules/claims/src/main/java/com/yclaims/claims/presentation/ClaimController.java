@@ -3,9 +3,8 @@ package com.yclaims.claims.presentation;
 import com.yclaims.claims.application.ClaimApplicationService;
 import com.yclaims.claims.application.command.SubmitClaimCommand;
 import com.yclaims.claims.application.command.UpdateClaimStatusCommand;
-import com.yclaims.claims.presentation.dto.ClaimResponse;
-import com.yclaims.claims.presentation.dto.ClaimStatusUpdateRequest;
-import com.yclaims.claims.presentation.dto.ClaimSubmissionRequest;
+import com.yclaims.claims.domain.model.ClaimStatus;
+import com.yclaims.claims.presentation.dto.*;
 import com.yclaims.kernel.security.UserContextHolder;
 import com.yclaims.kernel.web.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,7 +40,7 @@ public class ClaimController {
     private final ClaimApplicationService claimService;
 
     @PostMapping
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("@authz.isAllowed('claim', 'submit')")
     @Operation(summary = "Submit a new insurance claim",
                description = "Idempotent — duplicate submissions for the same policy/incident/vehicle return the existing claim")
     public ResponseEntity<ApiResponse<ClaimResponse>> submitClaim(
@@ -67,7 +66,7 @@ public class ClaimController {
     }
 
     @GetMapping("/{claimId}")
-    @PreAuthorize("hasAnyRole('CUSTOMER','SURVEYOR','ADJUSTOR','CASE_MANAGER','AUDITOR','TOP_MANAGEMENT')")
+    @PreAuthorize("@authz.isAllowed('claim', 'read')")
     @Operation(summary = "Get claim details by ID")
     public ResponseEntity<ApiResponse<ClaimResponse>> getClaim(@PathVariable UUID claimId) {
         ClaimResponse response = claimService.getClaimById(claimId, UserContextHolder.currentUserId());
@@ -75,7 +74,7 @@ public class ClaimController {
     }
 
     @GetMapping("/my-claims")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("@authz.isAllowed('claim', 'list-own')")
     @Operation(summary = "List all claims for the authenticated customer")
     public ResponseEntity<ApiResponse<List<ClaimResponse>>> getMyClaims() {
         String customerId = UserContextHolder.currentUserId();
@@ -83,8 +82,34 @@ public class ClaimController {
         return ResponseEntity.ok(ApiResponse.success(claims, correlationId()));
     }
 
+    @GetMapping
+    @PreAuthorize("@authz.isAllowed('claim', 'list-all')")
+    @Operation(summary = "Query claims with advanced filters and pagination")
+    public ResponseEntity<ApiResponse<ClaimsPageResponse>> queryClaims(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String region,
+            @RequestParam(required = false) Boolean fraudFlag,
+            @RequestParam(required = false) String assignedTo,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortOrder) {
+        
+        // If assignedTo is "me" or empty, use the current user's ID from the JWT token
+        String effectiveAssignedTo = assignedTo;
+        if ("me".equalsIgnoreCase(assignedTo) || (assignedTo != null && assignedTo.isEmpty())) {
+            effectiveAssignedTo = UserContextHolder.currentUserId();
+            log.debug("Filtering claims for current user: {}", effectiveAssignedTo);
+        }
+        
+        ClaimStatus statusEnum = status != null ? ClaimStatus.valueOf(status) : null;
+        ClaimsPageResponse response = claimService.queryClaimsWithFilters(
+                statusEnum, region, fraudFlag, effectiveAssignedTo, page, size, sortBy, sortOrder);
+        return ResponseEntity.ok(ApiResponse.success(response, correlationId()));
+    }
+
     @PatchMapping("/{claimId}/status")
-    @PreAuthorize("hasAnyRole('SURVEYOR','ADJUSTOR','CASE_MANAGER')")
+    @PreAuthorize("@authz.isAllowed('claim', 'update-status')")
     @Operation(summary = "Update claim status — triggers state machine transition")
     public ResponseEntity<ApiResponse<ClaimResponse>> updateStatus(
             @PathVariable UUID claimId,
@@ -104,8 +129,62 @@ public class ClaimController {
         return ResponseEntity.ok(ApiResponse.success(response, correlationId()));
     }
 
+    /**
+     * Soft duplicate check — call before submitting a new claim.
+     * Returns similar active claims within a ±30-day window; never blocks submission.
+     */
+    @PostMapping("/check-duplicates")
+    @PreAuthorize("@authz.isAllowed('claim', 'check-duplicates')")
+    @Operation(summary = "Check for potentially duplicate claims (soft warning only)")
+    public ResponseEntity<ApiResponse<List<PotentialDuplicateResponse>>> checkDuplicates(
+            @Valid @RequestBody DuplicateCheckRequest request) {
+        List<PotentialDuplicateResponse> duplicates = claimService.checkPotentialDuplicates(
+                UserContextHolder.currentUserId(),
+                request.vehicleRegistration(),
+                request.incidentDate());
+        return ResponseEntity.ok(ApiResponse.success(duplicates, correlationId()));
+    }
+
+    /**
+     * Customer edits incident description / location while claim is still SUBMITTED.
+     * Returns 400 if the claim has already been assigned or progressed further.
+     */
+    @PatchMapping("/{claimId}/incident-details")
+    @PreAuthorize("@authz.isAllowed('claim', 'update-incident')")
+    @Operation(summary = "Update incident description and location (SUBMITTED state only)")
+    public ResponseEntity<ApiResponse<ClaimResponse>> updateIncidentDetails(
+            @PathVariable UUID claimId,
+            @Valid @RequestBody UpdateIncidentDetailsRequest request) {
+        ClaimResponse response = claimService.updateIncidentDetails(
+                claimId, request.incidentLocation(), request.description(),
+                UserContextHolder.currentUserId());
+        return ResponseEntity.ok(ApiResponse.success(response, correlationId()));
+    }
+
+    @GetMapping("/{claimId}/endorsements")
+    @PreAuthorize("@authz.isAllowed('claim', 'read-endorsements')")
+    @Operation(summary = "List all endorsements/notes for a claim")
+    public ResponseEntity<ApiResponse<List<ClaimEndorsementResponse>>> getEndorsements(
+            @PathVariable UUID claimId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                claimService.getEndorsements(claimId), correlationId()));
+    }
+
+    @PostMapping("/{claimId}/endorsements")
+    @PreAuthorize("@authz.isAllowed('claim', 'add-endorsement')")
+    @Operation(summary = "Add a note/endorsement to a claim")
+    public ResponseEntity<ApiResponse<ClaimEndorsementResponse>> addEndorsement(
+            @PathVariable UUID claimId,
+            @Valid @RequestBody AddEndorsementRequest request) {
+        ClaimEndorsementResponse response = claimService.addEndorsement(
+                claimId, request.note(),
+                UserContextHolder.currentUserId(), "CUSTOMER_NOTE");
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(response, correlationId()));
+    }
+
     @DeleteMapping("/{claimId}")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("@authz.isAllowed('claim', 'withdraw')")
     @Operation(summary = "Withdraw a claim (customer-initiated)")
     public ResponseEntity<ApiResponse<ClaimResponse>> withdrawClaim(@PathVariable UUID claimId) {
         UpdateClaimStatusCommand cmd = new UpdateClaimStatusCommand(
@@ -116,6 +195,42 @@ public class ClaimController {
                 correlationId()
         );
         ClaimResponse response = claimService.updateClaimStatus(cmd);
+        return ResponseEntity.ok(ApiResponse.success(response, correlationId()));
+    }
+
+    @PostMapping("/{claimId}/reassign-surveyor")
+    @PreAuthorize("@authz.isAllowed('claim', 'reassign-surveyor')")
+    @Operation(summary = "Reassign claim to a different surveyor (case manager only)")
+    public ResponseEntity<ApiResponse<ClaimResponse>> reassignSurveyor(
+            @PathVariable UUID claimId,
+            @Valid @RequestBody ReassignRequest request) {
+        ClaimResponse response = claimService.reassignSurveyor(
+                claimId, request.newUserId(), request.reason(),
+                UserContextHolder.currentUserId(), correlationId());
+        return ResponseEntity.ok(ApiResponse.success(response, correlationId()));
+    }
+
+    @PostMapping("/{claimId}/reassign-adjustor")
+    @PreAuthorize("@authz.isAllowed('claim', 'reassign-adjustor')")
+    @Operation(summary = "Reassign claim to a different adjustor (case manager only)")
+    public ResponseEntity<ApiResponse<ClaimResponse>> reassignAdjustor(
+            @PathVariable UUID claimId,
+            @Valid @RequestBody ReassignRequest request) {
+        ClaimResponse response = claimService.reassignAdjustor(
+                claimId, request.newUserId(), request.reason(),
+                UserContextHolder.currentUserId(), correlationId());
+        return ResponseEntity.ok(ApiResponse.success(response, correlationId()));
+    }
+
+    @PostMapping("/{claimId}/override")
+    @PreAuthorize("@authz.isAllowed('claim', 'override')")
+    @Operation(summary = "Override adjudication decision (case manager only)")
+    public ResponseEntity<ApiResponse<ClaimResponse>> overrideDecision(
+            @PathVariable UUID claimId,
+            @Valid @RequestBody OverrideDecisionRequest request) {
+        ClaimResponse response = claimService.overrideDecision(
+                claimId, request.newAmount(), request.reason(),
+                UserContextHolder.currentUserId(), correlationId());
         return ResponseEntity.ok(ApiResponse.success(response, correlationId()));
     }
 

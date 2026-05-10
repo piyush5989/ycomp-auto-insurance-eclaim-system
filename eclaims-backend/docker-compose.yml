@@ -94,6 +94,28 @@ services:
     networks:
       - eclaims-net
 
+  # ─── MinIO (S3-compatible object store) ─────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: eclaims-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: eclaims
+      MINIO_ROOT_PASSWORD: eclaims_dev
+    ports:
+      - "9000:9000"    # S3 API — Spring Boot points here
+      - "9001:9001"    # MinIO Console UI: localhost:9001 (eclaims / eclaims_dev)
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    networks:
+      - eclaims-net
+
   # ─── Keycloak ────────────────────────────────────────────────────────────
   keycloak:
     image: quay.io/keycloak/keycloak:24.0
@@ -108,6 +130,11 @@ services:
       KC_DB_PASSWORD: eclaims_dev
       KC_HOSTNAME_STRICT: "false"
       KC_HTTP_ENABLED: "true"
+      # Fix JWT issuer when backend runs in Docker:
+      # Without KC_HOSTNAME the iss claim reflects the request URL (keycloak:8080 vs localhost:8080).
+      # Setting KC_HOSTNAME=localhost ensures iss is always http://localhost:8080/realms/eclaims
+      # so both browser-obtained tokens and backend JWT validation agree on the issuer.
+      KC_HOSTNAME: "localhost"
     ports:
       - "8080:8080"    # Keycloak Admin: localhost:8080/admin (admin/admin)
     volumes:
@@ -116,7 +143,8 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
+      # KC 24 management port is 9000 (separate from HTTP 8080)
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/health/ready || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -126,6 +154,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  minio_data:
     driver: local
 
 networks:

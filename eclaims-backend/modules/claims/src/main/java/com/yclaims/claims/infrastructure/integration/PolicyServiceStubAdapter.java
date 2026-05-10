@@ -35,6 +35,15 @@ public class PolicyServiceStubAdapter implements PolicyServicePort {
                     LocalDate.of(2024, 1, 1), LocalDate.of(2027, 12, 31), "COMPREHENSIVE")
     );
 
+    /**
+     * Vehicle on file for each seeded demo policy (matches frontend demo prefill).
+     * Load-test policy POL-00000003 has no binding — any plate is accepted.
+     */
+    private static final Map<String, String> SEED_POLICY_VEHICLE_PLATES = Map.of(
+            "POL-00000001", "CA7H2K901",
+            "POL-00000002", "TX9K4M882"
+    );
+
     @Override
     public PolicyValidationResult validate(String policyNumber, String vehicleRegistration) {
         log.debug("Policy validation (stub) for policy={} vehicle={}", policyNumber, vehicleRegistration);
@@ -42,6 +51,12 @@ public class PolicyServiceStubAdapter implements PolicyServicePort {
         // Allow any policy matching the test pattern for load testing
         if (policyNumber.matches("^POL-\\d{8}$")) {
             if (SEED_POLICIES.containsKey(policyNumber)) {
+                String expectedPlate = SEED_POLICY_VEHICLE_PLATES.get(policyNumber);
+                if (expectedPlate != null
+                        && !expectedPlate.equalsIgnoreCase(vehicleRegistration == null ? "" : vehicleRegistration.trim())) {
+                    return PolicyValidationResult.invalid(
+                            "Vehicle registration does not match the vehicle registered on this policy.");
+                }
                 return SEED_POLICIES.get(policyNumber);
             }
             // Generic valid response for load test generated policy numbers
