@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  # Fresh PostgreSQL instance for clean reset
+  postgres-reset:
+    image: postgres:16-alpine
+    container_name: eclaims-postgres-reset
+    environment:
+      POSTGRES_DB: eclaims
+      POSTGRES_USER: eclaims
+      POSTGRES_PASSWORD: eclaims_dev
+    ports:
+      - "5433:5432"  # Different port to avoid conflicts
+    volumes:
+      - ./infra/db/init:/docker-entrypoint-initdb.d
+    networks:
+      - eclaims-net
+    
+networks:
+  eclaims-net:
+    external: true

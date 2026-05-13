@@ -136,15 +136,14 @@ public class WorkshopApplicationService {
     public WorkOrderResponse submitWorkOrder(WorkOrderRequest request, String correlationId) {
         claimAccessPolicy.assertCanAccessClaim(request.claimId());
         UUID workOrderId = UUID.randomUUID();
-        Instant now = Instant.now();
         String workshopIdOnClaim = request.workshopId().toString();
         int inserted = jdbcTemplate.update(
                 """
                 INSERT INTO workshops.work_orders (
                     id, claim_id, workshop_id, estimated_cost, final_cost, repair_status,
-                    estimated_completion_date, work_description, created_at, updated_at
+                    estimated_completion_date, work_description
                 )
-                SELECT ?::uuid, ?::uuid, ?::uuid, ?, NULL, 'PENDING', ?, ?, ?, ?
+                SELECT ?::uuid, ?::uuid, ?::uuid, ?, NULL, 'PENDING', ?, ?
                 FROM claims.claims c
                 WHERE c.id = ?::uuid
                   AND upper(trim(c.status)) = 'APPROVED'
@@ -157,8 +156,6 @@ public class WorkshopApplicationService {
                 request.estimatedCost(),
                 request.estimatedCompletionDate(),
                 request.workDescription(),
-                now,
-                now,
                 request.claimId(),
                 workshopIdOnClaim);
         if (inserted == 0) {
@@ -178,8 +175,8 @@ public class WorkshopApplicationService {
                 .repairStatus("PENDING")
                 .estimatedCompletionDate(request.estimatedCompletionDate())
                 .workDescription(request.workDescription())
-                .createdAt(now)
-                .updatedAt(now)
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
                 .build();
     }
 

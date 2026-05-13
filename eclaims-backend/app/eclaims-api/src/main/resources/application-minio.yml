@@ -1,0 +1,62 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/eclaims
+    username: eclaims
+    password: eclaims_dev
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+
+  jpa:
+    hibernate:
+      ddl-auto: update   # Auto-create/update tables on first run (dev only)
+    show-sql: false
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: eclaims-local
+      auto-offset-reset: earliest
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: redis_dev
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          min-idle: 2
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/eclaims
+          jwk-set-uri: http://localhost:8080/realms/eclaims/protocol/openid-connect/certs
+
+  mail:
+    host: localhost
+    port: 1025         # Mailhog SMTP - open localhost:8025 to see emails
+    properties:
+      mail.smtp.auth: false
+      mail.smtp.starttls.enable: false
+
+server:
+  port: 8090
+
+logging:
+  level:
+    com.yclaims: DEBUG
+    org.springframework.security: INFO
+    org.apache.kafka: WARN
+
+# Local dev: allow readiness group to reference optional contributors (e.g. kafka)
+management:
+  endpoint:
+    health:
+      validate-group-membership: false
+
