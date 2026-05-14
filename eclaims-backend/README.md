@@ -8,16 +8,19 @@ Spring Boot 3.x · Java 21 · PostgreSQL · Redpanda/Kafka · Redis · Keycloak
 ## Quick Start
 
 ```bash
-# 1. Start all infrastructure (Postgres, Redpanda, Redis, Keycloak, Mailhog)
+# 1. Start all infrastructure (Postgres, Redpanda, Redis, Keycloak, Mailhog, MinIO)
 docker-compose up -d
 
 # 2. Wait for Keycloak to be healthy (~30–60s), then start backend
+# On Windows:
+.\mvnw.cmd spring-boot:run -pl app/eclaims-api -am -Dspring-boot.run.profiles=local
+# On Linux/macOS:
 ./mvnw spring-boot:run -pl app/eclaims-api -am -Dspring-boot.run.profiles=local
 
 # 3. Start frontend
 cd ../eclaims-frontend && npm install && npm run dev
 
-# 4. (Optional) Run load test
+# 4. (Optional) Run load test (requires k6 installation)
 k6 run --env BASE_URL=http://localhost:8090/api/v1 infra/load-tests/claim-submission.js
 ```
 
@@ -26,10 +29,12 @@ k6 run --env BASE_URL=http://localhost:8090/api/v1 infra/load-tests/claim-submis
 | Service | URL | Credentials |
 |---------|-----|-------------|
 | Frontend (PWA) | http://localhost:5173 | See demo accounts below |
+| Frontend (Docker) | http://localhost:3000 | When using full Docker setup |
 | API Docs (Swagger) | http://localhost:8090/swagger-ui.html | — |
 | Keycloak Admin | http://localhost:8080/admin | admin / admin |
 | Kafka UI (Redpanda Console) | http://localhost:8082 | — |
 | Email Inbox (Mailhog) | http://localhost:8025 | — |
+| MinIO Console | http://localhost:9001 | eclaims / eclaims_dev |
 | Actuator — Liveness | http://localhost:8090/actuator/health/liveness | — |
 | Actuator — Readiness | http://localhost:8090/actuator/health/readiness | — |
 | Actuator — Prometheus | http://localhost:8090/actuator/prometheus | — |

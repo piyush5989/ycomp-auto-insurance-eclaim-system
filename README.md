@@ -1,6 +1,6 @@
 # eClaims POC - Build and Run Guide
 
-This document explains user to **build, run, and validate** the eClaims proof-of-concept after obtaining the source (for example by unzipping a delivery archive).
+This document explains how to **build, run, and validate** the eClaims proof-of-concept after obtaining the source code.
 
 ---
 
@@ -43,12 +43,12 @@ Install the following before you start.
 
 | Software | Recommended version | Notes |
 |----------|---------------------|--------|
-| **Docker Desktop** (or Docker Engine + Compose v2) | Current stable | Required to start Postgres, Redis, Kafka, Keycloak, etc. |
+| **Docker Desktop** (or Docker Engine + Compose v2) | Current stable | Required to start Postgres, Redis, Redpanda, Keycloak, etc. |
 | **Java JDK** | **21** (Temurin or Oracle) | Only needed if you run the API **outside** Docker with Maven |
 | **Node.js** | **20 LTS** | Only needed if you run the frontend **outside** Docker with `npm run dev` |
 | **Git** | Any recent | Optional; only if you clone instead of unzip |
 
-**Operating system:** Windows, macOS, or Linux. On Windows, use **PowerShell** or **WSL** for shell commands shown below.
+**Operating system:** Windows, macOS, or Linux. On Windows, use **PowerShell** for the provided scripts.
 
 **Hardware:** At least **8 GB RAM** free for Docker is recommended (Keycloak and Redpanda are memory-heavy).
 
@@ -85,7 +85,7 @@ This path builds **API and UI images** and runs them **with** all infrastructure
 
 ### 5.1 Start everything
 
-Open a terminal and run:
+Open PowerShell (Windows) or terminal (macOS/Linux) and run:
 
 ```bash
 cd eclaims-backend
@@ -93,6 +93,8 @@ docker compose -f docker-compose.yml -f docker-compose.app.yml up -d --build
 ```
 
 **First run:** image builds can take **several minutes**. Wait until containers are healthy (especially Keycloak, often **1 to 2 minutes** after Postgres is ready).
+
+**Database initialization:** The database is automatically initialized with schema and seed data on first startup via the consolidated SQL scripts in `infra/db/init/`.
 
 ### 5.2 URLs to validate
 
@@ -139,7 +141,12 @@ Wait until Keycloak is healthy (**about 30 to 60 seconds** after start).
 
 ```bash
 cd eclaims-backend
-chmod +x mvnw   # Linux or macOS only; on Windows Git Bash may need this
+
+# On Windows PowerShell:
+.\mvnw.cmd spring-boot:run -pl app/eclaims-api -am -Dspring-boot.run.profiles=local
+
+# On Linux/macOS:
+chmod +x mvnw
 ./mvnw spring-boot:run -pl app/eclaims-api -am -Dspring-boot.run.profiles=local
 ```
 
@@ -166,28 +173,90 @@ Open **http://localhost:5173** in a browser (Vite default port).
 
 ## 7. How to validate that the setup works
 
-1. **Readiness:** Open http://localhost:8090/actuator/health/readiness (or the same path through nginx on port **3000** only if that route is enabled in your build). Expect a **UP** status when Postgres, Redis, and Kafka are reachable.
+1. **Readiness:** Open http://localhost:8090/actuator/health/readiness. Expect a **UP** status when Postgres, Redis, and Redpanda are reachable.
 2. **Swagger:** Open http://localhost:8090/swagger-ui.html and confirm the page loads.
 3. **UI:** Open http://localhost:3000 (Docker path) or http://localhost:5173 (host path). You should see the login or landing experience backed by Keycloak.
-4. **Demo users:** Use the accounts listed in `eclaims-backend/README.md` (password **`Test@1234`**) to sign in through Keycloak and exercise a role-based portal.
+4. **Demo users:** Use these accounts (all with password **`Test@1234`**):
+   - `customer1` - Customer Portal
+   - `surveyor1` - Internal Portal (Surveyor role)
+   - `adjustor1` - Internal Portal (Adjustor role) 
+   - `casemanager1` - Internal Portal (Case Manager role)
+   - `workshop1` - Workshop Portal
+   - `auditor1` - Internal Portal (Auditor role)
 
-For deeper backend-only documentation (modules, NFRs, demo matrix), see **`eclaims-backend/README.md`**.
+For deeper backend documentation (modules, NFRs, architecture), see **`eclaims-backend/README.md`**.
 
 ---
 
-## 8. Common problems
+## 8. Database reset and clean setup
+
+If you encounter issues or want a completely fresh database state:
+
+### 8.1 Quick database reset (PowerShell)
+
+For a clean database without rebuilding containers:
+
+```powershell
+cd eclaims-backend
+.\reset-db-simple.ps1
+```
+
+This script stops containers, removes the database volume, and restarts everything with fresh data.
+
+### 8.2 Full reset with interactive options
+
+For more control over the reset process:
+
+```powershell
+cd eclaims-backend
+.\reset-and-init-db.ps1
+```
+
+This provides options to reset just the database or also reset the Keycloak realm.
+
+### 8.3 Reset Keycloak realm only
+
+If you need to reload Keycloak permissions without touching the database:
+
+```powershell
+cd eclaims-backend
+.\scripts\reset-keycloak-realm.ps1
+```
+
+---
+
+## 9. Common problems
 
 | Symptom | What to check |
 |---------|----------------|
 | Port already in use | Stop other apps using **3000**, **5173**, **5432**, **6379**, **8080**, **8090**, **9092** |
 | Keycloak or API not ready | Wait longer; check `docker compose ps` and container logs |
-| `mvnw` permission denied | Run `chmod +x mvnw` (Unix-like shells) |
+| Database connection errors | Use database reset script: `.\reset-db-simple.ps1` |
+| Permission denied errors (Windows) | Run PowerShell as Administrator |
+| `mvnw` permission denied (Linux/macOS) | Run `chmod +x mvnw` |
 | `npm install` fails | Use **Node 20**; delete `node_modules` and retry |
-| Windows path issues | Run commands from the folder that contains `eclaims-backend` and `eclaims-frontend` as shown |
+| "Failed to load claim" errors | Reset Keycloak realm: `.\scripts\reset-keycloak-realm.ps1` |
+| Database constraint violations | Run full database reset: `.\reset-and-init-db.ps1` |
+| Containers not starting | Ensure Docker Desktop is running; try `docker compose down -v` then restart |
+
+### 9.1 Detailed troubleshooting
+
+**Database issues:**
+- If you see constraint violations or "column does not exist" errors, run `.\reset-db-simple.ps1` for a fresh database
+- The database schema is automatically created from consolidated SQL files in `infra/db/init/`
+
+**Authentication issues:**
+- "Could not load claim" or permission errors usually indicate Keycloak realm issues
+- Run `.\scripts\reset-keycloak-realm.ps1` to reload the realm with correct permissions
+
+**Container startup issues:**
+- Keycloak takes 1-2 minutes to become healthy after Postgres is ready
+- Check container logs: `docker compose logs keycloak` or `docker compose logs eclaims-backend`
+- Ensure at least 8GB RAM is available for Docker
 
 ---
 
-## 9. Build without running (compile check)
+## 10. Build without running (compile check)
 
 **Backend (includes tests):**
 
@@ -208,7 +277,7 @@ npm run build
 
 ---
 
-## 10. Further reading
+## 11. Further reading
 
 - **Backend architecture and demo accounts:** `eclaims-backend/README.md`
 - **ECS and CI/CD (optional):** `infra/ecs/README.md` and `.github/workflows/ci.yml`
