@@ -1,0 +1,212 @@
+---
+config:
+  layout: elk
+---
+flowchart LR
+    %% Enterprise CI/CD Architecture with DevSecOps & Containerization
+    %% Complete pipeline with Docker, security, and environment promotion
+
+    %% --- Source Code Management ---
+    subgraph SOURCE["📂 Source Code Management (Enterprise)"]
+        direction TB
+        developer["Development Team<br/>(15 developers)<br/>Feature Branch Workflow"]
+        repository["Git Repository<br/>(GitHub Enterprise)<br/>Branch Protection + CODEOWNERS<br/>GPG Commit Signing"]
+        prReview["Pull Request Review<br/>(Multi-stage Approval)<br/>Senior Dev + Architect Review<br/>Automated Security Checks"]
+    end
+
+    %% --- AWS-Native Build Pipeline ---
+    subgraph BUILD["🔨 AWS-Native Build & DevSecOps Pipeline"]
+        direction TB
+        
+        subgraph AWSBUILD["AWS CodeBuild (Java 21)"]
+            buildCode["Code Compilation<br/>(Maven + Java 21)<br/>Virtual Threads Support<br/>Spring Boot 3.x Build"]
+            unitTest["Unit Testing<br/>(JUnit 5 + TestContainers)<br/>Code Coverage ≥ 85%<br/>Parallel Test Execution"]
+        end
+        
+        subgraph DEVSECOPS["🔐 Enterprise DevSecOps Scans"]
+            sastScan["SAST Scan<br/>(SonarQube + CodeQL)<br/>AWS CodeGuru Reviewer<br/>Security Hotspots Detection"]
+            depScan["Dependency Scan<br/>(OWASP + AWS Inspector)<br/>CVE Database Integration<br/>License Compliance Check"]
+            secretScan["Secrets Scanning<br/>(AWS CodeGuru + TruffleHog)<br/>Credential Detection<br/>PII Data Scanning"]
+            iacScan["Infrastructure Scan<br/>(Checkov + AWS Config)<br/>CDK Security Rules<br/>Compliance Validation"]
+        end
+        
+        subgraph CONTAINER["🐳 Container Security Pipeline"]
+            dockerBuild["Multi-stage Docker Build<br/>(Distroless Base Images)<br/>Layer Optimization<br/>Java 21 JRE Runtime"]
+            imageScan["Container Security Scan<br/>(Trivy + AWS Inspector)<br/>CVE Detection + Malware<br/>Base Image Compliance"]
+            registryPush["Amazon ECR<br/>(Private Registry)<br/>Image Signing + Attestation<br/>Vulnerability Scanning"]
+        end
+    end
+
+    %% --- Quality Gates ---
+    subgraph QUALITY["🛡️ Quality & Security Gates"]
+        direction TB
+        qualityGate["Quality Gate<br/>(SonarQube)<br/>Security + Reliability + Maintainability"]
+        securityGate["Security Gate<br/>(All Scans Pass)<br/>Zero Critical/High Vulnerabilities"]
+        complianceCheck["Compliance Check<br/>(Policy Validation)<br/>Regulatory Standards"]
+    end
+
+    %% --- Enterprise Environment Promotion ---
+    subgraph ENVIRONMENTS["🌍 Enterprise Environment Promotion (AWS ECS Fargate)"]
+        direction TB
+        
+        subgraph DEV["Development Environment (Auto-Deploy)"]
+            devDeploy["ECS Fargate Auto-Deploy<br/>(AWS CodeDeploy)<br/>Service Discovery + ALB<br/>Auto-scaling 2-10 tasks"]
+            devTest["Integration Testing<br/>(Postman + k6 Load Testing)<br/>API Contract Validation<br/>Database Migration Testing"]
+        end
+        
+        subgraph QA["QA/UAT Environment (Insurance Testing)"]
+            qaGate["QA Approval Gate<br/>(Business User Testing)<br/>Claims Workflow Validation<br/>Workshop Integration Testing"]
+            qaTest["UAT + Performance Testing<br/>(LoadRunner + k6)<br/>5000ms SLA Validation<br/>200M User Load Simulation"]
+        end
+        
+        subgraph PROD["Production Environment (Multi-AZ)"]
+            prodGate["Production Approval<br/>(Change Advisory Board)<br/>Insurance Compliance Review<br/>Security Team Sign-off"]
+            prodDeploy["Blue-Green Deployment<br/>(AWS CodeDeploy)<br/>Canary 5% → 50% → 100%<br/>Aurora Read Replica Warmup"]
+        end
+    end
+
+    %% --- Infrastructure as Code & Config Management ---
+    subgraph INFRASTRUCTURE["🏗️ Infrastructure as Code & Configuration"]
+        direction TB
+        
+        subgraph IAC["Infrastructure as Code"]
+            cdkCode["AWS CDK (TypeScript)<br/>(Infrastructure Definition)<br/>VPC, ECS, Aurora, MSK<br/>Cross-stack Dependencies"]
+            terraform["Terraform (Backup)<br/>(Multi-cloud Support)<br/>State Management<br/>Policy as Code"]
+        end
+        
+        subgraph CONFIG["Configuration Management"]
+            ecsTaskDef["ECS Task Definitions<br/>(JSON Templates)<br/>Environment Variables<br/>Resource Limits"]
+            configMgmt["AWS Systems Manager<br/>(Parameter Store)<br/>Environment Configs<br/>Secrets Integration"]
+            gitops["GitOps with ArgoCD<br/>(Declarative Deployment)<br/>Git-based Config Sync<br/>Rollback Capabilities"]
+        end
+        
+        subgraph ARTIFACTS["Artifact Management"]
+            artifactRepo["Amazon S3 + CodeArtifact<br/>(Maven/NPM Packages)<br/>Version Management<br/>Dependency Caching"]
+            ecrImages["Amazon ECR<br/>(Container Images)<br/>Multi-arch Support<br/>Image Lifecycle Policies"]
+        end
+    end
+
+    %% --- Enterprise Monitoring & Operations ---
+    subgraph OPERATIONS["📊 Enterprise Monitoring & DevOps Operations"]
+        direction TB
+        
+        subgraph MONITORING["Production Monitoring (24x7)"]
+            healthCheck["AWS Health Dashboard<br/>(ECS Health Checks)<br/>Aurora Connection Health<br/>p99 Latency ≤ 5000ms"]
+            metrics["CloudWatch + X-Ray<br/>(Distributed Tracing)<br/>Custom Business Metrics<br/>Cost Optimization Alerts"]
+            logging["CloudWatch Logs + ELK<br/>(Centralized Logging)<br/>Security Event Correlation<br/>Audit Trail Compliance"]
+        end
+        
+        subgraph ALERTING["Incident Response"]
+            alerting["PagerDuty Integration<br/>(24x7 On-call Rotation)<br/>Escalation Policies<br/>MTTR ≤ 15 minutes"]
+            chatops["Slack + Microsoft Teams<br/>(ChatOps Integration)<br/>Deployment Notifications<br/>Incident War Rooms"]
+        end
+        
+        subgraph ROLLBACK["Enterprise Rollback Strategy"]
+            autoRollback["Automated Rollback<br/>(ECS Health Checks)<br/>Aurora Connection Failures<br/>Response Time Degradation"]
+            manualRollback["Manual Rollback<br/>(Change Manager Approval)<br/>Database Migration Reversal<br/>Blue-Green Traffic Switch"]
+            drProcedures["Disaster Recovery<br/>(Multi-region Failover)<br/>RTO: 1 hour, RPO: 15 min<br/>Cross-region Data Sync"]
+        end
+    end
+
+    %% --- Enterprise Integrations & Compliance ---
+    subgraph EXTERNAL["🔗 Enterprise Integrations & Compliance"]
+        direction TB
+        
+        subgraph ENTERPRISE["Enterprise Tool Integration"]
+            jiraIntegration["Atlassian JIRA<br/>(Change Management)<br/>Release Ticket Automation<br/>Traceability Matrix"]
+            confluence["Confluence Integration<br/>(Documentation Sync)<br/>Release Notes Generation<br/>Architecture Decision Records"]
+            servicenow["ServiceNow ITSM<br/>(Change Advisory Board)<br/>Production Change Approval<br/>Incident Management"]
+        end
+        
+        subgraph COMPLIANCE["Insurance Compliance & Audit"]
+            auditLog["AWS CloudTrail<br/>(Full Audit Trail)<br/>API Call Logging<br/>Compliance Reporting"]
+            sox["SOX Compliance<br/>(Segregation of Duties)<br/>Production Access Control<br/>Change Authorization"]
+            pci["PCI-DSS Pipeline<br/>(Payment Processing)<br/>Secure Build Environment<br/>Secrets Management"]
+        end
+        
+        subgraph NOTIFICATIONS["Multi-channel Notifications"]
+            slackNotify["Slack + Microsoft Teams<br/>(Development Teams)<br/>Build Status + Deployment<br/>Incident Escalation"]
+            emailNotify["Email Notifications<br/>(Management Team)<br/>Production Deployments<br/>Security Alerts"]
+            dashboards["Executive Dashboards<br/>(Business Stakeholders)<br/>Deployment Frequency<br/>DORA Metrics"]
+        end
+    end
+
+    %% ========== PIPELINE FLOW ==========
+    
+    %% --- Source to Build ---
+    developer -->|"Feature Branch"| repository
+    repository -->|"Pull Request"| prReview
+    prReview -->|"Approved & Merged"| buildCode
+
+    %% --- AWS Build & Test Flow ---
+    buildCode --> unitTest
+    unitTest -->|"85% Coverage Achieved"| sastScan & depScan & secretScan & iacScan
+    sastScan & depScan & secretScan & iacScan -->|"Security Cleared"| dockerBuild
+
+    %% --- Container Pipeline ---
+    dockerBuild --> imageScan
+    imageScan -->|"Vulnerabilities Cleared"| registryPush
+
+    %% --- Quality Gates ---
+    unitTest --> qualityGate
+    imageScan --> securityGate
+    qualityGate & securityGate -->|"All Gates Pass"| complianceCheck
+
+    %% --- Environment Promotion ---
+    complianceCheck -->|"Compliance OK"| devDeploy
+    devDeploy --> devTest
+    devTest -->|"Integration Tests Pass"| qaGate
+
+    qaGate -->|"QA Approved"| qaTest
+    qaTest -->|"UAT Passed"| prodGate
+
+    prodGate -->|"Release Approved"| prodDeploy
+
+    %% --- Infrastructure & Artifact Management ---
+    registryPush --> artifactRepo & ecrImages
+    cdkCode --> ecsTaskDef
+    configMgmt --> devDeploy & qaTest & prodDeploy
+    gitops --> ecsTaskDef
+    ecsTaskDef --> devDeploy & qaTest & prodDeploy
+
+    %% --- Enterprise Monitoring Integration ---
+    prodDeploy --> healthCheck
+    healthCheck --> metrics & logging
+    metrics & logging --> alerting
+    alerting --> chatops
+
+    %% --- Enterprise Rollback Scenarios ---
+    healthCheck -.->|"ECS Health Check Fail"| autoRollback
+    metrics -.->|"p99 > 5000ms"| autoRollback
+    alerting -.->|"Critical P1 Alert"| manualRollback
+    autoRollback & manualRollback -.->|"Blue-Green Switch"| prodDeploy
+    manualRollback -.->|"Multi-region Failover"| drProcedures
+
+    %% --- Enterprise Notifications & Compliance ---
+    prodDeploy --> jiraIntegration & servicenow
+    prodDeploy --> confluence & auditLog
+    qualityGate --> slackNotify & emailNotify
+    prodGate --> slackNotify & dashboards
+    prodDeploy --> sox & pci
+    alerting --> servicenow
+
+    %% ========== PROFESSIONAL STYLING ==========
+    classDef source fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef build fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef security fill:#fef3c7,stroke:#f59e0b,stroke-width:2px
+    classDef container fill:#e0f2fe,stroke:#0ea5e9,stroke-width:2px
+    classDef quality fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    classDef environment fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
+    classDef artifacts fill:#e0f2f1,stroke:#00695c,stroke-width:2px
+    classDef operations fill:#fce7f3,stroke:#ec4899,stroke-width:2px
+    classDef external fill:#f1f8e9,stroke:#558b2f,stroke-width:2px
+
+    class developer,repository,prReview source
+    class buildCode,unitTest build
+    class sastScan,depScan,secretScan,iacScan security
+    class dockerBuild,imageScan,registryPush container
+    class qualityGate,securityGate,complianceCheck quality
+    class devDeploy,devTest,qaGate,qaTest,prodGate,prodDeploy environment
+    class cdkCode,terraform,ecsTaskDef,configMgmt,gitops,artifactRepo,ecrImages artifacts
+    class healthCheck,metrics,logging,alerting,chatops,autoRollback,manualRollback,drProcedures operations
+    class jiraIntegration,confluence,servicenow,slackNotify,emailNotify,dashboards,auditLog,sox,pci external

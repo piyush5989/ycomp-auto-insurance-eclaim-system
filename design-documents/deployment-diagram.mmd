@@ -1,0 +1,115 @@
+---
+config:
+  layout: elk
+---
+flowchart LR
+    Users["👥 Users"]
+    Route53["🌐 Route 53<br/>Global DNS"]
+    CloudFront["🌍 CloudFront CDN"]
+    WAF["🛡️ AWS WAF<br/>(Edge Security Layer)"]
+    
+    subgraph RegionA["🟢 Region A - Primary (us-east-1)<br/>Active Region"]
+        subgraph PublicA["Public Subnet"]
+            ALBA["ALB (Ingress)<br/>Public Access"]
+        end
+        subgraph PrivateA["Private Subnet"]
+            EKS_A["Amazon EKS Cluster A<br/>API + Services + Workflows<br/>(Active)"]
+            KafkaA["MSK (Kafka Cluster A)"]
+            RedisA["ElastiCache (Redis A)<br/>Primary Cache"]
+        end
+        subgraph DataA["Restricted Data Zone"]
+            RDS_Primary[("RDS PostgreSQL<br/>Primary")]
+            S3A[("S3 Bucket<br/>Documents/Images<br/>Primary Storage")]
+        end
+        subgraph ObsA["Observability Stack A"]
+            PromA["Prometheus"]
+            GrafA["Grafana"]
+            ELKA["ELK Stack"]
+        end
+    end
+    
+    subgraph RegionB["🔵 Region B - Disaster Recovery (us-west-2)<br/>Passive Region"]
+        subgraph PublicB["Public Subnet"]
+            ALBB["ALB (Ingress)<br/>Standby Route"]
+        end
+        subgraph PrivateB["Private Subnet"]
+            EKS_B["Amazon EKS Cluster B<br/>API + Services + Workflows<br/>(Passive / DR Ready)"]
+            KafkaB["MSK (Kafka Cluster B)"]
+            RedisB["ElastiCache (Redis Replica)<br/>(Async Replication)"]
+        end
+        subgraph DataB["Restricted Data Zone"]
+            RDS_Replica[("RDS PostgreSQL<br/>Cross-Region Replica")]
+            S3B[("S3 Bucket (DR)<br/>Cross-Region Copy")]
+        end
+        subgraph ObsB["Observability Stack B"]
+            PromB["Prometheus"]
+            GrafB["Grafana"]
+            ELKB["ELK Stack"]
+        end
+    end
+    
+    subgraph External["External Integrations"]
+        PaymentGW["💳 External Payment Gateway"]
+        SMSEmail["📧 SNS / SES Providers"]
+        Secrets["🔐 AWS Secrets Manager"]
+    end
+    
+    subgraph Backup["Backup & Archive"]
+        Glacier["S3 Glacier Backup Vault"]
+    end
+    
+    Users -->|HTTPS| Route53
+    Route53 --> CloudFront --> WAF
+    WAF -->|Primary Routing| ALBA
+    WAF -.->|Failover Path| ALBB
+    
+    ALBA --> EKS_A
+    ALBB --> EKS_B
+
+    EKS_A --> KafkaA
+    EKS_A --> RedisA
+    EKS_A --> RDS_Primary
+    EKS_A --> S3A
+    EKS_A -->|Use| Secrets
+    EKS_A -->|Metrics/Logs| ObsA
+    EKS_A -->|API Calls| PaymentGW
+    EKS_A -->|Notifications| SMSEmail
+
+    EKS_B --> KafkaB
+    EKS_B --> RedisB
+    EKS_B --> RDS_Replica
+    EKS_B --> S3B
+    EKS_B -->|Use| Secrets
+    EKS_B -->|Metrics/Logs| ObsB
+    EKS_B -->|API Calls| PaymentGW
+    EKS_B -->|Notifications| SMSEmail
+
+    KafkaA -->|Cross-Region Mirror| KafkaB
+    RedisA -->|Async Sync| RedisB
+    RDS_Primary -->|Streaming Replication| RDS_Replica
+    S3A -->|Cross-Region Replication| S3B
+
+    RDS_Primary -->|Backups| Glacier
+
+    classDef edge stroke:#818cf8,fill:#eef2ff
+    classDef regionA stroke:#4ade80,fill:#f0fdf4
+    classDef regionB stroke:#f87171,fill:#fef2f2
+    classDef public stroke:#38bdf8,fill:#ecfeff
+    classDef private stroke:#fb923c,fill:#fff7ed
+    classDef data stroke:#a78bfa,fill:#f5f3ff
+    classDef external stroke:#2dd4bf,fill:#f0fdfa
+    classDef observ stroke:#facc15,fill:#fefce8
+    classDef backup stroke:#e879f9,fill:#fdf4ff
+
+    class Route53,CloudFront,WAF edge
+    class RegionA regionA
+    class RegionB regionB
+    class PublicA,PublicB public
+    class PrivateA,PrivateB private
+    class DataA,DataB data
+    class PaymentGW,SMSEmail,Secrets external
+    class ObsA,ObsB observ
+    class Backup,Glacier backup
+
+    linkStyle default stroke-width:1.5px
+    linkStyle 5 stroke-dasharray:3,3

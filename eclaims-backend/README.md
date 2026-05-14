@@ -1,7 +1,7 @@
-# eClaims Backend — Modular Monolith
+# eClaims Backend - Modular Monolith
 
 Enterprise digital insurance claims processing system.  
-Spring Boot 3.x · Java 21 (Virtual Threads) · PostgreSQL · Redpanda/Kafka · Redis · Keycloak
+Spring Boot 3.x · Java 21 · PostgreSQL · Redpanda/Kafka · Redis · Keycloak
 
 ---
 

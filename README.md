@@ -1,6 +1,6 @@
 # eClaims POC - Build and Run Guide
 
-This document explains how an unfamiliar user can **build, run, and validate** the eClaims proof-of-concept after obtaining the source (for example by unzipping a delivery archive).
+This document explains user to **build, run, and validate** the eClaims proof-of-concept after obtaining the source (for example by unzipping a delivery archive).
 
 ---
 
@@ -17,7 +17,7 @@ Supporting services (database, cache, messaging, identity, mail, object storage)
 
 ---
 
-## 2. Technology stack (what you should know)
+## 2. Technology stack
 
 | Layer | Technology | Purpose |
 |-------|------------|---------|
@@ -33,7 +33,7 @@ Supporting services (database, cache, messaging, identity, mail, object storage)
 | Object storage | **MinIO** | Document uploads (S3-compatible) when using the `minio` profile |
 | Optional | **Docker Compose** | Orchestrates the stack above |
 
-You do **not** need a cloud account to validate the POC using the steps below. Cloud deployment (for example ECS) is optional and documented elsewhere in this repository.
+You do **not** need a cloud account to validate the POC using the steps below. Cloud deployment (for example ECS) is optional.
 
 ---
 
@@ -56,7 +56,7 @@ Install the following before you start.
 
 ## 4. Preparing a clean zip (for deliverables)
 
-If you are **packaging** this solution for submission, remove generated and downloaded artifacts so the archive is small and reproducible. Recipients will re-create these with Docker and Maven or npm.
+While **packaging** this solution for submission, we have remove generated and downloaded artifacts so the archive is small and reproducible. Recipients will re-create these with Docker and Maven or npm.
 
 **Remove or exclude from the zip:**
 
