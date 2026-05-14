@@ -640,6 +640,3 @@ WHERE c.customer_id = $1;
 ```
 
 ---
-
-*This document is version 1.0, last updated May 14, 2026*
-*For technical questions, contact: db-team@yourdomain.com*

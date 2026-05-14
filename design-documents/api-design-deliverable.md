@@ -99,6 +99,7 @@ Authorization: Bearer {jwt-token}
   "claimType": "ACCIDENT"
 }
 ```
+*Note: `customerId` and `customerEmail` are securely extracted from the JWT Bearer token claims (`sub` and `email`) and are not required in the payload.*
 
 **Response (201 Created):**
 ```json
@@ -138,10 +139,10 @@ Authorization: Bearer {jwt-token}
 
 {
   "status": "UNDER_REVIEW",
-  "reason": "Additional documentation received",
-  "updatedBy": "surveyor-id"
+  "reason": "Additional documentation received"
 }
 ```
+*Note: `updatedBy` is securely extracted from the JWT token and not required in the payload.*
 
 #### 3.1.5 Check Duplicate Claims
 ```http
@@ -208,6 +209,22 @@ GET /api/v1/payments/{paymentId}/receipt
 Authorization: Bearer {jwt-token}
 ```
 
+#### 3.4.3 Initiate Payment
+```http
+POST /api/v1/payments
+Content-Type: application/json
+Authorization: Bearer {jwt-token}
+
+{
+  "claimId": "claim-uuid-here",
+  "paymentType": "DEDUCTIBLE",
+  "amount": 5000.00,
+  "currency": "INR",
+  "paymentMethod": "UPI",
+  "recipientType": "INTERNAL"
+}
+```
+
 ### 3.5 Notifications
 
 #### 3.5.1 Get User Notifications
@@ -225,6 +242,48 @@ Authorization: Bearer {jwt-token}
 {
   "status": "READ"
 }
+```
+
+### 3.6 Customer Management
+
+#### 3.6.1 Get Customer Profile
+```http
+GET /api/v1/customers/me
+Authorization: Bearer {jwt-token}
+```
+
+#### 3.6.2 Update Customer Profile
+```http
+PATCH /api/v1/customers/me
+Content-Type: application/json
+Authorization: Bearer {jwt-token}
+
+{
+  "phoneNumber": "+91-9876543210",
+  "addressLine1": "123 New Street",
+  "city": "Mumbai",
+  "state": "Maharashtra",
+  "postalCode": "400001",
+  "communicationPref": {
+    "email": true,
+    "sms": true,
+    "push": true
+  }
+}
+```
+
+### 3.7 Reporting & Analytics
+
+#### 3.7.1 Get Regional Claims Summary
+```http
+GET /api/v1/reports/regional-summary?region=WEST&startDate=2026-01-01&endDate=2026-05-14
+Authorization: Bearer {jwt-token}
+```
+
+#### 3.7.2 Get Fraud Ageing Matrix
+```http
+GET /api/v1/reports/fraud-ageing
+Authorization: Bearer {jwt-token}
 ```
 
 ## 4. Authentication & Authorization
@@ -247,9 +306,11 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
 ### 4.3 Role-Based Access Control
-- **CUSTOMER**: Access own claims, documents, workshops
+- **CUSTOMER**: Access own claims, documents, workshops, profile
 - **SURVEYOR**: Access assigned claims, update assessments
 - **ADJUSTOR**: Approve/reject claims, settlement processing
+- **CASE_MANAGER**: View all regional claims, override capabilities
+- **WORKSHOP**: View linked claims, submit estimates, update repair status
 - **ADMIN**: Full system access, user management
 
 ## 5. Error Handling
@@ -393,6 +454,3 @@ public class ClaimsController {
 ```
 
 ---
-
-*This document is version 1.0, last updated May 14, 2026*
-*For technical questions, contact: api-team@yourdomain.com*

@@ -1,12 +1,12 @@
 # eClaims System – Solution Approach Document
 
-| Field       | Value                                          |
-|-------------|------------------------------------------------|
-| Version     | 2.0                                            |
-| Date        | May 14, 2026                                   |
-| Status      | Final                                          |
-| Prepared by | Senior Staff Engineer                          |
-| Prepared for | YCompany – Claims Modernisation Programme     |
+| Field       | Value                                     |
+|-------------|-------------------------------------------|
+| Version     | 2.0                                       |
+| Date        | May 14, 2026                              |
+| Status      | Final                                     |
+| Prepared by | Piyush Yadav                              |
+| Prepared for | YCompany – Claims Modernisation Programme |
 
 ---
 
@@ -27,12 +27,13 @@
    - 5.8 Notification & Event Flow
 6. [Technology Stack](#6-technology-stack)
 7. [Performance & Scalability](#7-performance--scalability)
-8. [Security Architecture](#8-security-architecture)
-9. [Deployment Architecture (AWS)](#9-deployment-architecture-aws)
-10. [CI/CD Architecture](#10-cicd-architecture)
-11. [Disaster Recovery](#11-disaster-recovery)
-12. [Supporting Deliverables](#12-supporting-deliverables)
-13. [References / Appendix](#13-references--appendix)
+8. [Container Orchestration Strategy](#8-container-orchestration-strategy)
+9. [Security Architecture](#9-security-architecture)
+10. [Deployment Architecture (AWS)](#10-deployment-architecture-aws)
+11. [CI/CD Architecture](#11-cicd-architecture)
+12. [Disaster Recovery](#12-disaster-recovery)
+13. [Supporting Deliverables](#13-supporting-deliverables)
+14. [References / Appendix](#14-references--appendix)
 
 ---
 
@@ -78,9 +79,10 @@ YCompany, a leading US auto insurance provider serving **200+ million customers*
 
 ### Infrastructure
 - AWS is the primary cloud provider (primary region: `us-east-1`, DR: `us-west-2`)
-- On-prem deployment supported via containerised workloads (Docker + Kubernetes)
+- Container orchestration: AWS ECS Fargate (Phase 1) → Amazon EKS (Phase 2)
+- On-prem deployment supported via Kubernetes (Phase 3, if regulatory requirements demand)
+- Infrastructure provisioned as code via AWS CDK (TypeScript) with Terraform as backup
 - Minimum 10 Mbps internet for web users; 3G or better for mobile
-- Infrastructure provisioned as code via Terraform
 
 ### Business / Domain
 - All existing policy data resides in a Policy Management System (PMS) accessible via API
@@ -199,89 +201,7 @@ YCompany, a leading US auto insurance provider serving **200+ million customers*
 
 ### 5.2 High-Level System Architecture
 
-```mermaid
-%%{init: {"theme": "default", "themeVariables": {"fontSize": "13px"}}}%%
-flowchart TB
-    classDef portal    fill:#1565C0,stroke:#0D47A1,color:#FFFFFF
-    classDef gateway   fill:#E65100,stroke:#BF360C,color:#FFFFFF
-    classDef service   fill:#2E7D32,stroke:#1B5E20,color:#FFFFFF
-    classDef messaging fill:#6A1B9A,stroke:#4A148C,color:#FFFFFF
-    classDef data      fill:#00695C,stroke:#004D40,color:#FFFFFF
-    classDef external  fill:#37474F,stroke:#212121,color:#FFFFFF
-
-    subgraph CLIENTS["CLIENT LAYER"]
-        direction LR
-        CP["Customer Portal\nWeb + Mobile App"]:::portal
-        IP["Internal Portal\nAdjustor / Surveyor / Case Mgr / Auditor"]:::portal
-        WP["Workshop Portal\n3rd Party Repair Centers"]:::portal
-    end
-
-    subgraph APILAYER["API & SECURITY LAYER"]
-        direction LR
-        ALB["Application Load Balancer\n(HTTPS · SSL Termination · Health Checks)"]:::gateway
-        GW["API Gateway  —  Kong\n(Rate Limiting · JWT Validation · Routing · Logging)"]:::gateway
-        KC["Keycloak IdP\n(OAuth2 · OIDC · RBAC · MFA · Token Issuance)"]:::gateway
-    end
-
-    subgraph SERVICES["MICROSERVICES LAYER  —  Spring Boot Java 21"]
-        direction LR
-        CLS["Claims Service\nCRUD · State Machine · Policy Validation"]:::service
-        WFS["Workflow Service\nCamunda 8 BPMN · Assignment · Escalation"]:::service
-        DS["Document Service\nS3 Upload · OCR · Metadata"]:::service
-        WKS["Workshop Service\nWork Orders · Estimates · Billing"]:::service
-        RS["Reporting Service\nKPI · Regional · Fraud Ageing"]:::service
-        PS["Payment Service\nStripe · Electronic Settlement"]:::service
-        NS["Notification Service\nNode.js NestJS · Kafka Consumer · Fan-out"]:::service
-    end
-
-    subgraph KAFKA["EVENT BUS"]
-        KB["Apache Kafka  —  AWS MSK\nTopics: claim-events · audit-events · payment-events"]:::messaging
-    end
-
-    subgraph DATALAYER["DATA LAYER"]
-        direction LR
-        PG["PostgreSQL\nAWS RDS Multi-AZ\nClaims · Users · Metadata"]:::data
-        S3["AWS S3\nDocuments · Reports\n(Versioned · 7yr Lifecycle)"]:::data
-        REDIS["Redis  —  AWS ElastiCache\nCache · Sessions · Rate Limit"]:::data
-    end
-
-    subgraph EXT["EXTERNAL SERVICES"]
-        direction LR
-        SES["AWS SES\nEmail"]:::external
-        TWI["Twilio\nSMS"]:::external
-        FCM["FCM / APNs\nPush Notifications"]:::external
-        STR["Stripe\nPayment Gateway"]:::external
-        PMS["Policy Mgmt System\nExisting Core System"]:::external
-    end
-
-    CLIENTS         -->|HTTPS| ALB
-    ALB             -->|Forward Requests| GW
-    GW             <-->|Token Validation| KC
-    GW              -->|Route| CLS & WFS & DS & WKS & RS & PS & NS
-
-    CLS & WFS & WKS & PS -->|Publish Events| KB
-    KB              -->|Consume Events| NS & RS
-
-    CLS & WFS & DS & WKS & RS & PS -->|Read / Write| PG
-    DS              -->|Store / Retrieve| S3
-    CLS & WFS       -->|Cache / Session| REDIS
-
-    NS              -->|Email| SES
-    NS              -->|SMS| TWI
-    NS              -->|Push| FCM
-    PS              -->|Charge| STR
-    CLS             -->|Policy Lookup| PMS
-
-    subgraph LEGEND["LEGEND"]
-        direction LR
-        L1["Client Portals"]:::portal
-        L2["API / Security / Infra"]:::gateway
-        L3["Microservices"]:::service
-        L4["Event Bus"]:::messaging
-        L5["Data Stores"]:::data
-        L6["External Systems"]:::external
-    end
-```
+The high-level system architecture follows an event-driven microservices pattern, designed to handle 200M+ users with high availability and fault tolerance. It separates concerns into distinct layers: Edge/Delivery, API/Security, Core Business Services, Event Streaming, and Data Storage.
 
 ---
 
@@ -291,59 +211,19 @@ The eClaims system architecture is presented through multiple diagram views to s
 
 #### System Context Architecture
 
-**High-Level System Context:**
 - External users and systems interacting with eClaims
 - Clear business-focused view for stakeholders
-- Source: `design/c1-hld.mmd`
-
-**Detailed System Context:**
 - Detailed actor roles and external dependencies
-- Complete integration landscape
-- Source: `design/c1-lld.mmd`
+- Source: `design-documents/context-diagram.mmd`
+- [Click here to view the diagram](context-diagram.svg)
 
-#### Technical Architecture
+#### Solution Architecture
 
-**Core Technical Architecture:**
 - Clean view of major system components
 - Service boundaries and data flow
 - Technology-agnostic presentation suitable for client discussions
-- Source: `design/c2-technical-architecture.mmd`
-
-See Technical Architecture diagram below:
-
-```mermaid
-{{INCLUDE: ../design/c2-technical-architecture.mmd}}
-```
-
-#### Deployment Architecture
-
-**AWS Deployment Overview:**
-- High-level deployment topology
-- Security layers and load balancing
-- Data redundancy and disaster recovery
-- Source: `design/deployment-architecture.mmd`
-
-See Deployment Architecture diagram below:
-
-```mermaid
-{{INCLUDE: ../design/deployment-architecture.mmd}}
-```
-
-#### CI/CD Architecture
-
-**Continuous Integration & Deployment Pipeline:**
-- Code-to-production workflow
-- Quality gates and approval processes
-- Monitoring and rollback capabilities
-- Source: `design/cicd-architecture.mmd`
-
-See CI/CD Architecture diagram below:
-
-```mermaid
-{{INCLUDE: ../design/cicd-architecture.mmd}}
-```
-
-> **Technical Implementation Details:** For detailed technical specifications including AWS service configurations, component-level architecture, and implementation blueprints, refer to the Technical Appendix (`technical-appendix/` directory). These detailed diagrams are designed for development teams and infrastructure specialists.
+- Source: `design-documents/solution-architecture.mmd`
+- [Click here to view the diagram](solution-architecture.svg)
 
 ---
 
@@ -369,8 +249,8 @@ flowchart TB
     subgraph L2["LAYER 2 — API & SECURITY"]
         direction LR
         B0["Application Load Balancer\n- HTTPS Termination\n- Health-based Routing\n- Multi-AZ Failover"]
-        B1["Kong API Gateway\n- Rate Limiting\n- JWT Validation\n- Routing / Logging"]
-        B2["Keycloak IdP\n- OAuth2 / OIDC\n- RBAC (8 Roles)\n- MFA · Token Issuance"]
+        B1["Amazon API Gateway\n- Rate Limiting\n- Throttling\n- Routing / Logging"]
+        B2["Identity Management\n- AWS Cognito (Customers)\n- Keycloak (Internal)\n- MFA · Token Issuance"]
     end
 
     subgraph L3["LAYER 3 — BUSINESS SERVICES"]
@@ -390,9 +270,9 @@ flowchart TB
 
     subgraph L5["LAYER 5 — DATA"]
         direction LR
-        E1["PostgreSQL\n(RDS Multi-AZ)\nPrimary Store"]
+        E1["Amazon Aurora PostgreSQL\n(Multi-AZ)\nPrimary Store"]
         E2["AWS S3\nDocument Store"]
-        E3["Redis\n(ElastiCache)\nCache & Sessions"]
+        E3["Amazon ElastiCache\n(Redis)\nCache & Sessions"]
     end
 
     subgraph L6["LAYER 6 — INFRASTRUCTURE & OBSERVABILITY"]
@@ -401,7 +281,7 @@ flowchart TB
         F2["ELK Stack\nCentralised Logs"]
         F3["Prometheus\n+ Grafana\nMetrics"]
         F4["AWS CloudWatch\nAlarms & Alerts"]
-        F5["Terraform\nInfra as Code"]
+        F5["AWS CDK\nInfra as Code"]
     end
 
     L1 -->|HTTPS| L2
@@ -442,53 +322,7 @@ flowchart TB
 
 ### 5.6 Claims Lifecycle State Machine
 
-```mermaid
-%%{init: {"theme": "default"}}%%
-stateDiagram-v2
-    direction LR
-
-    [*] --> Draft : Customer begins claim
-
-    Draft --> Submitted : Customer submits\nwith documents
-
-    Submitted --> Assigned : System auto-assigns\nCase Mgr · Surveyor · Adjuster\n(by region & availability)
-
-    Assigned --> UnderSurvey : Surveyor visits\nvehicle at workshop
-
-    UnderSurvey --> AssessmentSubmitted : Surveyor uploads\ndamage assessment report
-
-    AssessmentSubmitted --> UnderAdjudication : Adjuster notified;\nreviews policy coverage
-
-    UnderAdjudication --> Approved : Adjuster approves\nclaim amount
-
-    UnderAdjudication --> Rejected : Claim rejected\n(policy exclusion / fraud flag)
-
-    Approved --> InRepair : Customer & Workshop\nnotified of approval
-
-    InRepair --> RepairComplete : Workshop marks\nrepair as complete
-
-    RepairComplete --> PaymentPending : Final bill raised;\ncustomer notified
-
-    PaymentPending --> Settled : Customer pays\nelectronically
-
-    Settled --> Archived : Documents archived\nto DMS; claim closed
-
-    Rejected --> Archived : Rejection documented\nand archived
-
-    Archived --> [*]
-
-    note right of Assigned
-        Kafka Event: ClaimAssigned
-        Notifies: Surveyor (SMS + Email)
-        SLA Timer: 24 hrs for survey
-    end note
-
-    note right of Approved
-        Kafka Event: ClaimApproved
-        Notifies: Customer + Workshop
-        Camunda timer: escalation if no repair update in 48 hrs
-    end note
-```
+- [Click here to view the diagram](claim-states-diagram.svg)
 
 ---
 
@@ -499,22 +333,22 @@ stateDiagram-v2
 sequenceDiagram
     actor C as Customer
     participant CP as Customer Portal\n(React)
-    participant GW as API Gateway\n(Kong)
-    participant KC as Keycloak\n(IdP)
+    participant GW as API Gateway\n(Amazon)
+    participant IDP as Cognito/Keycloak\n(IdP)
     participant CS as Claims Service\n(Spring Boot)
     participant DS as Document Service\n(Spring Boot)
     participant WFS as Workflow Service\n(Camunda 8)
     participant KB as Apache Kafka\n(AWS MSK)
     participant NS as Notification Svc\n(Node.js)
     participant S3 as AWS S3
-    participant DB as PostgreSQL\n(RDS)
+    participant DB as PostgreSQL\n(Aurora)
 
     rect rgb(224, 242, 254)
         Note over C,CP: Step 1 — Authentication
-        C->>CP: Login with policy number + password
+        C->>CP: Login with credentials
         CP->>GW: POST /auth/token
-        GW->>KC: Validate credentials
-        KC-->>GW: JWT Bearer Token (role: customer)
+        GW->>IDP: Validate credentials
+        IDP-->>GW: JWT Bearer Token (role: customer)
         GW-->>CP: JWT returned
     end
 
@@ -522,7 +356,7 @@ sequenceDiagram
         Note over C,DB: Step 2 — Claim Submission
         C->>CP: Fill accident details + upload photos/report
         CP->>GW: POST /api/v1/claims (multipart form)
-        GW->>KC: Validate JWT + RBAC check
+        GW->>IDP: Validate JWT + RBAC check
         GW->>CS: Forward claim payload
         CS->>DB: Validate policy number (PMS lookup)
         CS->>DB: INSERT claim (status=SUBMITTED)
@@ -554,114 +388,62 @@ sequenceDiagram
 
 ### 5.8 Notification & Event Flow
 
-```mermaid
-%%{init: {"theme": "default"}}%%
-flowchart LR
-    classDef producer  fill:#1565C0,stroke:#0D47A1,color:#fff
-    classDef kafka     fill:#6A1B9A,stroke:#4A148C,color:#fff
-    classDef consumer  fill:#2E7D32,stroke:#1B5E20,color:#fff
-    classDef channel   fill:#E65100,stroke:#BF360C,color:#fff
-    classDef recipient fill:#37474F,stroke:#212121,color:#fff
+- [Click here to view the diagram](event-driven-architecture.svg)
 
-    subgraph PRODUCERS["EVENT PRODUCERS"]
-        P1["Claims Service"]:::producer
-        P2["Workflow Service"]:::producer
-        P3["Workshop Service"]:::producer
-        P4["Payment Service"]:::producer
-    end
-
-    subgraph TOPICS["Kafka Topics  —  AWS MSK"]
-        T1["claim-events\nClaimSubmitted · ClaimApproved\nClaimRejected · ClaimSettled"]:::kafka
-        T3["audit-events\nImmutable · 7yr Retention"]:::kafka
-        T4["payment-events\nPaymentInitiated · PaymentSettled"]:::kafka
-    end
-
-    subgraph CONSUMERS["EVENT CONSUMERS"]
-        C1["Notification Service\n(Node.js NestJS)"]:::consumer
-        C2["Reporting Service\n(Materialised Views)"]:::consumer
-        C3["Audit Consumer\n(Append-only Log)"]:::consumer
-    end
-
-    subgraph CHANNELS["DELIVERY CHANNELS"]
-        CH1["AWS SES\nEmail"]:::channel
-        CH2["Twilio\nSMS"]:::channel
-        CH3["FCM / APNs\nPush Notification"]:::channel
-        CH4["AWS S3\nCommunication Archive"]:::channel
-    end
-
-    subgraph RECIPIENTS["RECIPIENTS"]
-        R1["Customer"]:::recipient
-        R2["Surveyor"]:::recipient
-        R3["Adjustor"]:::recipient
-        R4["Workshop"]:::recipient
-        R5["Case Manager"]:::recipient
-    end
-
-    P1 & P2 & P3 & P4 -->|Publish claim/workflow events| T1
-    P1 & P2 & P3 & P4 -->|Publish audit trail| T3
-    P4                 -->|Publish payment events| T4
-
-    T1 -->|Notify consumers| C1 & C2
-    T3 -->|Persist audit| C3
-    T4 -->|Notify consumers| C1
-
-    C1 --> CH1 & CH2 & CH3 & CH4
-    CH1 & CH2 & CH3 --> R1 & R2 & R3 & R4 & R5
-```
 
 ---
 
 ## 6. Technology Stack
 
-> **Complete Technology Stack Analysis: [production-techstack-dar.md](./production-techstack-dar.md)**
+> **Complete Technology Stack Analysis: [techstack-dar.md](techstack-dar.md)**
 
 ### 6.1 Enterprise Technology Stack Overview
 
-| Layer | Component | Technology | Rationale |
-|-------|-----------|-----------|-----------|
+| Layer | Component                                  | Technology | Rationale |
+|-------|--------------------------------------------|-----------|-----------|
 | **Architecture & Platform** |
-| Cloud Platform | AWS (Primary) + Multi-AZ | AWS Enterprise Support | Insurance-grade compliance, global reach, 99.99% SLA |
-| Architecture Pattern | Event-Driven Microservices | Spring Boot + MSK | Independent scaling, domain boundaries, fault isolation |
-| Container Orchestration | AWS ECS Fargate → EKS | Serverless containers | No node management, auto-scaling, cost optimization |
+| Cloud Platform | AWS (Primary) + Multi-AZ                   | AWS Enterprise Support | Insurance-grade compliance, global reach, 99.99% SLA |
+| Architecture Pattern | Event-Driven Microservices                 | Spring Boot + MSK | Independent scaling, domain boundaries, fault isolation |
+| Container Orchestration | AWS ECS Fargate (Phase 1) -> EKS (Phase 2) | Phased container strategy | Phase 1: Serverless containers, Phase 2: Advanced orchestration |
 | **Identity & Security** |
-| Customer Identity | AWS Cognito | 200M+ users, enterprise pricing | Zero ops overhead, MFA support, scales to millions |
-| Internal Identity | Keycloak 24 (cluster) | UMA 2.0 RBAC, AD federation | Complex role management, configurable without code |
-| API Gateway | Amazon API Gateway | Rate limiting, throttling | AWS-native integration, managed service |
+| Customer Identity | AWS Cognito                                | 200M+ users, enterprise pricing | Zero ops overhead, MFA support, scales to millions |
+| Internal Identity | Keycloak 24 (cluster)                      | UMA 2.0 RBAC, AD federation | Complex role management, configurable without code |
+| API Gateway | Amazon API Gateway                         | Rate limiting, throttling | AWS-native integration, managed service |
 | **Backend & Runtime** |
-| Backend Runtime | Java 21 + Spring Boot 3.x | Virtual Threads, Spring Security | Industry standard, mature ecosystem, high performance |
-| Workflow Engine | Camunda 8 (SaaS) | BPMN 2.0 audit visibility | Timer escalations, visual processes, compliance |
+| Backend Runtime | Java 21 + Spring Boot 3.x                  | Virtual Threads, Spring Security | Industry standard, mature ecosystem, high performance |
+| Workflow Engine | Camunda 8 (SaaS)                           | BPMN 2.0 audit visibility | Timer escalations, visual processes, compliance |
 | **Data Architecture** |
-| Primary Database | Amazon Aurora PostgreSQL Multi-AZ | 99.99% availability, 15 read replicas | ACID compliance, auto-failover, point-in-time recovery |
-| NoSQL Database | Amazon DynamoDB | Single-digit ms latency | Session data, notifications, auto-scaling |
-| Analytics Database | Amazon Redshift | Petabyte-scale analytics | Executive dashboards, business intelligence |
-| Caching Layer | ElastiCache Redis + MemoryDB | Cluster mode, durability | Session cache + payment idempotency keys |
+| Primary Database | Amazon Aurora PostgreSQL Multi-AZ          | 99.99% availability, 15 read replicas | ACID compliance, auto-failover, point-in-time recovery |
+| NoSQL Database | Amazon DynamoDB                            | Single-digit ms latency | Session data, notifications, auto-scaling |
+| Analytics Database | Amazon Redshift                            | Petabyte-scale analytics | Executive dashboards, business intelligence |
+| Caching Layer | ElastiCache Redis + MemoryDB               | Cluster mode, durability | Session cache + payment idempotency keys |
 | **Event & Messaging** |
-| Message Broker | Amazon MSK (Managed Kafka) | Schema Registry integration | Event-driven architecture, managed service |
-| Real-time Communication | API Gateway WebSocket | Live claim status updates | Real-time customer/workshop notifications |
+| Message Broker | Amazon MSK (Managed Kafka)                 | Schema Registry integration | Event-driven architecture, managed service |
+| Real-time Communication | API Gateway WebSocket                      | Live claim status updates | Real-time customer/workshop notifications |
 | **Document & AI/ML** |
-| Document Storage | S3 + Object Lock (WORM) | Insurance compliance, 7-year retention | 11 nines durability, lifecycle policies |
-| Document Processing | AWS Textract + Comprehend | OCR + NLP processing | Automated document analysis, content extraction |
-| Machine Learning | Amazon SageMaker | Fraud detection, claim prediction | Real-time inference, model training pipeline |
+| Document Storage | S3 + Object Lock (WORM)                    | Insurance compliance, 7-year retention | 11 nines durability, lifecycle policies |
+| Document Processing | AWS Textract + Comprehend                  | OCR + NLP processing | Automated document analysis, content extraction |
+| Machine Learning | Amazon SageMaker                           | Fraud detection, claim prediction | Real-time inference, model training pipeline |
 | **Frontend & Mobile** |
-| Web Frontend | React 18 + Next.js (SSR) | Server-side rendering, performance | First-contentful-paint optimization at scale |
-| Mobile App | React Native + Expo | Shared TypeScript logic | Cross-platform, unified codebase |
+| Web Frontend | React 18 + Next.js (SSR)                   | Server-side rendering, performance | First-contentful-paint optimization at scale |
+| Mobile App | React Native + Expo                        | Shared TypeScript logic | Cross-platform, unified codebase |
 | **Payment & Financial** |
-| Payment Processing | Stripe Connect | Marketplace payments, PCI compliance | Workshop payments, ACH transfers, Level 1 PCI-DSS |
+| Payment Processing | Stripe Connect                             | Marketplace payments, PCI compliance | Workshop payments, ACH transfers, Level 1 PCI-DSS |
 | **Communication** |
-| Email Service | Amazon SES + SendGrid (backup) | High deliverability, failover | Multi-provider reliability |
-| SMS Service | Amazon SNS + Twilio | Global coverage, redundancy | Critical notification delivery |
-| Push Notifications | Firebase Cloud Messaging | iOS + Android native | Mobile engagement, real-time alerts |
+| Email Service | Amazon SES + SendGrid (backup)             | High deliverability, failover | Multi-provider reliability |
+| SMS Service | Amazon SNS + Twilio                        | Global coverage, redundancy | Critical notification delivery |
+| Push Notifications | Firebase Cloud Messaging                   | iOS + Android native | Mobile engagement, real-time alerts |
 | **Observability & Monitoring** |
-| Monitoring Stack | CloudWatch + X-Ray + Grafana | Distributed tracing, SLA dashboards | p99 latency monitoring, business KPIs |
-| Log Aggregation | ELK Stack + CloudWatch Logs | Searchable logs, correlation | Security event analysis, debugging |
-| Alerting & On-Call | PagerDuty + CloudWatch Alarms | 24x7 incident response | MTTR ≤ 15 minutes, escalation policies |
+| Monitoring Stack | CloudWatch + X-Ray + Grafana               | Distributed tracing, SLA dashboards | p99 latency monitoring, business KPIs |
+| Log Aggregation | ELK Stack + CloudWatch Logs                | Searchable logs, correlation | Security event analysis, debugging |
+| Alerting & On-Call | PagerDuty + CloudWatch Alarms              | 24x7 incident response | MTTR ≤ 15 minutes, escalation policies |
 | **Security & Compliance** |
-| Network Security | AWS WAF + Shield Advanced | DDoS protection, OWASP Top 10 | $3K/month advanced threat protection |
-| Secrets Management | AWS Secrets Manager + KMS | Automatic rotation, encryption | Customer-managed keys, compliance |
+| Network Security | AWS WAF + Shield Advanced                  | DDoS protection, OWASP Top 10 | $3K/month advanced threat protection |
+| Secrets Management | AWS Secrets Manager + KMS                  | Automatic rotation, encryption | Customer-managed keys, compliance |
 | **DevOps & Infrastructure** |
-| Infrastructure as Code | AWS CDK (TypeScript) | Version-controlled infrastructure | Repeatable deployments, type safety |
-| CI/CD Pipeline | GitHub Actions + AWS CodeBuild | Security scanning, deployment | DevSecOps integration, container security |
-| Container Registry | Amazon ECR | Vulnerability scanning | Private registry, signed images |
+| Infrastructure as Code | AWS CDK (TypeScript) / Terraform           | Version-controlled infrastructure | AWS CDK for native services, Terraform for hybrid deployments |
+| CI/CD Pipeline | GitHub Actions + AWS CodeBuild             | Security scanning, deployment | DevSecOps integration, container security |
+| Container Registry | Amazon ECR                                 | Vulnerability scanning | Private registry, signed images |
 
 ### 6.2 Technology Investment Justification
 
@@ -669,8 +451,6 @@ flowchart LR
 **Annual Business Process Savings:** $36.25B  
 **ROI Payback Period:** 2 months  
 **Technology ROI:** 609,000%
-
-> **Detailed technology comparison matrices, cost analysis, and implementation roadmap available in the comprehensive DAR document.**
 
 ---
 
@@ -687,74 +467,49 @@ flowchart LR
 | Document Upload | < 5000ms per file | Direct-to-S3 pre-signed URL, parallel multipart |
 
 ### 7.2 Scalability Strategy
+- [Click here to view the diagram](scalibility-strategy.svg)
 
-```mermaid
-%%{init: {"theme": "default"}}%%
-flowchart TD
-    classDef strategy fill:#1A237E,stroke:#0D47A1,color:#fff
-    classDef component fill:#1B5E20,stroke:#2E7D32,color:#fff
-
-    subgraph HORIZONTAL["Horizontal Scaling"]
-        HS1["ECS Fargate Auto-Scaling\n(CPU > 70% → scale out)"]
-        HS2["Kafka Partition Scaling\n(Add partitions for higher throughput)"]
-        HS3["RDS Read Replicas\n(Reporting queries → read replica)"]
-    end
-
-    subgraph CACHING["Caching Strategy"]
-        CS1["Redis — Policy & User data\n(TTL: 15 min)"]
-        CS2["Redis — Report dashboards\n(TTL: 5 min)"]
-        CS3["CloudFront CDN\nStatic assets, API responses"]
-    end
-
-    subgraph ASYNC["Async Processing"]
-        AS1["Document upload via\npre-signed S3 URLs\n(removes API bottleneck)"]
-        AS2["Claim status propagation\nvia Kafka\n(non-blocking)"]
-        AS3["Report generation\nscheduled background job\n(Spring Batch)"]
-    end
-
-    subgraph DB["Database Optimisation"]
-        DB1["Partitioning claims table\nby year + region"]
-        DB2["Composite indexes on\nclaim_id, status, region"]
-        DB3["Connection pooling\n(HikariCP — 20 per service)"]
-    end
-
-    MERGE((" "))
-    HORIZONTAL -.-> MERGE
-    CACHING    -.-> MERGE
-    ASYNC      -.-> MERGE
-    DB         -.-> MERGE
-    MERGE      -->|Combined strategies| PERF["99% requests\n< 5000ms"]
-
-    class HS1,HS2,HS3 strategy
-    class CS1,CS2,CS3 strategy
-    class AS1,AS2,AS3 strategy
-    class DB1,DB2,DB3 strategy
-    class PERF component
-```
 
 ---
 
-## 8. Security Architecture
+## 8. Container Orchestration Strategy
 
-### 8.1 Security Layers
+To support the 200M+ user scale while balancing operational complexity and control, the container orchestration strategy is divided into two phases:
+
+### 8.1 Phase 1: AWS ECS Fargate (Serverless Compute)
+- **Objective:** Rapid time-to-market with zero node management overhead.
+- **Implementation:** Microservices deployed as ECS Fargate tasks.
+- **Scaling:** Auto-scaling policies based on CPU/Memory utilization (e.g., Claims Service scales from 2 to 50 tasks during peak load).
+- **Networking:** Tasks run in private subnets, integrated with Application Load Balancer (ALB) and AWS Cloud Map for service discovery.
+
+### 8.2 Phase 2: Amazon EKS (Kubernetes)
+- **Objective:** Advanced orchestration, service mesh integration, and granular control as the microservices ecosystem grows.
+- **Implementation:** Migration to Amazon Elastic Kubernetes Service (EKS).
+- **Capabilities:** Introduction of Istio/AWS App Mesh for mTLS and advanced traffic routing, Karpenter for intelligent node auto-provisioning, and Helm for complex deployment management.
+
+---
+
+## 9. Security Architecture
+
+### 9.1 Security Layers
 
 | Layer | Control | Implementation |
 |-------|---------|---------------|
-| Edge | DDoS protection | AWS Shield Standard + WAF (OWASP rule groups) |
+| Edge | DDoS protection | AWS Shield Advanced + WAF (OWASP rule groups) |
 | Transport | Encryption in transit | TLS 1.3 for all external and internal communications |
-| Identity | Authentication | Keycloak — email/password + MFA (TOTP) |
+| Identity | Authentication | AWS Cognito (Customers) + Keycloak (Internal Staff) |
 | Identity | Authorisation | JWT-based RBAC; role claims validated per service |
-| Data | Encryption at rest | AES-256 (RDS encrypted volumes, S3 SSE-KMS) |
+| Data | Encryption at rest | AES-256 (KMS encrypted volumes, S3 SSE-KMS) |
 | Data | PII protection | Field-level encryption for SSN, bank account details |
-| API | Rate limiting | Kong rate-limit plugin (per user, per IP) |
+| API | Rate limiting | Amazon API Gateway throttling and usage plans |
 | API | Input validation | Spring Validation (Bean Validation 3.0) on all DTOs |
 | Audit | No-repudiation | Kafka `audit-events` topic — append-only, 7yr retention |
 | Audit | User action log | Every write operation logged with userId, timestamp, payload hash |
-| Fraud | Detection | Rule-based engine (claim amount anomalies, duplicate incidents, suspicious patterns) |
+| Fraud | Detection | Amazon SageMaker ML-based scoring + rule engine |
 | Secrets | Key management | AWS Secrets Manager + KMS; no secrets in codebase |
-| Dependency | Vulnerability scan | OWASP Dependency-Check in CI/CD pipeline |
+| Dependency | Vulnerability scan | OWASP Dependency-Check + Trivy in CI/CD pipeline |
 
-### 8.2 RBAC Matrix
+### 9.2 RBAC Matrix
 
 | Role | Claims | Documents | Assessment | Adjudication | Reports | Workshop | Override |
 |------|--------|-----------|-----------|-------------|---------|---------|---------|
@@ -769,171 +524,31 @@ flowchart TD
 
 ---
 
-## 9. Deployment Architecture (AWS)
+## 10. Deployment Architecture (AWS)
 
-```mermaid
-%%{init: {"theme": "default"}}%%
-flowchart TB
-    classDef edge    fill:#E3F2FD,stroke:#1565C0,color:#0D47A1
-    classDef private fill:#E8F5E9,stroke:#2E7D32,color:#1B5E20
-    classDef data    fill:#F3E5F5,stroke:#6A1B9A,color:#4A148C
-    classDef managed fill:#FFF8E1,stroke:#E65100,color:#BF360C
-    classDef dr      fill:#FCE4EC,stroke:#AD1457,color:#880E4F
-
-    subgraph INTERNET["Internet"]
-        USERS["Users  —  Web / Mobile"]
-    end
-
-    subgraph AWS_PRIMARY["AWS  —  us-east-1  (Primary Region)"]
-
-        subgraph EDGE_GRP["Edge Layer"]
-            R53["Route 53\nDNS · Health Checks · Failover"]:::edge
-            CF["CloudFront CDN\nStatic Assets · API Cache"]:::edge
-            WAF["AWS WAF\nOWASP Rules · DDoS Shield"]:::edge
-            ALB_P["Application Load Balancer\nHTTPS · SSL Termination · Multi-AZ"]:::edge
-        end
-
-        subgraph VPC["VPC — 10.0.0.0/16"]
-
-            subgraph PUB["Public Subnets  (AZ-a + AZ-b)"]
-                NGW["NAT Gateway\n(Outbound traffic)"]:::edge
-            end
-
-            subgraph PRIV_A["Private Subnet — AZ-a"]
-                KONG_A["Kong API Gateway\n(Primary)"]:::private
-                KC_A["Keycloak Cluster\n(Active)"]:::private
-                ECS_A["ECS Fargate\nClaims · Workflow · Document\nWorkshop · Reporting · Payment"]:::private
-                NS_A["Notification Service\n(Node.js NestJS)"]:::private
-            end
-
-            subgraph PRIV_B["Private Subnet — AZ-b"]
-                KONG_B["Kong API Gateway\n(Standby)"]:::private
-                KC_B["Keycloak Cluster\n(Standby)"]:::private
-                ECS_B["ECS Fargate\n(Replica Instances)"]:::private
-            end
-
-            subgraph DATA_TIER["Data Tier — Private Subnets  (Multi-AZ)"]
-                RDS_P["RDS PostgreSQL Primary\n(AZ-a)"]:::data
-                RDS_S["RDS PostgreSQL Standby\n(AZ-b · Auto-failover)"]:::data
-                REDIS_P["ElastiCache Redis Primary\n(AZ-a)"]:::data
-                REDIS_R["ElastiCache Redis Replica\n(AZ-b)"]:::data
-                MSK["AWS MSK\nApache Kafka  (Multi-AZ Brokers)"]:::data
-            end
-
-            subgraph MANAGED["AWS Managed Services"]
-                S3S["AWS S3\nDocument Storage · Versioned · WORM"]:::managed
-                SES_S["AWS SES\nEmail Delivery"]:::managed
-                SM["Secrets Manager + KMS\nEncryption Keys · Secrets"]:::managed
-                CW["CloudWatch\nLogs · Alarms · Dashboards"]:::managed
-                TX["AWS Textract\nOCR — Document Analysis"]:::managed
-            end
-        end
-    end
-
-    subgraph AWS_DR["AWS  —  us-west-2  (DR Region — Active-Passive)"]
-        DR_ALB["ALB  (Warm Standby)"]:::dr
-        DR_ECS["ECS Fargate  (1 task/service)"]:::dr
-        DR_RDS["RDS PostgreSQL\nRead Replica  —  Promoted on failover"]:::dr
-        DR_S3["S3 Cross-Region Replica"]:::dr
-    end
-
-    USERS           -->|HTTPS| R53
-    R53             --> CF
-    CF              --> WAF
-    WAF             --> ALB_P
-    ALB_P           --> KONG_A & KONG_B
-    KONG_A & KONG_B <-->|Token Validation| KC_A
-    KONG_A          --> ECS_A & NS_A
-    KONG_B          --> ECS_B
-
-    ECS_A & ECS_B   --> MSK
-    MSK             --> NS_A
-    ECS_A & ECS_B   --> RDS_P & REDIS_P
-    ECS_A           --> S3S & TX
-    NS_A            --> SES_S
-
-    RDS_P           -.->|Synchronous Replication| RDS_S
-    REDIS_P         -.->|Async Replication| REDIS_R
-    RDS_P           -.->|Async Cross-Region| DR_RDS
-    S3S             -.->|Cross-Region Replication| DR_S3
-    R53             -.->|DNS Failover| DR_ALB
-```
+**AWS Deployment Overview:**
+- High-level deployment topology
+- Security layers and load balancing
+- Data redundancy and disaster recovery
+- Source: `design-documents/deployment-diagram.mmd`
+- [Click here to view the diagram](deployment-diagram.svg)
 
 ---
 
-## 10. CI/CD Architecture
+## 11. CI/CD Architecture
 
-```mermaid
-%%{init: {"theme": "default"}}%%
-flowchart LR
-    classDef trigger  fill:#1565C0,stroke:#0D47A1,color:#fff
-    classDef build    fill:#2E7D32,stroke:#1B5E20,color:#fff
-    classDef test     fill:#F57F17,stroke:#E65100,color:#fff
-    classDef security fill:#AD1457,stroke:#880E4F,color:#fff
-    classDef deploy   fill:#6A1B9A,stroke:#4A148C,color:#fff
-    classDef env      fill:#00695C,stroke:#004D40,color:#fff
-
-    subgraph SOURCE["  Source  "]
-        GH["GitHub\nFeature Branch\n→ PR → main"]
-    end
-
-    subgraph BUILD["  Build  "]
-        COMPILE["Maven Build\n(Java 21)\nCompile + Package"]
-        DOCKER["Docker Build\nMulti-stage\nimage"]
-        ECR["Push to\nAWS ECR\n(tagged)"]
-    end
-
-    subgraph TEST["  Test  "]
-        UT["Unit Tests\n(JUnit 5\n+ Mockito)"]
-        IT["Integration Tests\n(Testcontainers\nPostgres + Kafka)"]
-        E2E["E2E Tests\n(Playwright\nCustomer flow)"]
-        COV["Code Coverage\n(JaCoCo ≥ 80%)"]
-    end
-
-    subgraph SECURITY["  Security Scan  "]
-        SAST["SAST\n(SonarQube)"]
-        DEP["Dependency\nCheck\n(OWASP)"]
-        IMG["Container\nScan\n(Trivy)"]
-    end
-
-    subgraph DEPLOY["  Deploy  "]
-        DEV["Deploy → DEV\n(auto on PR merge)"]
-        STG["Deploy → STAGING\n(blue-green\nauto-smoke test)"]
-        PROD["Deploy → PROD\n(blue-green\nmanual gate)"]
-    end
-
-    subgraph POSTDEPLOY["  Post-Deploy  "]
-        SMOKE["Smoke Tests\n(health checks)"]
-        ROLL["Auto-Rollback\nif health fails"]
-        NOTIFY_CD["Slack / Email\nDeploy Notification"]
-    end
-
-    GH       -->|Push / PR trigger — GitHub Actions| COMPILE
-    COMPILE  --> DOCKER --> ECR
-    COMPILE  --> UT --> IT --> E2E --> COV
-    ECR      --> GATE((" "))
-    COV      --> GATE
-    GATE     --> SAST --> DEP --> IMG
-    IMG      -->|All gates pass| DEV
-    DEV      -->|Promote| STG
-    STG      -->|Manual approval| PROD
-    PROD     --> SMOKE
-    SMOKE    -->|Pass| NOTIFY_CD
-    SMOKE    -->|Fail| ROLL
-
-    class GH trigger
-    class COMPILE,DOCKER,ECR build
-    class UT,IT,E2E,COV test
-    class SAST,DEP,IMG security
-    class DEV,STG,PROD deploy
-    class SMOKE,ROLL,NOTIFY_CD env
-```
+**Continuous Integration & Deployment Pipeline:**
+- Code-to-production workflow
+- Quality gates and approval processes
+- Monitoring and rollback capabilities
+- Source: `design-documents/ci-cd-architecture.mmd`
+- [Click here to view the diagram](ci-cd-architecture-diagram.svg)
 
 ---
 
-## 11. Disaster Recovery
+## 12. Disaster Recovery
 
-### 11.1 DR Targets
+### 12.1 DR Targets
 
 | Metric | Target | Mechanism |
 |--------|--------|---------|
@@ -943,7 +558,7 @@ flowchart LR
 | Backup Retention | 30 days online; 7 years archived (S3 Glacier) | S3 lifecycle + AWS Backup vault |
 | Document Retention | 7 years (compliance) | S3 Versioning + Object Lock (WORM) |
 
-### 11.2 DR Strategy
+### 12.2 DR Strategy
 
 - **Active-Passive** across `us-east-1` (primary) and `us-west-2` (DR)
 - RDS read replica in DR region promoted to primary on failover
@@ -954,47 +569,21 @@ flowchart LR
 
 ---
 
-## 12. Supporting Deliverables
+## 13. Supporting Deliverables
 
 This solution approach document is supported by comprehensive technical deliverables that provide detailed implementation guidance and specifications for different stakeholder audiences.
 
-### 12.1 Core Design Documents
+### 13.1 Core Design Documents
 
 | Document | Description | Audience |
 |----------|-------------|----------|
-| **[Production Technology Stack DAR](./production-techstack-dar.md)** | Comprehensive technology stack selection for 200M+ users with cost analysis, vendor comparisons, and implementation roadmap | Technical Architects, CTO, Engineering Management |
+| **[Production Technology Stack DAR](techstack-dar.md)** | Comprehensive technology stack selection for 200M+ users with cost analysis, vendor comparisons, and implementation roadmap | Technical Architects, CTO, Engineering Management |
 | **[API Design Specification](./api-design-deliverable.md)** | Complete REST API specification, OpenAPI schemas, authentication flows, and integration patterns | API Developers, Frontend Teams, Integration Partners |
 | **[Database Design Document](./database-design-deliverable.md)** | Complete data model, schema definitions, performance optimization, and data governance strategy | Database Architects, Backend Developers, Data Teams |
 | **[Non-Functional Requirements](./nfr-summary.md)** | Detailed NFR analysis, validation criteria, and testing approaches for enterprise scale | Quality Assurance, Performance Engineers, Architects |
 | **[Project Estimation](./project-estimation-deliverable.md)** | Comprehensive resource planning, timeline estimates, risk assessment, and budget analysis | Project Management, Executive Leadership, Finance |
 
-### 12.2 Architecture Diagram Hierarchy
-
-The solution architecture is presented through multiple diagram views serving different purposes:
-
-#### Executive & Business Level
-- **Solution Architecture Overview** - High-level business capabilities and integration landscape
-- **Customer Journey Flow** - End-to-end user experience across all touchpoints
-
-#### Technical Architecture Level  
-- **Technical Architecture Diagram** - Service boundaries, technology choices, and integration patterns
-- **Microservices Architecture** - Domain-driven service design and API contracts
-
-#### Implementation & Deployment Level
-- **Low-Level Design (LLD)** - Complete infrastructure topology with AWS service configurations
-- **Container Deployment Architecture** - ECS Fargate deployment, auto-scaling, and service mesh
-- **CI/CD Pipeline Architecture** - DevSecOps workflow, quality gates, and deployment automation
-
-### 12.3 Implementation Support Materials
-
-| Document Type | Purpose | Key Contents |
-|---------------|---------|--------------|
-| **Technical Implementation Details** | Development team guidance | Spring Boot configurations, Kafka topics, database schemas |
-| **Infrastructure Blueprints** | DevOps implementation | Terraform modules, ECS task definitions, monitoring setup |
-| **Security Implementation Guide** | Security team reference | WAF rules, KMS key policies, RBAC configurations |
-| **Testing Strategy & Plans** | QA team execution | Performance test scenarios, security test cases, compliance validation |
-
-### 12.4 Business Value Quantification
+### 13.2 Business Value Quantification
 
 | Metric | Current Manual Process | Digital eClaims Solution | Improvement |
 |--------|----------------------|---------------------------|-------------|
@@ -1005,7 +594,7 @@ The solution architecture is presented through multiple diagram views serving di
 | **System Availability** | 95% (manual dependencies) | 99.99% (automated) | Eliminated downtime |
 | **Annual Business Impact** | Baseline | $36.25B savings | Transformational ROI |
 
-### 12.5 Compliance & Risk Management
+### 13.3 Compliance & Risk Management
 
 - **Insurance Regulatory Compliance** - 7-year WORM storage, audit trails, state-specific requirements
 - **Security Compliance** - OWASP Top 10, PCI-DSS Level 1, SOC 2 Type II readiness
@@ -1014,7 +603,7 @@ The solution architecture is presented through multiple diagram views serving di
 
 ---
 
-## 13. References / Appendix
+## 14. References / Appendix
 
 | Item | Reference |
 |------|-----------|
@@ -1028,57 +617,25 @@ The solution architecture is presented through multiple diagram views serving di
 | Terraform AWS Provider | https://registry.terraform.io/providers/hashicorp/aws/latest |
 | HRMS Reference Architecture | https://github.com/piyush5989/nagp-architect-pathway-hrms |
 
-### Appendix A – Implementation Readiness
-
-This solution approach provides a complete foundation for immediate implementation:
-
-| Readiness Area | Status | Details |
-|---------------|--------|---------|
-| **Architecture Design** | ✅ Complete | Multi-level architecture diagrams from executive to implementation detail |
-| **Technology Stack** | ✅ Validated | Comprehensive DAR with vendor analysis and cost justification |
-| **API Specifications** | ✅ Complete | OpenAPI 3.0 specifications with authentication and error handling |
-| **Database Design** | ✅ Complete | Normalized schema with performance optimization and migration strategy |
-| **Project Planning** | ✅ Complete | 18-month roadmap with resource allocation and risk mitigation |
-| **NFR Validation** | ✅ Complete | Performance testing strategy and compliance validation framework |
-
-### Appendix B – Executive Summary for Stakeholders
-
-**Business Impact:**
-- Transform manual 45-60 day claims process to 10-15 day digital workflow
-- Achieve $36.25B annual cost savings through 85% processing cost reduction
-- Improve customer satisfaction from 2.1/5 to 4.5/5 target rating
-- Enable 200M+ customer scale with 99.99% system availability
-
-**Technology Investment:**
-- $5.95M annual technology cost delivers 609,000% ROI
-- 2-month payback period on technology investment
-- Enterprise-grade security and compliance built-in
-- Future-proof architecture supports 500M+ user growth
-
-**Implementation Timeline:**
-- Phase 1 (Months 1-6): Core platform deployment with web portal
-- Phase 2 (Months 7-12): Mobile app and advanced microservices
-- Phase 3 (Months 13-18): AI/ML fraud detection and advanced analytics
-
-### Appendix B – Diagram Source Files
+### Appendix A - Diagram Source Files
 
 All Mermaid diagram source code is embedded in this document.
 To convert to Visio / draw.io:
 1. Paste any Mermaid block at [mermaid.live](https://mermaid.live)
-2. Export as SVG → import into draw.io or Visio
+2. Export as SVG -> import into draw.io or Visio
 
-### Appendix C – Glossary
+### Appendix B - Glossary
 
-| Term | Definition |
-|------|-----------|
-| BPMN | Business Process Model and Notation – workflow definition standard |
-| CQRS | Command Query Responsibility Segregation |
-| DMS | Document Management System |
-| IdP | Identity Provider |
-| RBAC | Role-Based Access Control |
-| RTO | Recovery Time Objective |
-| RPO | Recovery Point Objective |
-| WORM | Write Once Read Many – immutable storage policy |
-| MSK | Amazon Managed Streaming for Kafka |
-| ECS | Elastic Container Service |
-| WAF | Web Application Firewall |
+| Term | Definition                                                         |
+|------|--------------------------------------------------------------------|
+| BPMN | Business Process Model and Notation - workflow definition standard |
+| CQRS | Command Query Responsibility Segregation                           |
+| DMS | Document Management System                                         |
+| IdP | Identity Provider                                                  |
+| RBAC | Role-Based Access Control                                          |
+| RTO | Recovery Time Objective                                            |
+| RPO | Recovery Point Objective                                           |
+| WORM | Write Once Read Many – immutable storage policy                    |
+| MSK | Amazon Managed Streaming for Kafka                                 |
+| ECS | Elastic Container Service                                          |
+| WAF | Web Application Firewall                                           |

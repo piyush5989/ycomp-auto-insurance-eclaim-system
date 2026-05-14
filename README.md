@@ -4,6 +4,21 @@ This document explains how to **build, run, and validate** the eClaims proof-of-
 
 ---
 
+## Deliverables (Design Documents)
+
+**[Solution Approach Document (solution-approach.md)](./design-documents/solution-approach.md)**
+
+This master document contains the executive summary and links to all detailed deliverables:
+1. **[Production Technology Stack DAR](./design-documents/production-techstack-dar.md)** - Comprehensive tech stack selection for 200M+ users
+2. **[API Design Specification](./design-documents/api-design-deliverable.md)** - REST API specs and integration patterns
+3. **[Database Design Document](./design-documents/database-design-deliverable.md)** - Data model and performance optimization
+4. **[Non-Functional Requirements](./design-documents/nfr-summary.md)** - Detailed NFR analysis for enterprise scale
+5. **[Project Estimation](./design-documents/project-estimation-deliverable.md)** - Resource planning, timeline, and budget
+
+All architecture diagrams (System Context, Solution Architecture, Deployment, CI/CD, Event-Driven) are embedded within these documents and available as `.svg` files in the `design-documents/` folder.
+
+---
+
 ## 1. What you are running
 
 The solution is a **modular monolith** with two main parts:
@@ -279,7 +294,7 @@ npm run build
 
 ## 11. Further reading
 
+- **Evaluation Deliverables:** `design-documents/solution-approach.md` (Master document for the assessment)
 - **Backend architecture and demo accounts:** `eclaims-backend/README.md`
-- **ECS and CI/CD (optional):** `infra/ecs/README.md` and `.github/workflows/ci.yml`
 
 If anything in this guide does not match your unzip layout, ensure your archive root contains **`eclaims-backend`** and **`eclaims-frontend`** as sibling folders next to this `README.md`.

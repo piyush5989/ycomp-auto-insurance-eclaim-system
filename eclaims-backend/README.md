@@ -105,6 +105,8 @@ Extraction steps (per module):
 
 ## NFR Coverage
 
+> **Note:** For the complete production architecture, technology stack selection, and enterprise design documents, please see the `design-documents/solution-approach.md` file in the project root.
+
 | NFR | Evidence |
 |-----|----------|
 | Performance (p99 < 5s) | Per-operation SLAs: view claim < 800ms, submit < 1500ms |
