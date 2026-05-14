@@ -1,4 +1,4 @@
-# YCompany — eClaims Processing System
+# YCompany - eClaims Processing System
 
 ## DAR: Production Technology Stack Selection
 

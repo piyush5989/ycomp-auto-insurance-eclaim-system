@@ -9,7 +9,7 @@ This document explains how to **build, run, and validate** the eClaims proof-of-
 **[Solution Approach Document (solution-approach.md)](./design-documents/solution-approach.md)**
 
 This master document contains the executive summary and links to all detailed deliverables:
-1. **[Production Technology Stack DAR](./design-documents/production-techstack-dar.md)** - Comprehensive tech stack selection for 200M+ users
+1. **[Technology Stack DAR](./design-documents/techstack-dar.md)** - Comprehensive tech stack selection for 200M+ users
 2. **[API Design Specification](./design-documents/api-design-deliverable.md)** - REST API specs and integration patterns
 3. **[Database Design Document](./design-documents/database-design-deliverable.md)** - Data model and performance optimization
 4. **[Non-Functional Requirements](./design-documents/nfr-summary.md)** - Detailed NFR analysis for enterprise scale
