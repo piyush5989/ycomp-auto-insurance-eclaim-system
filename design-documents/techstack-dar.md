@@ -806,13 +806,15 @@ Each candidate is scored 1–5 against six attributes relevant to the eClaims NF
 
 #### 5.2.3 Data Volume Projections
 
+> Note: Exact volumes to be validated with YCompany operations team in Phase A. Estimates below based on 2-5% annual claim rate on 200M policyholders.
+
 | Data Type                | Expected Volume (Year 1)    | Growth Rate   | Storage Strategy              |
 |--------------------------|------------------------------|---------------|-------------------------------|
-| Active Claims            | 50M claims/year              | 15% annually  | Aurora PostgreSQL hot data    |
-| Claim Documents          | 200M documents (2TB)         | 20% annually  | S3 Standard → Glacier IA      |
-| Audit Logs              | 10TB/year                    | 25% annually  | S3 → Glacier Deep Archive    |
-| Event Streams           | 100B events/year             | 30% annually  | MSK → S3 Data Lake            |
-| User Sessions           | 500M sessions/month          | 10% annually  | DynamoDB with TTL             |
+| Active Claims            | 4-10M claims/year            | 10-15% annually | Aurora PostgreSQL hot data  |
+| Claim Documents          | 20-50M documents (~500GB)    | 15% annually  | S3 Standard → Glacier IA      |
+| Audit Logs              | 1-2TB/year                   | 20% annually  | S3 → Glacier Deep Archive    |
+| Event Streams           | 500M-2B events/year          | 20% annually  | MSK → S3 Data Lake            |
+| User Sessions           | 5-10M sessions/month         | 10% annually  | ElastiCache Redis with TTL    |
 
 #### 5.2.4 Security Architecture for Insurance Compliance
 
@@ -886,39 +888,36 @@ Each candidate is scored 1–5 against six attributes relevant to the eClaims NF
 
 #### 5.3.1 Monthly Infrastructure Cost Breakdown (Production)
 
+> Estimates based on 8 microservices at production scale. Cognito cost reflects active staff/internal users only for initial go-live; customer MAU cost subject to enterprise pricing negotiation.
+
 | Component Category | Service/Technology | Estimated Monthly Cost | Justification |
 |-------------------|-------------------|----------------------|---------------|
 | **Compute** |
-| ECS Fargate (30 services × 3 replicas) | ~$3,150 | 1vCPU/2GB tasks running 24x7 |
-| Lambda (notifications, webhooks) | ~$500 | 50M executions/month |
-| API Gateway | ~$875 | 25M API calls/month |
+| ECS Fargate (8 services × 2-3 replicas) | ~$840 | 1vCPU/2GB tasks running 24x7 |
+| Lambda (notifications, webhooks) | ~$100 | ~5M executions/month |
+| API Gateway | ~$175 | ~5M API calls/month |
 | **Database** |
-| Aurora PostgreSQL Multi-AZ (3 instances) | ~$1,200 | Writer + 2 readers, db.r6g.xlarge |
-| Aurora Global Database (2 regions) | ~$800 | DR region read replicas |
-| DynamoDB (sessions, cache) | ~$800 | On-demand pricing, 10M items |
-| Redshift (analytics) | ~$1,500 | ra3.xlplus 2-node cluster |
+| Aurora PostgreSQL Multi-AZ (writer + reader) | ~$700 | db.r6g.large Multi-AZ |
 | **Storage & Content** |
-| S3 (documents, backups) | ~$800 | 50TB multi-tier storage |
-| CloudFront CDN | ~$200 | Global edge distribution |
+| S3 (documents, backups) | ~$50 | ~2TB multi-tier storage (year 1) |
+| CloudFront CDN | ~$50 | Static asset delivery |
 | **Messaging & Events** |
-| MSK (Kafka) - 6 brokers | ~$900 | kafka.m5.xlarge instances |
-| ElastiCache Redis Cluster | ~$600 | 6-node cluster with replicas |
-| SNS/SES (notifications) | ~$300 | 100M messages/month |
+| MSK Serverless (Kafka) | ~$300 | Variable load, scales to demand |
+| ElastiCache Redis | ~$150 | cache.r6g.medium, primary + replica |
+| SES + SNS (notifications) | ~$50 | ~1M messages/month |
 | **Security & Identity** |
-| Cognito (200M MAU) | ~$460,000 | Enterprise tier with volume discounts |
-| KMS + Secrets Manager | ~$200 | Key management and rotation |
-| WAF + Shield Advanced | ~$3,200 | DDoS protection |
+| Cognito (staff + active claimants) | ~$500 | ~100K active MAU initially |
+| KMS + Secrets Manager | ~$100 | Key management and rotation |
+| WAF | ~$200 | OWASP rule groups on ALB |
 | **Monitoring & Operations** |
-| CloudWatch + X-Ray | ~$400 | Logs, metrics, tracing |
-| PagerDuty | ~$500 | 24x7 on-call management |
+| CloudWatch + X-Ray | ~$150 | Logs, metrics, tracing |
 | **Third-party SaaS** |
-| Camunda 8 Professional | ~$4,750 | 1M process instances/month |
-| New Relic APM | ~$800 | Application monitoring |
-| Stripe processing fees | ~$15,000 | 2.9% + $0.30 per transaction |
-| **Development & CI/CD** |
-| CodeBuild + ECR | ~$300 | Build pipelines and container registry |
-| **Total Estimated Monthly Cost** | **~$495,535** | |
-| **Annual Cost Estimate** | **~$5,946,420** | Includes 20% buffer for growth |
+| Camunda 8 (SaaS Starter or Step Functions alt) | ~$500-4,750 | Workflow engine - see note below |
+| GitHub Actions + ECR | ~$100 | CI/CD and container registry |
+| **Total Estimated Monthly Cost** | **~$3,965 - $8,215** | Depending on Camunda tier |
+| **Annual Cost Estimate** | **~$48K - $99K** | Production infrastructure year 1 |
+
+> **Camunda 8 note:** Camunda 8 SaaS Professional ($57K/year) provides BPMN 2.0 visibility and timer-based claim escalations which directly address the ageing matrix requirement. AWS Step Functions ($300/month estimate) is a lower-cost alternative if BPMN audit visibility is not mandated. Both options are evaluated in section 4.6.
 
 #### 5.3.2 Cost Optimization Strategies
 
@@ -936,12 +935,14 @@ Each candidate is scored 1–5 against six attributes relevant to the eClaims NF
 | Metric | Current Manual Process | Proposed Digital Solution | Improvement |
 |--------|----------------------|---------------------------|-------------|
 | **Claim Processing Time** | 45-60 days | 10-15 days | 75% faster |
-| **Processing Cost/Claim** | $850 | $125 | 85% reduction |
+| **Processing Cost/Claim** | ~$850 (est.) | Target <$200 | Significant reduction |
 | **Customer Satisfaction** | 2.1/5 | 4.5/5 target | 114% improvement |
 | **Fraud Detection Rate** | 15% | 85% with ML | 467% improvement |
-| **Annual Claims Volume** | 50M claims | 50M claims | Same volume |
-| **Total Annual Savings** | - | $36.25B | Processing cost reduction |
-| **Technology Investment** | $5.95M/year | Payback in 2 months | Exceptional ROI |
+| **Annual Claims Volume** | 4-10M claims (est.) | 4-10M claims | Same volume |
+| **Total Annual Savings** | - | To be quantified in Phase A | Based on confirmed claim volumes |
+| **Technology Investment** | - | $2.0M (project) + ~$99K/year infra | Governed by project budget |
+
+> ROI figures are indicative targets. Actual savings depend on confirmed claim volume (to be validated in Phase A) and YCompany internal cost benchmarks.
 
 ---
 
@@ -951,8 +952,8 @@ Each candidate is scored 1–5 against six attributes relevant to the eClaims NF
 
 1. **Geographic Scope:** US-only deployment in Phase 1. English language only. No multi-lingual requirements (confirmed in assignment).
 2. **Regulatory Compliance:** Insurance regulatory retention requirements are 7 years minimum based on common US state insurance regulations, legal validation required per state.
-3. **Customer Volume:** 200M customer base represents active policyholders, actual concurrent users estimated at 10-15M during peak hours.
-4. **Claim Volume:** 50M new claims annually with seasonal peaks (25% higher during winter months).
+3. **Customer Volume:** 200M customer base represents active policyholders. At a typical auto insurance claim rate of 2-5%, annual claim volume is estimated at 4-10M claims/year. Actual concurrent portal users estimated at 50K-500K during peak hours.
+4. **Claim Volume:** 4-10M new claims annually with seasonal peaks (25% higher during winter months). Exact volume to be confirmed with YCompany operations team in Phase A.
 5. **Business Continuity:** Current manual process must run in parallel for 6 months during transition to ensure no business disruption.
 
 ### 6.2 Technical and Architecture Assumptions
@@ -965,7 +966,7 @@ Each candidate is scored 1–5 against six attributes relevant to the eClaims NF
 
 ### 6.3 Delivery and Implementation Assumptions
 
-11. **Team Composition:** 15-person development team with AWS and insurance domain expertise available for 18-month implementation.
+11. **Team Composition:** 12-person development team with AWS and insurance domain expertise available for 14-month implementation.
 12. **Active Directory:** Federation for internal staff is Phase 2 deliverable. Phase 1 uses Keycloak local accounts.
 13. **Mobile Strategy:** React Native mobile app is Phase 2 deliverable. Phase 1 delivers responsive web application.
 14. **Data Migration:** Historical claim data (5-year archive) migration is Phase 3, Phase 1 handles only new claims.
@@ -1069,19 +1070,20 @@ The recommended technology stack is architected specifically to serve 200+ milli
 | Metric | Current State | Target State | Business Value |
 |--------|---------------|--------------|----------------|
 | **Claim Processing Time** | 45-60 days | 10-15 days | 75% reduction, improved customer retention |
-| **Processing Cost** | $850/claim | $125/claim | $36.25B annual savings at 50M claims |
+| **Processing Cost** | ~$850/claim (est.) | Target <$200/claim | Savings to be quantified in Phase A |
 | **System Availability** | 95% (manual dependencies) | 99.99% | Reduced business disruption |
-| **Fraud Detection** | 15% accuracy | 85% with ML | $2.1B prevented fraud annually |
+| **Fraud Detection** | 15% accuracy | 85% with ML | Prevented fraud savings TBD |
 | **Customer Satisfaction** | 2.1/5 rating | 4.5/5 target | Competitive advantage retention |
+
+> Absolute savings figures (cost-per-claim, total annual savings) are placeholder estimates. They depend on YCompany's confirmed internal cost benchmarks and actual claim volumes, which will be established during Phase A discovery.
 
 ### 9.4 Technology Investment Justification
 
-**Total Annual Technology Investment:** $5.95M
-**Annual Business Process Savings:** $36.25B
-**Payback Period:** 2 months
-**10-Year NPV:** $362.5B (conservative estimate)
+**Total Project Investment:** $2.0M (14-month delivery, 12-person team)
+**Annual Infrastructure Cost (post go-live):** ~$48K - $99K/year
+**Payback Period:** Subject to Phase A ROI analysis using confirmed claim volumes and YCompany cost benchmarks.
 
-The technology stack represents 0.016% of the business savings it enables, making this an exceptionally high-ROI infrastructure investment.
+The proposed architecture prioritizes right-sizing for the actual workload while ensuring the platform can scale as claim volumes grow post-launch.
 
 ### 9.5 Compliance and Future-Proofing
 
