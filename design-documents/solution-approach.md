@@ -71,7 +71,7 @@ YCompany, a leading US auto insurance provider serving **200+ million customers*
 - **Enterprise Security** — Defense-in-depth with WAF, KMS encryption, and audit compliance
 - **99%+ of requests completed in < 5000ms** — Validated performance at 200M user scale
 - **99.99% availability** — Multi-AZ deployment with automatic failover
-- **$36.25B annual savings** — 85% reduction in claims processing costs
+- **Significant cost reduction** — Target 85% reduction in claims processing costs (ROI to be quantified in Phase A)
 
 ---
 
@@ -592,7 +592,7 @@ This solution approach document is supported by comprehensive technical delivera
 | **Customer Satisfaction** | 2.1/5 rating | 4.5/5 target | 114% improvement |
 | **Fraud Detection Rate** | 15% accuracy | 85% with ML | 467% improvement |
 | **System Availability** | 95% (manual dependencies) | 99.99% (automated) | Eliminated downtime |
-| **Annual Business Impact** | Baseline | $36.25B savings | Transformational ROI |
+| **Annual Business Impact** | Baseline | Significant cost reduction | ROI to be quantified in Phase A |
 
 ### 13.3 Compliance & Risk Management
 
