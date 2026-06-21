@@ -1,4 +1,4 @@
-# eClaims System – Solution Approach Document
+# eClaims System - Solution Approach Document
 
 | Field       | Value                                     |
 |-------------|-------------------------------------------|
@@ -6,7 +6,7 @@
 | Date        | May 14, 2026                              |
 | Status      | Final                                     |
 | Prepared by | Piyush Yadav                              |
-| Prepared for | YCompany – Claims Modernisation Programme |
+| Prepared for | YCompany - Claims Modernisation Programme |
 
 ---
 
@@ -23,7 +23,7 @@
    - 5.4 Multi-Layer Architecture
    - 5.5 Microservices Design
    - 5.6 Claims Lifecycle State Machine
-   - 5.7 Data Flow – Claims Submission
+   - 5.7 Data Flow - Claims Submission
    - 5.8 Notification & Event Flow
 6. [Technology Stack](#6-technology-stack)
 7. [Performance & Scalability](#7-performance--scalability)
@@ -56,22 +56,22 @@ YCompany, a leading US auto insurance provider serving **200+ million customers*
 
 | Portal | Audience |
 |--------|----------|
-| Customer Portal (Web + Mobile) | Policyholders – submit claims, track status, pay dues |
+| Customer Portal (Web + Mobile) | Policyholders - submit claims, track status, pay dues |
 | Internal Portal | Case Managers, Surveyors, Adjustors, Auditors, Reporting Mgmt |
-| Workshop Portal | Partner repair workshops – work orders, status updates, payment tracking |
+| Workshop Portal | Partner repair workshops - work orders, status updates, payment tracking |
 
 ### 1.3 Key Highlights
 
-- **Enterprise-Scale Architecture** — Designed for 200M+ customers across US geographies
-- **Event-driven microservices** — Amazon MSK (managed Kafka) as durable event backbone
-- **Java 21 + Virtual Threads** — Spring Boot 3.x microservices with cutting-edge concurrency
-- **Dual Identity Strategy** — AWS Cognito (200M customers) + Keycloak (internal staff)
-- **Multi-Database Architecture** — Aurora PostgreSQL + DynamoDB + Redshift for optimal performance
-- **AI/ML Integration** — AWS SageMaker for fraud detection, Textract for document OCR
-- **Enterprise Security** — Defense-in-depth with WAF, KMS encryption, and audit compliance
-- **99%+ of requests completed in < 5000ms** — Validated performance at 200M user scale
-- **99.99% availability** — Multi-AZ deployment with automatic failover
-- **Significant cost reduction** — Target 85% reduction in claims processing costs (ROI to be quantified in Phase A)
+- **Enterprise-Scale Architecture** - Designed for 200M+ customers across US geographies
+- **Event-driven microservices** - Amazon MSK (managed Kafka) as durable event backbone
+- **Java 21 + Virtual Threads** - Spring Boot 3.x microservices with cutting-edge concurrency
+- **Dual Identity Strategy** - AWS Cognito (200M customers) + Keycloak (internal staff)
+- **Multi-Database Architecture** - Aurora PostgreSQL + DynamoDB + Redshift for optimal performance
+- **AI/ML Integration** - AWS SageMaker for fraud detection, Textract for document OCR
+- **Enterprise Security** - Defense-in-depth with WAF, KMS encryption, and audit compliance
+- **99%+ of requests completed in < 5000ms** - Validated performance at 200M user scale
+- **99.99% availability** - Multi-AZ deployment with automatic failover
+- **Significant cost reduction** - Target 85% reduction in claims processing costs (ROI to be quantified in Phase A)
 
 ---
 
@@ -79,7 +79,7 @@ YCompany, a leading US auto insurance provider serving **200+ million customers*
 
 ### Infrastructure
 - AWS is the primary cloud provider (primary region: `us-east-1`, DR: `us-west-2`)
-- Container orchestration: AWS ECS Fargate (Phase 1) → Amazon EKS (Phase 2)
+- Container orchestration: AWS ECS Fargate (Phase 1) -> Amazon EKS (Phase 2)
 - On-prem deployment supported via Kubernetes (Phase 3, if regulatory requirements demand)
 - Infrastructure provisioned as code via AWS CDK (TypeScript) with Terraform as backup
 - Minimum 10 Mbps internet for web users; 3G or better for mobile
@@ -116,7 +116,7 @@ YCompany, a leading US auto insurance provider serving **200+ million customers*
 - Track real-time claim status
 - Change correspondence address and billing cycle
 - Select partner workshop; book appointment from portal
-- Select rental vehicle from partner (stub – Phase 1)
+- Select rental vehicle from partner (stub - Phase 1)
 - View repair progress via workshop work order updates
 - Receive email/SMS/push notifications on all status changes
 - Make electronic payment for repair dues
@@ -153,8 +153,8 @@ YCompany, a leading US auto insurance provider serving **200+ million customers*
 ### 3.2 Out of Scope
 
 - New policy issuance or policy management
-- Rental vehicle booking (Phase 2 — stub only in Phase 1)
-- ML-based fraud detection (Phase 2 — rule engine in Phase 1)
+- Rental vehicle booking (Phase 2 - stub only in Phase 1)
+- ML-based fraud detection (Phase 2 - rule engine in Phase 1)
 - Multi-currency or multi-language support
 - Partner workshop self-registration
 - Enterprise SSO / Active Directory integration (Phase 2)
@@ -225,83 +225,12 @@ The eClaims system architecture is presented through multiple diagram views to s
 - Source: `design-documents/solution-architecture.mmd`
 - [Click here to view the diagram](solution-architecture.svg)
 
----
 
-### 5.4 Multi-Layer Architecture
 
-```mermaid
-%%{init: {"theme": "default"}}%%
-flowchart TB
-    classDef layer1 fill:#E3F2FD,stroke:#1565C0,color:#0D47A1
-    classDef layer2 fill:#FFF8E1,stroke:#F57F17,color:#E65100
-    classDef layer3 fill:#E8F5E9,stroke:#2E7D32,color:#1B5E20
-    classDef layer4 fill:#F3E5F5,stroke:#6A1B9A,color:#4A148C
-    classDef layer5 fill:#E0F2F1,stroke:#00695C,color:#004D40
-    classDef layer6 fill:#FCE4EC,stroke:#AD1457,color:#880E4F
-
-    subgraph L1["LAYER 1 — PRESENTATION"]
-        direction LR
-        A1["React Web\n(TypeScript)"]
-        A2["React Native\n(Mobile iOS + Android)"]
-        A3["Internal Web\n(Admin / Reports)"]
-    end
-
-    subgraph L2["LAYER 2 — API & SECURITY"]
-        direction LR
-        B0["Application Load Balancer\n- HTTPS Termination\n- Health-based Routing\n- Multi-AZ Failover"]
-        B1["Amazon API Gateway\n- Rate Limiting\n- Throttling\n- Routing / Logging"]
-        B2["Identity Management\n- AWS Cognito (Customers)\n- Keycloak (Internal)\n- MFA · Token Issuance"]
-    end
-
-    subgraph L3["LAYER 3 — BUSINESS SERVICES"]
-        direction LR
-        C1["Claims\nService"]
-        C2["Workflow\nService\n(Camunda)"]
-        C3["Document\nService"]
-        C4["Workshop\nService"]
-        C5["Reporting\nService"]
-        C6["Payment\nService"]
-        C7["Notification\nService\n(Node.js)"]
-    end
-
-    subgraph L4["LAYER 4 — MESSAGING"]
-        D1["Apache Kafka (AWS MSK)\nTopics: claim-events / notifications / audit / payments"]
-    end
-
-    subgraph L5["LAYER 5 — DATA"]
-        direction LR
-        E1["Amazon Aurora PostgreSQL\n(Multi-AZ)\nPrimary Store"]
-        E2["AWS S3\nDocument Store"]
-        E3["Amazon ElastiCache\n(Redis)\nCache & Sessions"]
-    end
-
-    subgraph L6["LAYER 6 — INFRASTRUCTURE & OBSERVABILITY"]
-        direction LR
-        F1["AWS ECS Fargate\nContainer Orchestration"]
-        F2["ELK Stack\nCentralised Logs"]
-        F3["Prometheus\n+ Grafana\nMetrics"]
-        F4["AWS CloudWatch\nAlarms & Alerts"]
-        F5["AWS CDK\nInfra as Code"]
-    end
-
-    L1 -->|HTTPS| L2
-    L2 -->|Authenticated Requests| L3
-    L3 -->|Events| L4
-    L4 -->|Event Consumption| L3
-    L3 -->|Reads / Writes| L5
-    L3 & L5 -.->|Logs / Metrics| L6
-
-    class A1,A2,A3 layer1
-    class B0,B1,B2 layer2
-    class C1,C2,C3,C4,C5,C6,C7 layer3
-    class D1 layer4
-    class E1,E2,E3 layer5
-    class F1,F2,F3,F4,F5 layer6
-```
 
 ---
 
-### 5.5 Microservices Design
+### 5.4 Microservices Design
 
 | Service | Technology | Responsibility | Owns Data |
 |---------|-----------|----------------|-----------|
@@ -326,7 +255,7 @@ flowchart TB
 
 ---
 
-### 5.7 Data Flow – Claims Submission
+### 5.7 Data Flow - Claims Submission
 
 ```mermaid
 %%{init: {"theme": "default"}}%%
@@ -344,7 +273,7 @@ sequenceDiagram
     participant DB as PostgreSQL\n(Aurora)
 
     rect rgb(224, 242, 254)
-        Note over C,CP: Step 1 — Authentication
+        Note over C,CP: Step 1 - Authentication
         C->>CP: Login with credentials
         CP->>GW: POST /auth/token
         GW->>IDP: Validate credentials
@@ -353,7 +282,7 @@ sequenceDiagram
     end
 
     rect rgb(232, 245, 233)
-        Note over C,DB: Step 2 — Claim Submission
+        Note over C,DB: Step 2 - Claim Submission
         C->>CP: Fill accident details + upload photos/report
         CP->>GW: POST /api/v1/claims (multipart form)
         GW->>IDP: Validate JWT + RBAC check
@@ -369,11 +298,11 @@ sequenceDiagram
         WFS-->>CS: Process instance ID
         CS-->>GW: 201 Created {claimId, status}
         GW-->>CP: Claim ID returned
-        CP-->>C: Claim submitted — Ref #CLM-2026-001234
+        CP-->>C: Claim submitted - Ref #CLM-2026-001234
     end
 
     rect rgb(243, 229, 245)
-        Note over CS,NS: Step 3 — Event & Notification
+        Note over CS,NS: Step 3 - Event & Notification
         CS->>KB: Publish ClaimSubmitted event\n{claimId, customerId, policyId}
         WFS->>KB: Publish AssignmentTriggered event
         KB->>NS: Consume ClaimSubmitted
@@ -438,7 +367,7 @@ sequenceDiagram
 | Log Aggregation | ELK Stack + CloudWatch Logs                | Searchable logs, correlation | Security event analysis, debugging |
 | Alerting & On-Call | PagerDuty + CloudWatch Alarms              | 24x7 incident response | MTTR ≤ 15 minutes, escalation policies |
 | **Security & Compliance** |
-| Network Security | AWS WAF + Shield Advanced                  | DDoS protection, OWASP Top 10 | $3K/month advanced threat protection |
+| Network Security | AWS WAF + Shield Advanced                  | DDoS protection, OWASP Top 10 | Managed OWASP rule groups at edge with DDoS response team access |
 | Secrets Management | AWS Secrets Manager + KMS                  | Automatic rotation, encryption | Customer-managed keys, compliance |
 | **DevOps & Infrastructure** |
 | Infrastructure as Code | AWS CDK (TypeScript) / Terraform           | Version-controlled infrastructure | AWS CDK for native services, Terraform for hybrid deployments |
@@ -447,10 +376,10 @@ sequenceDiagram
 
 ### 6.2 Technology Investment Justification
 
-**Total Annual Technology Cost:** $5.95M  
-**Annual Business Process Savings:** $36.25B  
-**ROI Payback Period:** 2 months  
-**Technology ROI:** 609,000%
+**Implementation Approach:** Phased 18-month delivery with a cross-functional team of 12-15 engineers  
+**Infrastructure Sizing:** Right-sized using Serverless compute (ECS Fargate) and managed AWS services with auto-scaling - TCO to be confirmed following Phase A load testing  
+**Annual Business Process Savings:** To be quantified in Phase A (Targeting 85% processing cost reduction)  
+**ROI Payback Period:** Subject to Phase A baseline metrics and YCompany's internal cost benchmarks
 
 ---
 
@@ -503,7 +432,7 @@ To support the 200M+ user scale while balancing operational complexity and contr
 | Data | PII protection | Field-level encryption for SSN, bank account details |
 | API | Rate limiting | Amazon API Gateway throttling and usage plans |
 | API | Input validation | Spring Validation (Bean Validation 3.0) on all DTOs |
-| Audit | No-repudiation | Kafka `audit-events` topic — append-only, 7yr retention |
+| Audit | No-repudiation | Kafka `audit-events` topic - append-only, 7yr retention |
 | Audit | User action log | Every write operation logged with userId, timestamp, payload hash |
 | Fraud | Detection | Amazon SageMaker ML-based scoring + rule engine |
 | Secrets | Key management | AWS Secrets Manager + KMS; no secrets in codebase |
@@ -513,14 +442,14 @@ To support the 200M+ user scale while balancing operational complexity and contr
 
 | Role | Claims | Documents | Assessment | Adjudication | Reports | Workshop | Override |
 |------|--------|-----------|-----------|-------------|---------|---------|---------|
-| Customer | Own only | Own only | View | — | — | View status | — |
-| Surveyor | Assigned | Assigned | Submit | — | — | — | — |
-| Adjustor | Assigned | Assigned | View | Submit | — | View | — |
+| Customer | Own only | Own only | View | - | - | View status | - |
+| Surveyor | Assigned | Assigned | Submit | - | - | - | - |
+| Adjustor | Assigned | Assigned | View | Submit | - | View | - |
 | Case Manager | All | All | View | View | Regional | View | Yes |
-| Auditor | All | All | View | View | All | View | — |
-| Workshop | Linked | Linked | — | — | Own billing | Submit | — |
-| Regional Mgr | Regional | — | — | — | Regional | — | — |
-| Top Management | — | — | — | — | All | — | — |
+| Auditor | All | All | View | View | All | View | - |
+| Workshop | Linked | Linked | - | - | Own billing | Submit | - |
+| Regional Mgr | Regional | - | - | - | Regional | - | - |
+| Top Management | - | - | - | - | All | - | - |
 
 ---
 
@@ -588,7 +517,7 @@ This solution approach document is supported by comprehensive technical delivera
 | Metric | Current Manual Process | Digital eClaims Solution | Improvement |
 |--------|----------------------|---------------------------|-------------|
 | **Claims Processing Time** | 45-60 days | 10-15 days | 75% faster |
-| **Processing Cost per Claim** | $850 | $125 | 85% reduction |
+| **Processing Cost per Claim** | Baseline (to be confirmed in Phase A) | Significant reduction | 85% reduction target |
 | **Customer Satisfaction** | 2.1/5 rating | 4.5/5 target | 114% improvement |
 | **Fraud Detection Rate** | 15% accuracy | 85% with ML | 467% improvement |
 | **System Availability** | 95% (manual dependencies) | 99.99% (automated) | Eliminated downtime |
@@ -635,7 +564,7 @@ To convert to Visio / draw.io:
 | RBAC | Role-Based Access Control                                          |
 | RTO | Recovery Time Objective                                            |
 | RPO | Recovery Point Objective                                           |
-| WORM | Write Once Read Many – immutable storage policy                    |
+| WORM | Write Once Read Many - immutable storage policy                    |
 | MSK | Amazon Managed Streaming for Kafka                                 |
 | ECS | Elastic Container Service                                          |
 | WAF | Web Application Firewall                                           |

@@ -36,4 +36,4 @@
 
 ---
 
-*See [q1-solution-approach.md](./q1-solution-approach.md) for the full architecture document.*
+*See [solution-approach.md](./solution-approach.md) for the full architecture document.*
