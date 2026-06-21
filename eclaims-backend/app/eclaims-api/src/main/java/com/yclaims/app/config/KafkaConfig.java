@@ -1,5 +1,6 @@
 package com.yclaims.app.config;
 
+import com.yclaims.contracts.KafkaTopics;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -56,7 +57,7 @@ public class KafkaConfig {
 
     @Bean
     public NewTopic claimEventsTopic() {
-        return TopicBuilder.name("claim-events")
+        return TopicBuilder.name(KafkaTopics.CLAIM_EVENTS)
                 .partitions(claimEventsPartitions)
                 .replicas(replicationFactor)
                 .build();
@@ -64,7 +65,7 @@ public class KafkaConfig {
 
     @Bean
     public NewTopic auditEventsTopic() {
-        return TopicBuilder.name("audit-events")
+        return TopicBuilder.name(KafkaTopics.AUDIT_EVENTS)
                 .partitions(auditEventsPartitions)
                 .replicas(replicationFactor)
                 .build();
@@ -72,7 +73,7 @@ public class KafkaConfig {
 
     @Bean
     public NewTopic paymentEventsTopic() {
-        return TopicBuilder.name("payment-events")
+        return TopicBuilder.name(KafkaTopics.PAYMENT_EVENTS)
                 .partitions(paymentEventsPartitions)
                 .replicas(replicationFactor)
                 .build();
@@ -80,7 +81,7 @@ public class KafkaConfig {
 
     @Bean
     public NewTopic repairEventsTopic() {
-        return TopicBuilder.name("repair-events")
+        return TopicBuilder.name(KafkaTopics.REPAIR_EVENTS)
                 .partitions(repairEventsPartitions)
                 .replicas(replicationFactor)
                 .build();
@@ -88,7 +89,7 @@ public class KafkaConfig {
 
     @Bean
     public NewTopic notificationEventsTopic() {
-        return TopicBuilder.name("notification-events")
+        return TopicBuilder.name(KafkaTopics.NOTIFICATION_EVENTS)
                 .partitions(notificationEventsPartitions)
                 .replicas(replicationFactor)
                 .build();

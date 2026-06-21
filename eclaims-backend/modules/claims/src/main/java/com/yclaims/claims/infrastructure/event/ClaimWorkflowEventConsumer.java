@@ -6,6 +6,7 @@ import com.yclaims.claims.application.command.UpdateClaimStatusCommand;
 import com.yclaims.claims.domain.model.ClaimStatus;
 import com.yclaims.claims.infrastructure.persistence.ClaimEntity;
 import com.yclaims.claims.infrastructure.persistence.ClaimJpaRepository;
+import com.yclaims.contracts.KafkaTopics;
 import com.yclaims.contracts.events.DomainEvent;
 import com.yclaims.contracts.events.v1.AdjustorAssignedPayload;
 import com.yclaims.contracts.events.v1.RentalSkippedPayload;
@@ -38,7 +39,7 @@ public class ClaimWorkflowEventConsumer {
     private final ObjectMapper objectMapper;
 
     @KafkaListener(
-            topics = "claim-events",
+            topics = KafkaTopics.CLAIM_EVENTS,
             groupId = "claims-workflow-consumer",
             containerFactory = "kafkaListenerContainerFactory"
     )

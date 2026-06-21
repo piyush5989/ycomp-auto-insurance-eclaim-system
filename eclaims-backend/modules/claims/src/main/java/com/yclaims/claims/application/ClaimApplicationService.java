@@ -14,6 +14,9 @@ import com.yclaims.claims.infrastructure.persistence.ClaimEndorsementEntity;
 import com.yclaims.claims.infrastructure.persistence.ClaimEndorsementJpaRepository;
 import com.yclaims.claims.presentation.dto.*;
 import com.yclaims.claims.presentation.mapper.ClaimDtoMapper;
+import com.yclaims.contracts.KafkaTopics;
+import com.yclaims.contracts.api.EndorsementType;
+import com.yclaims.contracts.api.UserRole;
 import com.yclaims.contracts.events.DomainEvent;
 import com.yclaims.contracts.events.v1.ClaimCreatedPayload;
 import com.yclaims.contracts.events.v1.ClaimStatusChangedPayload;
@@ -94,7 +97,7 @@ public class ClaimApplicationService {
         publishClaimCreatedEvent(saved, cmd.correlationId());
         auditPublisher.publish(new AuditEvent(
                 UUID.randomUUID().toString(), cmd.correlationId(),
-                cmd.requestingUserId(), "ROLE_CUSTOMER",
+                cmd.requestingUserId(), UserRole.CUSTOMER.toSpringRole(),
                 "CLAIM_SUBMITTED", "Claim", saved.getId().toString(),
                 null, saved.getStatus().name(),
                 null, null, null, Instant.now()
@@ -311,7 +314,7 @@ public class ClaimApplicationService {
                 Instant.now(),
                 payload
         );
-        eventPublisher.publish("claim-events", event);
+        eventPublisher.publish(KafkaTopics.CLAIM_EVENTS, event);
     }
 
     private void publishStatusChangedEvent(Claim claim, ClaimStatus previous, UpdateClaimStatusCommand cmd) {
@@ -336,7 +339,7 @@ public class ClaimApplicationService {
                 Instant.now(),
                 payload
         );
-        eventPublisher.publish("claim-events", event);
+        eventPublisher.publish(KafkaTopics.CLAIM_EVENTS, event);
 
         if (claim.getStatus() == ClaimStatus.SURVEYED && previous != ClaimStatus.SURVEYED) {
             publishAssessmentSubmittedEvent(claim, cmd);
@@ -367,7 +370,7 @@ public class ClaimApplicationService {
                 Instant.now(),
                 payload
         );
-        eventPublisher.publish("claim-events", event);
+        eventPublisher.publish(KafkaTopics.CLAIM_EVENTS, event);
         log.info("[{}] Assessment submitted | claim={} surveyor={} amount={}",
                 cmd.correlationId(), claim.getId().getValue(), claim.getAssignedSurveyorId(), claim.getAssessedAmount());
     }
@@ -401,7 +404,7 @@ public class ClaimApplicationService {
                 Instant.now(),
                 payload
         );
-        eventPublisher.publish("claim-events", event);
+        eventPublisher.publish(KafkaTopics.CLAIM_EVENTS, event);
         log.info("[{}] Claim adjudicated | claim={} decision={} adjustor={}",
                 cmd.correlationId(), claim.getId().getValue(), claim.getStatus(), claim.getAssignedAdjustorId());
     }
@@ -420,7 +423,7 @@ public class ClaimApplicationService {
         String endorsementNote = String.format("Surveyor reassigned from %s to %s. Reason: %s",
                 previousSurveyorId != null ? previousSurveyorId : "unassigned",
                 newSurveyorId, reason);
-        addEndorsement(claimId, endorsementNote, reassignedBy, "REASSIGNMENT");
+        addEndorsement(claimId, endorsementNote, reassignedBy, EndorsementType.REASSIGNMENT.name());
 
         log.info("[{}] Claim {} surveyor reassigned from {} to {} by {}",
                 correlationId, claimId, previousSurveyorId, newSurveyorId, reassignedBy);
@@ -442,7 +445,7 @@ public class ClaimApplicationService {
         String endorsementNote = String.format("Adjustor reassigned from %s to %s. Reason: %s",
                 previousAdjustorId != null ? previousAdjustorId : "unassigned",
                 newAdjustorId, reason);
-        addEndorsement(claimId, endorsementNote, reassignedBy, "REASSIGNMENT");
+        addEndorsement(claimId, endorsementNote, reassignedBy, EndorsementType.REASSIGNMENT.name());
 
         log.info("[{}] Claim {} adjustor reassigned from {} to {} by {}",
                 correlationId, claimId, previousAdjustorId, newAdjustorId, reassignedBy);
@@ -478,11 +481,11 @@ public class ClaimApplicationService {
         String endorsementNote = String.format("Decision overridden by case manager. Previous amount: %s, New amount: %s. Reason: %s",
                 previousAmount != null ? previousAmount.toString() : "none",
                 newAmount.toString(), reason);
-        addEndorsement(claimId, endorsementNote, overrideBy, "OVERRIDE");
+        addEndorsement(claimId, endorsementNote, overrideBy, EndorsementType.OVERRIDE.name());
 
         auditPublisher.publish(new AuditEvent(
                 UUID.randomUUID().toString(), correlationId,
-                overrideBy, "ROLE_CASE_MANAGER",
+                overrideBy, UserRole.CASE_MANAGER.toSpringRole(),
                 "CLAIM_OVERRIDDEN", "Claim", claimId.toString(),
                 previousAmount != null ? previousAmount.toString() : null,
                 newAmount.toString(),

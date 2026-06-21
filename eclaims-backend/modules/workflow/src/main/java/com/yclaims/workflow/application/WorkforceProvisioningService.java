@@ -1,5 +1,6 @@
 package com.yclaims.workflow.application;
 
+import com.yclaims.contracts.api.UserRole;
 import com.yclaims.workflow.infrastructure.persistence.AdjustorEntity;
 import com.yclaims.workflow.infrastructure.persistence.AdjustorJpaRepository;
 import com.yclaims.workflow.infrastructure.persistence.SurveyorEntity;
@@ -43,8 +44,8 @@ import java.util.UUID;
 @Slf4j
 public class WorkforceProvisioningService {
 
-    private static final String ROLE_SURVEYOR = "ROLE_SURVEYOR";
-    private static final String ROLE_ADJUSTOR = "ROLE_ADJUSTOR";
+    private static final String ROLE_SURVEYOR = UserRole.SURVEYOR.toSpringRole();
+    private static final String ROLE_ADJUSTOR = UserRole.ADJUSTOR.toSpringRole();
 
     private final SurveyorJpaRepository surveyorRepository;
     private final AdjustorJpaRepository adjustorRepository;

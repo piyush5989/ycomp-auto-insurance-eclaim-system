@@ -1,6 +1,7 @@
 package com.yclaims.notifications.infrastructure.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yclaims.contracts.KafkaTopics;
 import com.yclaims.contracts.events.DomainEvent;
 import com.yclaims.contracts.events.v1.ClaimAdjudicatedPayload;
 import com.yclaims.contracts.events.v1.ClaimCreatedPayload;
@@ -34,7 +35,7 @@ public class ClaimEventConsumer {
     private final ObjectMapper objectMapper;
 
     @KafkaListener(
-        topics = "claim-events",
+        topics = KafkaTopics.CLAIM_EVENTS,
         groupId = "notification-service",
         containerFactory = "kafkaListenerContainerFactory"
     )

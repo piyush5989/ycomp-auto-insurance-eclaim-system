@@ -1,5 +1,6 @@
 package com.yclaims.workshops.application;
 
+import com.yclaims.contracts.KafkaTopics;
 import com.yclaims.contracts.events.DomainEvent;
 import com.yclaims.contracts.events.v1.RepairStatusUpdatedPayload;
 import com.yclaims.contracts.events.v1.VehicleDroppedOffPayload;
@@ -280,7 +281,7 @@ public class WorkshopApplicationService {
                 "v1", Instant.now(),
                 new WorkshopSelectedPayload(claimId, workshopId, workshop.getName(),
                         workshop.getZipCode(), null, true));
-        kafkaTemplate.send("claim-events", claimId.toString(), event);
+        kafkaTemplate.send(KafkaTopics.CLAIM_EVENTS, claimId.toString(), event);
     }
 
     /**
@@ -356,7 +357,7 @@ public class WorkshopApplicationService {
                 claimId.toString(), "Claim",
                 "v1", Instant.now(),
                 dropOffPayload);
-        kafkaTemplate.send("claim-events", claimId.toString(), event);
+        kafkaTemplate.send(KafkaTopics.CLAIM_EVENTS, claimId.toString(), event);
 
         return dropOffId;
     }

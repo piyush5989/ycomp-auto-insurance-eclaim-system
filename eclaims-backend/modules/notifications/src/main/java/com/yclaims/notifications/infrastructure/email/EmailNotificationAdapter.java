@@ -1,5 +1,6 @@
 package com.yclaims.notifications.infrastructure.email;
 
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.SimpleMailMessage;
@@ -20,24 +21,24 @@ public class EmailNotificationAdapter {
 
     private final JavaMailSender mailSender;
 
+    @Retry(name = "emailService", fallbackMethod = "emailFallback")
     public void sendEmail(String to, String subject, String body) {
         if (to == null || to.isBlank()) {
-            log.warn("Skipping email — no recipient address");
+            log.warn("Skipping email - no recipient address");
             return;
         }
 
-        try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom("noreply@eclaims.io");
-            message.setTo(to);
-            message.setSubject(subject);
-            message.setText(body);
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom("noreply@eclaims.io");
+        message.setTo(to);
+        message.setSubject(subject);
+        message.setText(body);
 
-            mailSender.send(message);
-            log.info("Email sent to {} | Subject: {}", to, subject);
-        } catch (Exception e) {
-            // Notification failure must never fail the business operation
-            log.error("Failed to send email to {}: {}", to, e.getMessage());
-        }
+        mailSender.send(message);
+        log.info("Email sent to {} | Subject: {}", to, subject);
+    }
+
+    public void emailFallback(String to, String subject, String body, Exception ex) {
+        log.error("Email delivery failed after retries - to={} subject={} error={}", to, subject, ex.getMessage());
     }
 }
