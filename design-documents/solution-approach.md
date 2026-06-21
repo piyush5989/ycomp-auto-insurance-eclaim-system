@@ -20,11 +20,10 @@
    - 5.1 Architecture Principles
    - 5.2 High-Level System Architecture
    - 5.3 Architecture Diagrams
-   - 5.4 Multi-Layer Architecture
-   - 5.5 Microservices Design
-   - 5.6 Claims Lifecycle State Machine
-   - 5.7 Data Flow - Claims Submission
-   - 5.8 Notification & Event Flow
+   - 5.4 Microservices Design
+   - 5.5 Claims Lifecycle State Machine
+   - 5.6 Data Flow - Claims Submission
+   - 5.7 Notification & Event Flow
 6. [Technology Stack](#6-technology-stack)
 7. [Performance & Scalability](#7-performance--scalability)
 8. [Container Orchestration Strategy](#8-container-orchestration-strategy)
@@ -249,13 +248,13 @@ The eClaims system architecture is presented through multiple diagram views to s
 
 ---
 
-### 5.6 Claims Lifecycle State Machine
+### 5.5 Claims Lifecycle State Machine
 
 - [Click here to view the diagram](claim-states-diagram.svg)
 
 ---
 
-### 5.7 Data Flow - Claims Submission
+### 5.6 Data Flow - Claims Submission
 
 ```mermaid
 %%{init: {"theme": "default"}}%%
@@ -315,7 +314,7 @@ sequenceDiagram
 
 ---
 
-### 5.8 Notification & Event Flow
+### 5.7 Notification & Event Flow
 
 - [Click here to view the diagram](event-driven-architecture.svg)
 
