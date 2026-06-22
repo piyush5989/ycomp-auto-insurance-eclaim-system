@@ -19,7 +19,40 @@ All architecture diagrams (System Context, Solution Architecture, Deployment, CI
 
 ---
 
-## 1. What you are running
+## 1. POC Scope - What is Implemented vs. Deferred
+
+The design documents describe the full production-grade system for 200M+ users. This POC is intentionally scoped to demonstrate architectural judgment - clean layering, module boundaries, event-driven design, and RBAC - rather than full feature completeness. The table below maps each design document feature to its POC status.
+
+| Design Document Feature | POC Status | Notes |
+|------------------------|------------|-------|
+| Claims lifecycle - submit, assign, survey, adjudicate, approve, reject, pay, settle | - Implemented | Full state machine with all transitions |
+| Customer portal - submit claim, track status, select workshop, upload documents, pay | - Implemented | All screens working end-to-end |
+| Internal portal - surveyor, adjustor, case manager, auditor views | - Implemented | Role-based access enforced via Keycloak |
+| Workshop portal - work orders, repair status updates, payment tracking | - Implemented | Full workshop workflow |
+| Auto-assignment of surveyor and adjustor by ZIP and workload | - Implemented | Rule-based assignment via workflow module |
+| Case manager delegation, override, reassignment | - Implemented | Audited with endorsement trail |
+| Email and in-app notifications on all status changes | - Implemented | Mailhog captures all emails locally |
+| Document upload and storage | - Implemented | MinIO (S3-compatible) with local fallback |
+| Fraud detection - rule-based | - Implemented | 4 rules: THEFT without police report, repeat vehicle claims, amount thresholds |
+| Reporting - KPI dashboards, fraud ageing, regional and management reports | - Implemented | Pre-aggregated read model with scheduled refresh |
+| Electronic payment with idempotency | - Implemented | Mock gateway; Redis idempotency key store |
+| Rental vehicle selection | - Stub | Module and UI exist; booking API is a stub (Phase 2) |
+| SMS notifications | - Stub | Port defined; console adapter used locally; Twilio adapter wired when `TWILIO_ENABLED=true` |
+| Fraud detection - ML-based (SageMaker) | - Deferred | Phase 2; rule engine covers Phase 1 |
+| AWS Cognito for customer identity (200M users) | - Deferred | Keycloak used for POC; same OAuth2/JWT contract, swap is adapter-only |
+| AWS API Gateway, WAF, Shield | - Deferred | Nginx reverse proxy used locally; production topology described in deployment-diagram.svg |
+| Amazon MSK (managed Kafka) | - Deferred | Redpanda (Kafka-compatible) used locally; no application code change needed to switch |
+| Aurora PostgreSQL Multi-AZ, Redshift, DynamoDB | - Deferred | PostgreSQL 16 used locally; schema and query design are production-compatible |
+| Camunda 8 BPMN workflow engine | - Deferred | Auto-assignment service implements the same process logic; Camunda integration is Phase 2 |
+| AWS Textract OCR for document analysis | - Deferred | Phase 2; upload and storage are fully implemented |
+| Enterprise SSO / Active Directory federation | - Deferred | Phase 2; Keycloak supports AD federation via identity brokering |
+| Mobile app (React Native) | - Deferred | Customer portal is a PWA; React Native app is Phase 2 |
+| Push notifications (FCM / APNs) | - Deferred | Phase 2; notification port is defined and extensible |
+| AWS CDK / Terraform infrastructure code | - Deferred | Production deployment topology described in design documents |
+
+---
+
+## 2. What you are running
 
 The solution is a **modular monolith** with two main parts:
 
