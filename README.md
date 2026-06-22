@@ -21,7 +21,7 @@ All architecture diagrams (System Context, Solution Architecture, Deployment, CI
 
 ## 1. POC Scope - What is Implemented vs. Deferred
 
-The design documents describe the full production-grade system for 200M+ users. This POC is intentionally scoped to demonstrate architectural judgment - clean layering, module boundaries, event-driven design, and RBAC - rather than full feature completeness. The table below maps each design document feature to its POC status.
+The design documents describe the full production-grade system for 200M+ users. The table below maps each design document feature to its POC status.
 
 | Design Document Feature | POC Status | Notes |
 |------------------------|------------|-------|
@@ -187,16 +187,35 @@ Wait until Keycloak is healthy (**about 30 to 60 seconds** after start).
 
 ### 6.2 Run the backend
 
+#### Option A: Recommended - Using PowerShell script (Windows)
+
+```powershell
+cd eclaims-backend
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\restart-backend.ps1
+```
+
+This script automatically:
+- Stops any existing backend process on port 8090
+- Installs all required modules
+- Starts the backend with proper profile configuration
+- Handles PowerShell parameter parsing issues
+
+#### Option B: Direct Maven command
+
+If you prefer running Maven directly or are on Linux/macOS:
+
 ```bash
 cd eclaims-backend
 
-# On Windows PowerShell:
-.\mvnw.cmd spring-boot:run -pl app/eclaims-api -am -Dspring-boot.run.profiles=local
+# On Windows PowerShell (escape the parameter):
+.\mvnw.cmd spring-boot:run -pl app/eclaims-api -am "-Dspring-boot.run.profiles=local"
 
 # On Linux/macOS:
 chmod +x mvnw
 ./mvnw spring-boot:run -pl app/eclaims-api -am -Dspring-boot.run.profiles=local
 ```
+
+**Note for Windows users**: If you encounter parameter parsing errors with the direct Maven command, use Option A (PowerShell script) which handles these issues automatically.
 
 Leave this terminal open. The API listens on **http://localhost:8090**.
 
@@ -281,6 +300,7 @@ cd eclaims-backend
 | Keycloak or API not ready | Wait longer; check `docker compose ps` and container logs |
 | Database connection errors | Use database reset script: `.\reset-db-simple.ps1` |
 | Permission denied errors (Windows) | Run PowerShell as Administrator |
+| Maven parameter parsing errors (Windows) | Use the PowerShell script: `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\restart-backend.ps1` |
 | `mvnw` permission denied (Linux/macOS) | Run `chmod +x mvnw` |
 | `npm install` fails | Use **Node 20**; delete `node_modules` and retry |
 | "Failed to load claim" errors | Reset Keycloak realm: `.\scripts\reset-keycloak-realm.ps1` |
@@ -301,6 +321,13 @@ cd eclaims-backend
 - Keycloak takes 1-2 minutes to become healthy after Postgres is ready
 - Check container logs: `docker compose logs keycloak` or `docker compose logs eclaims-backend`
 - Ensure at least 8GB RAM is available for Docker
+
+**Backend startup issues (Windows):**
+- PowerShell can have issues parsing Maven `-D` parameters, causing "Unknown lifecycle phase" errors
+- The PowerShell script (`.\scripts\restart-backend.ps1`) resolves these issues and also:
+  - Automatically stops conflicting processes on port 8090
+  - Ensures all modules are properly installed before starting
+  - Handles UTF-8 encoding and profile configuration correctly
 
 ---
 

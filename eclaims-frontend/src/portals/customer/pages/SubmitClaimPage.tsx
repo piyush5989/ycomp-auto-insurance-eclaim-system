@@ -206,7 +206,7 @@ export default function SubmitClaimPage() {
           >
             <Info className="w-5 h-5 shrink-0 text-blue-600 mt-0.5" aria-hidden />
             <div>
-              <p className="font-medium text-blue-950">Demo account — policy &amp; vehicle prefilled</p>
+              <p className="font-medium text-blue-950">Demo account - policy &amp; vehicle prefilled</p>
               <p className="text-blue-800/90 mt-0.5">{demoPrefill.hint}</p>
               <p className="text-xs text-blue-700/80 mt-1">
                 Incident details are yours to enter; backend validates policy + plate against the stub PMS.

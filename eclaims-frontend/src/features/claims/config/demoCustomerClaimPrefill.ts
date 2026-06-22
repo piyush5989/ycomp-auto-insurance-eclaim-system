@@ -4,7 +4,7 @@ import type { SubmitClaimFormData } from '@/features/claims/validation/submitCla
  * Demo-only: maps logged-in Keycloak users to policy + vehicle that match
  * `PolicyServiceStubAdapter` (local/test backend). Production PMS will drive this from APIs later.
  *
- * Two demo customers — distinct policy numbers and plates for parallel testing.
+ * Two demo customers - distinct policy numbers and plates for parallel testing.
  */
 export type DemoClaimPrefill = Pick<SubmitClaimFormData, 'policyNumber' | 'vehicleRegistration'> & {
   /** Shown in a small banner on Submit Claim */
@@ -16,32 +16,32 @@ const DEMO_CUSTOMERS: Record<string, DemoClaimPrefill> = {
   '10000000-0000-0000-0000-000000000001': {
     policyNumber: 'POL-00000001',
     vehicleRegistration: 'CA7H2K901',
-    hint: 'John Customer — auto policy (POL-00000001), vehicle CA7H2K901',
+    hint: 'John Customer - auto policy (POL-00000001), vehicle CA7H2K901',
   },
   '10000000-0000-0000-0000-000000000002': {
     policyNumber: 'POL-00000002',
     vehicleRegistration: 'TX9K4M882',
-    hint: 'Jane Customer — auto policy (POL-00000002), vehicle TX9K4M882',
+    hint: 'Jane Customer - auto policy (POL-00000002), vehicle TX9K4M882',
   },
   customer1: {
     policyNumber: 'POL-00000001',
     vehicleRegistration: 'CA7H2K901',
-    hint: 'John Customer — auto policy (POL-00000001), vehicle CA7H2K901',
+    hint: 'John Customer - auto policy (POL-00000001), vehicle CA7H2K901',
   },
   customer2: {
     policyNumber: 'POL-00000002',
     vehicleRegistration: 'TX9K4M882',
-    hint: 'Jane Customer — auto policy (POL-00000002), vehicle TX9K4M882',
+    hint: 'Jane Customer - auto policy (POL-00000002), vehicle TX9K4M882',
   },
   'customer1@eclaims.test': {
     policyNumber: 'POL-00000001',
     vehicleRegistration: 'CA7H2K901',
-    hint: 'John Customer — auto policy (POL-00000001), vehicle CA7H2K901',
+    hint: 'John Customer - auto policy (POL-00000001), vehicle CA7H2K901',
   },
   'customer2@eclaims.test': {
     policyNumber: 'POL-00000002',
     vehicleRegistration: 'TX9K4M882',
-    hint: 'Jane Customer — auto policy (POL-00000002), vehicle TX9K4M882',
+    hint: 'Jane Customer - auto policy (POL-00000002), vehicle TX9K4M882',
   },
 }
 
