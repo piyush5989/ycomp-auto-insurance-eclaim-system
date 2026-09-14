@@ -23,7 +23,7 @@ import java.util.Map;
  * Flow:
  *  1. Validate policyNumber + vehicleRegistration via PolicyServicePort (same stub/prod adapter as claims)
  *  2. If valid, create a Keycloak user with the 'customer' realm role + customerId attribute
- *  3. Return confirmation — customer can now log in via the normal Keycloak flow
+ *  3. Return confirmation - customer can now log in via the normal Keycloak flow
  *
  * Enterprise note: Replace Keycloak Admin calls with CIAM provisioning API (Okta/Auth0/ForgeRock).
  * PolicyServicePort validation remains unchanged regardless of CIAM choice.
@@ -54,7 +54,8 @@ public class OnboardingApplicationService {
         try {
             UserRepresentation user = buildUserRepresentation(
                     username, request.email(), request.password(),
-                    policy.customerName(), policy.customerId());
+                    policy.customerName(), policy.customerId(),
+                    request.policyNumber(), request.vehicleRegistration());
 
             Response response = keycloakAdminClient
                     .realm(keycloakTargetRealm)
@@ -94,7 +95,9 @@ public class OnboardingApplicationService {
 
     private UserRepresentation buildUserRepresentation(String username, String email,
                                                          String password, String fullName,
-                                                         String customerId) {
+                                                         String customerId,
+                                                         String policyNumber,
+                                                         String vehicleRegistration) {
         CredentialRepresentation credential = new CredentialRepresentation();
         credential.setType(CredentialRepresentation.PASSWORD);
         credential.setValue(password);
@@ -110,7 +113,15 @@ public class OnboardingApplicationService {
         user.setEnabled(true);
         user.setEmailVerified(true);
         user.setCredentials(List.of(credential));
-        user.setAttributes(Map.of("customerId", List.of(customerId)));
+        Map<String, List<String>> attributes = new java.util.HashMap<>();
+        attributes.put("customerId", List.of(customerId));
+        if (policyNumber != null && !policyNumber.isBlank()) {
+            attributes.put("policyNumber", List.of(policyNumber));
+        }
+        if (vehicleRegistration != null && !vehicleRegistration.isBlank()) {
+            attributes.put("vehicleRegistration", List.of(vehicleRegistration));
+        }
+        user.setAttributes(attributes);
         user.setRealmRoles(List.of("customer"));
         return user;
     }

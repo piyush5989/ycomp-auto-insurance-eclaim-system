@@ -5,6 +5,7 @@ export const useMyWorkOrders = () =>
   useQuery({
     queryKey: ['workshop', 'my-work-orders'],
     queryFn: () => workshopsApi.getMyWorkOrders(),
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: 'always',
     select: (data) => data.data ?? [],
   })

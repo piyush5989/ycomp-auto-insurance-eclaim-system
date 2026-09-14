@@ -93,7 +93,11 @@ export default function SubmitClaimPage() {
 
   const { register, handleSubmit, watch, reset, formState: { errors } } = useForm<SubmitClaimFormData>({
     resolver: zodResolver(submitClaimSchema),
-    defaultValues: { policeReportFiled: false },
+    defaultValues: {
+      policeReportFiled: false,
+      policyNumber: demoPrefill?.policyNumber ?? '',
+      vehicleRegistration: demoPrefill?.vehicleRegistration ?? '',
+    },
     mode: 'onChange',
   })
 
@@ -206,7 +210,7 @@ export default function SubmitClaimPage() {
           >
             <Info className="w-5 h-5 shrink-0 text-blue-600 mt-0.5" aria-hidden />
             <div>
-              <p className="font-medium text-blue-950">Demo account - policy &amp; vehicle prefilled</p>
+              <p className="font-medium text-blue-950">Policy &amp; vehicle prefilled</p>
               <p className="text-blue-800/90 mt-0.5">{demoPrefill.hint}</p>
               <p className="text-xs text-blue-700/80 mt-1">
                 Incident details are yours to enter; backend validates policy + plate against the stub PMS.

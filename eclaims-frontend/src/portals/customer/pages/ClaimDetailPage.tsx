@@ -114,7 +114,8 @@ function RepairProgressHistory({ workOrderId }: { workOrderId: string }) {
       const response = await httpClient.get(`/work-orders/${workOrderId}/status-history`)
       return response.data.data
     },
-    staleTime: 30000,
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 
   if (isLoading) {
@@ -202,6 +203,7 @@ export default function ClaimDetailPage() {
         .then((r) => r.data),
     enabled: !!claimId,
     staleTime: 0,
+    refetchOnMount: 'always',
     retry: false,
     select: (r) => r.data,
   })

@@ -13,17 +13,18 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
 }
 
 export default function WorkOrdersListPage() {
-  const { data: workOrders = [], isLoading } = useMyWorkOrders()
+  const { data: workOrders = [], isLoading, refetch } = useMyWorkOrders()
   const [showRepairToast, setShowRepairToast] = useState(false)
 
   useEffect(() => {
     if (consumeWorkshopRepairFlash()) {
       setShowRepairToast(true)
+      void refetch()
       const id = window.setTimeout(() => setShowRepairToast(false), 4500)
       return () => window.clearTimeout(id)
     }
     return undefined
-  }, [])
+  }, [refetch])
 
   const handleDismissRepairToast = () => {
     setShowRepairToast(false)
