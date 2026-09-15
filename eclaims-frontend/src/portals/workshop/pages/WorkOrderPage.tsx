@@ -1,5 +1,5 @@
 import React from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { httpClient } from '@/shared/api/httpClient'
 import { CheckCircle, Building2, Upload, X } from 'lucide-react'
@@ -7,6 +7,7 @@ import { useMyWorkshop } from '@/features/workshops/hooks/useMyWorkshop'
 import { useClaimDetails } from '@/features/claims/hooks/useClaimDetails'
 
 export default function WorkOrderPage() {
+  const queryClient = useQueryClient()
   const { data: profile, isLoading: profileLoading } = useMyWorkshop()
   const [searchParams] = useSearchParams()
 
@@ -60,6 +61,11 @@ export default function WorkOrderPage() {
       }
 
       return workOrderResponse
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['workshop'] })
+      void queryClient.invalidateQueries({ queryKey: ['work-order'] })
+      void queryClient.invalidateQueries({ queryKey: ['claims'] })
     },
   })
 

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import Keycloak from 'keycloak-js';
 import keycloak from './keycloakInstance';
+import { saveCustomerClaimPrefill } from '@/features/claims/config/demoCustomerClaimPrefill';
 
 interface AuthContextValue {
   keycloak: Keycloak | null;
@@ -53,16 +54,34 @@ export function KeycloakProvider({ children }: { children: React.ReactNode }) {
 
     initPromise
       .then((authenticated) => {
+        const username = keycloak.tokenParsed?.['preferred_username'] ?? null;
+        const email = (keycloak.tokenParsed?.['email'] as string | undefined) ?? null;
+
         setAuthState({
           keycloak,
           authenticated,
           token: authenticated ? (keycloak.token ?? null) : null,
           userId: authenticated ? (keycloak.subject ?? null) : null,
-          username: authenticated ? keycloak.tokenParsed?.['preferred_username'] : null,
-          email: authenticated ? (keycloak.tokenParsed?.['email'] as string | undefined) ?? null : null,
+          username,
+          email,
           roles: extractRoles(keycloak),
           logout: () => keycloak.logout(),
         });
+
+        if (authenticated && typeof keycloak.loadUserProfile === 'function') {
+          keycloak.loadUserProfile().then((profile: any) => {
+            const attrs = profile?.attributes ?? {};
+            const policy = Array.isArray(attrs.policyNumber) ? attrs.policyNumber[0] : attrs.policyNumber;
+            const vehicle = Array.isArray(attrs.vehicleRegistration) ? attrs.vehicleRegistration[0] : attrs.vehicleRegistration;
+            if (policy && vehicle) {
+              saveCustomerClaimPrefill({
+                email: profile.email || email,
+                policyNumber: policy,
+                vehicleRegistration: vehicle,
+              });
+            }
+          }).catch(() => {});
+        }
       })
       .catch(console.error);
 

@@ -1,6 +1,7 @@
 package com.yclaims.workflow.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yclaims.contracts.KafkaTopics;
 import com.yclaims.contracts.events.DomainEvent;
 import com.yclaims.contracts.events.v1.AdjustorAssignedPayload;
 import com.yclaims.contracts.events.v1.NotificationRequestedPayload;
@@ -47,7 +48,7 @@ public class AutoAssignmentService {
     private final ObjectMapper objectMapper;
 
     @KafkaListener(
-        topics = "claim-events",
+        topics = KafkaTopics.CLAIM_EVENTS,
         groupId = "workflow-service",
         containerFactory = "kafkaListenerContainerFactory"
     )
@@ -187,7 +188,7 @@ public class AutoAssignmentService {
         );
         log.info("[{}] Publishing surveyor.assigned event for claim {} (trigger: vehicle drop-off confirmed)",
                 correlationId, claimId);
-        kafkaTemplate.send("claim-events", claimId.toString(), event);
+        kafkaTemplate.send(KafkaTopics.CLAIM_EVENTS, claimId.toString(), event);
     }
 
     private void publishNotificationForSurveyorDropOff(UUID claimId, UUID workshopId, String workshopZip,
@@ -221,7 +222,7 @@ public class AutoAssignmentService {
         );
         log.warn("[{}] Publishing escalation event for claim {} - no surveyor coverage (vehicle dropped off)",
                 correlationId, claimId);
-        kafkaTemplate.send("claim-events", claimId.toString(), event);
+        kafkaTemplate.send(KafkaTopics.CLAIM_EVENTS, claimId.toString(), event);
     }
     
 
@@ -310,7 +311,7 @@ public class AutoAssignmentService {
         );
         log.info("[{}] Publishing adjustor.assigned event for claim {} (trigger: survey completed)",
                 correlationId, claimId);
-        kafkaTemplate.send("claim-events", claimId.toString(), event);
+        kafkaTemplate.send(KafkaTopics.CLAIM_EVENTS, claimId.toString(), event);
     }
 
     private void publishNotificationForAdjustor(UUID claimId, AdjustorEntity adjustor, String correlationId) {
@@ -340,7 +341,7 @@ public class AutoAssignmentService {
         );
         log.warn("[{}] Publishing escalation event for claim {} - no adjustor available",
                 correlationId, claimId);
-        kafkaTemplate.send("claim-events", claimId.toString(), event);
+        kafkaTemplate.send(KafkaTopics.CLAIM_EVENTS, claimId.toString(), event);
     }
 
     private boolean deduplicate(String eventId) {

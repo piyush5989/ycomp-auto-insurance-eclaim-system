@@ -1,5 +1,6 @@
 package com.yclaims.rentals.presentation;
 
+import com.yclaims.contracts.KafkaTopics;
 import com.yclaims.contracts.events.DomainEvent;
 import com.yclaims.contracts.events.v1.RentalSkippedPayload;
 import com.yclaims.contracts.events.v1.RentalVehicleReservedPayload;
@@ -170,7 +171,7 @@ public class RentalController {
                 payload
         );
 
-        kafkaTemplate.send("claim-events", request.claimId().toString(), event);
+        kafkaTemplate.send(KafkaTopics.CLAIM_EVENTS, request.claimId().toString(), event);
 
         log.info("[{}] Rental vehicle reserved | reservation={} | claim={} | vehicle={} | duration={} days | total=${} | event=rental.reserved published",
                 correlationId,
@@ -213,7 +214,7 @@ public class RentalController {
                 payload
         );
 
-        kafkaTemplate.send("claim-events", claimId.toString(), event);
+        kafkaTemplate.send(KafkaTopics.CLAIM_EVENTS, claimId.toString(), event);
 
         log.info("[{}] Rental vehicle skipped | claim={} | customer={} | event=rental.skipped published",
                 correlationId, claimId, customerId);

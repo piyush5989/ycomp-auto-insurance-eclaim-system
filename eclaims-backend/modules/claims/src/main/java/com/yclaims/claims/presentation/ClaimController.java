@@ -5,6 +5,7 @@ import com.yclaims.claims.application.command.SubmitClaimCommand;
 import com.yclaims.claims.application.command.UpdateClaimStatusCommand;
 import com.yclaims.claims.domain.model.ClaimStatus;
 import com.yclaims.claims.presentation.dto.*;
+import com.yclaims.contracts.api.EndorsementType;
 import com.yclaims.kernel.security.UserContextHolder;
 import com.yclaims.kernel.web.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -192,7 +193,7 @@ public class ClaimController {
             @Valid @RequestBody AddEndorsementRequest request) {
         ClaimEndorsementResponse response = claimService.addEndorsement(
                 claimId, request.note(),
-                UserContextHolder.currentUserId(), "CUSTOMER_NOTE");
+                UserContextHolder.currentUserId(), EndorsementType.CUSTOMER_NOTE.name());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, correlationId()));
     }

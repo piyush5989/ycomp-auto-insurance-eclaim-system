@@ -9,6 +9,7 @@ import com.yclaims.documents.infrastructure.persistence.DocumentAuditLogJpaRepos
 import com.yclaims.documents.infrastructure.persistence.DocumentEntity;
 import com.yclaims.documents.infrastructure.persistence.DocumentJpaRepository;
 import com.yclaims.documents.presentation.dto.DocumentMetadataResponse;
+import com.yclaims.contracts.api.UserRole;
 import com.yclaims.kernel.exception.DomainException;
 import com.yclaims.kernel.exception.NotFoundException;
 import com.yclaims.kernel.security.ClaimAccessPolicy;
@@ -45,12 +46,12 @@ public class DocumentApplicationService {
 
     // Type-specific write restrictions; CASE_MANAGER and AUDITOR bypass all checks.
     private static final Map<DocumentType, Set<String>> WRITE_ROLES = Map.of(
-            DocumentType.REPAIR_ESTIMATE,           Set.of("ROLE_WORKSHOP", "ROLE_ADJUSTOR"),
-            DocumentType.INVOICE,                   Set.of("ROLE_WORKSHOP"),
-            DocumentType.WORKSHOP_PROGRESS_PHOTO,   Set.of("ROLE_WORKSHOP"),
-            DocumentType.WORKSHOP_PROGRESS_VIDEO,   Set.of("ROLE_WORKSHOP"),
-            DocumentType.WORKSHOP_BEFORE_PHOTO,     Set.of("ROLE_WORKSHOP"),
-            DocumentType.WORKSHOP_AFTER_PHOTO,      Set.of("ROLE_WORKSHOP")
+            DocumentType.REPAIR_ESTIMATE,           Set.of(UserRole.WORKSHOP.toSpringRole(), UserRole.ADJUSTOR.toSpringRole()),
+            DocumentType.INVOICE,                   Set.of(UserRole.WORKSHOP.toSpringRole()),
+            DocumentType.WORKSHOP_PROGRESS_PHOTO,   Set.of(UserRole.WORKSHOP.toSpringRole()),
+            DocumentType.WORKSHOP_PROGRESS_VIDEO,   Set.of(UserRole.WORKSHOP.toSpringRole()),
+            DocumentType.WORKSHOP_BEFORE_PHOTO,     Set.of(UserRole.WORKSHOP.toSpringRole()),
+            DocumentType.WORKSHOP_AFTER_PHOTO,      Set.of(UserRole.WORKSHOP.toSpringRole())
     );
 
     private static final Set<DocumentType> CUSTOMER_RESTRICTED = EnumSet.of(

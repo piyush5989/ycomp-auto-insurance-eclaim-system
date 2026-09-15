@@ -29,7 +29,7 @@
 5. [Recommendation](#5-recommendation)
 6. [Assumptions](#6-assumptions)
 7. [Risks](#7-risks)
-8. [Appendix — References](#8-appendix--references)
+8. [Appendix - References](#8-appendix--references)
 
 ---
 
@@ -108,7 +108,7 @@ Independent Spring Boot services per bounded context, communicating via Apache K
 
 **Features:** Per-service independent scaling and deployment, team-level ownership, fault isolation, Kafka event bus already operational in POC making extraction low-risk.
 
-**Pricing:** Proportional to compute and Kafka cost per service;,partially offset by right-sizing each service.
+**Pricing:** Proportional to compute and Kafka cost per service, partially offset by right-sizing each service.
 
 #### 3.1.3 Serverless (AWS Lambda)
 
@@ -116,7 +116,7 @@ Function-as-a-service model where individual request handlers execute on demand.
 
 **Features:** Near-infinite elasticity, pay-per-execution.
 
-**Pricing:** AWS Lambda: $0.20 per million requests
+**Pricing:** Consumption-based per execution. See Appendix for AWS reference.
 
 ---
 
@@ -162,24 +162,19 @@ AWS-managed PostgreSQL-compatible relational database with automatic Multi-AZ fa
 
 **Features:** 99.99% availability SLA, automatic storage scaling, Aurora Serverless v2 for variable load, Backtrack for point-in-time corrections.
 
-**Pricing (indicative):**
-- db.r6g.large instance: ~$0.26/hour (~$190/month per instance)
-- Multi-AZ (writer + reader): ~$380/month
-- Read replica: ~$0.26/hour each
-- Storage: $0.10/GB-month, I/O: $0.20 per million requests
-- Estimated production (writer + 2 readers): ~$700–1,200/month
+**Pricing:** Instance-hour pricing with storage and I/O costs. Enterprise-grade SLA included. See Appendix for AWS reference.
 
 #### 3.3.3 Amazon Redshift (Analytics / Reporting)
 
 Fully managed petabyte-scale data warehouse. Used for management reporting queries.
 
-**Pricing:** RA3.xlplus: ~$0.375/node/hour, Serverless: $0.360 per RPU-hour.
+**Pricing:** Node-hour or serverless RPU-hour billing. See Appendix for AWS reference.
 
 #### 3.3.4 Amazon DynamoDB
 
 Fully managed NoSQL database with single-digit millisecond performance.
 
-**Pricing:** On-demand: $1.25 per million write request units, $0.25 per million read request units.
+**Pricing:** On-demand and provisioned capacity modes. See Appendix for AWS reference.
 
 ---
 
@@ -197,17 +192,15 @@ AWS-managed Redis with cluster mode for horizontal sharding across up to 500 sha
 
 **Features:** Multi-AZ with automatic failover, cluster mode for horizontal scaling, Amazon VPC isolation, managed patching, CloudWatch integration.
 
-**Pricing (indicative):**
-- cache.r6g.large: ~$0.127/node/hour
-- 3-node cluster (1 primary + 2 replicas): ~$280/month
+**Pricing:** Node-hour billing with cluster mode for horizontal scaling. See Appendix for AWS reference.
 
 #### 3.4.3 AWS MemoryDB for Redis
 
-Redis-compatible fully managed database service backed by a durable, multi-AZ transaction log. Provides the Redis API with guaranteed persistence — unlike ElastiCache, data survives node failures.
+Redis-compatible fully managed database service backed by a durable, multi-AZ transaction log. Provides the Redis API with guaranteed persistence - unlike ElastiCache, data survives node failures.
 
 **Features:** Strong consistency, ACID-compliant transactions, suitable for payment idempotency keys that must survive cache restarts.
 
-**Pricing (indicative):** db.r6g.large: ~$0.177/node/hour, ~$127/node/month.
+**Pricing:** Node-hour billing with durable transaction log included. See Appendix for AWS reference.
 
 ---
 
@@ -225,22 +218,19 @@ AWS-managed Apache Kafka. Handles provisioning, patching, and monitoring. VPC-na
 
 **Features:** Full Kafka API compatibility, MSK Serverless option for variable load, AWS-native integrations (IAM, VPC, CloudWatch), enterprise support contracts.
 
-**Pricing (indicative):**
-- MSK Serverless: $0.75/hour cluster + $0.10/GB data processed
-- Provisioned (kafka.m5.large, 3 brokers): ~$0.21/broker/hour (~$450/month for 3 brokers)
-- Storage: $0.10/GB-month
+**Pricing:** Serverless and provisioned broker options available. See Appendix for AWS reference.
 
 #### 3.5.3 Confluent Cloud (Kafka)
 
 Fully managed Kafka service with the richest ecosystem: native Schema Registry, ksqlDB for stream processing, and extensive connector library.
 
-**Pricing (indicative):** Basic: $0.11/CKU/hour, Standard: includes Schema Registry. ~$1.50/GiB data processed.
+**Pricing:** Consumption-based (CKU-hours). See vendor pricing.
 
 #### 3.5.4 AWS EventBridge
 
 Serverless event bus with built-in schema registry, partner event sources, and routing rules.
 
-**Pricing:** $1.00 per million events published.
+**Pricing:** Consumption-based per event. See Appendix for AWS reference.
 
 ---
 
@@ -260,24 +250,19 @@ AWS-managed customer identity platform with OAuth2 / OIDC support, hosted login 
 
 **Features:** Scales to hundreds of millions of users with zero operational overhead, built-in MFA, email / SMS verification, fine-grained IAM integration, HIPAA-eligible.
 
-**Pricing (indicative):**
-- First 50,000 MAU: free
-- 50,001–100,000 MAU: $0.0055/MAU
-- 1M–10M MAU: $0.0046/MAU
-- 10M+ MAU: $0.0023/MAU (enterprise pricing applies)
-- At 10M monthly active customers: ~$23,000/month, enterprise agreements reduce this further.
+**Pricing:** MAU-based tiered pricing with a free tier for initial users. Enterprise agreements available for large-scale deployments. See Appendix for AWS reference.
 
 #### 3.6.3 Okta / Auth0
 
 Enterprise Identity-as-a-Service with an extensive integration marketplace and developer tooling.
 
-**Pricing:** Auth0: $0.02–$0.07/MAU depending on plan (B2C). At 200M: not cost-effective without enterprise negotiation.
+**Pricing:** MAU-based. Enterprise negotiation required at scale - not cost-effective for 200M users without a custom agreement.
 
 #### 3.6.4 Azure AD B2C
 
 Microsoft's B2C identity platform with deep Active Directory integration.
 
-**Pricing:** First 50,000 MAU free, $0.00325/MAU for authentication thereafter.
+**Pricing:** MAU-based with a free tier. See vendor pricing.
 
 ---
 
@@ -291,7 +276,7 @@ S3-compatible object storage server. Used in the POC as a local replacement for 
 
 #### 3.7.2 AWS S3 + Object Lock + Textract
 
-Amazon S3 provides 99.999999999% (11 nines) durability. S3 Object Lock enforces WORM (Write Once, Read Many) retention at the object level in Compliance mode — objects cannot be deleted or modified during the retention period even by the account root. AWS Textract provides ML-based OCR for document analysis.
+Amazon S3 provides 99.999999999% (11 nines) durability. S3 Object Lock enforces WORM (Write Once, Read Many) retention at the object level in Compliance mode - objects cannot be deleted or modified during the retention period even by the account root. AWS Textract provides ML-based OCR for document analysis.
 
 **Features:**
 - S3 Object Lock (Compliance mode): immutable document retention for regulatory compliance
@@ -299,25 +284,19 @@ Amazon S3 provides 99.999999999% (11 nines) durability. S3 Object Lock enforces 
 - AWS Textract: extracts text and structured data from PDFs and images (police reports, damage photographs)
 - S3 Lifecycle Policies: automated 7-year retention management
 
-**Pricing (indicative):**
-- S3 Standard: $0.023/GB-month
-- Glacier Instant Retrieval: $0.004/GB-month
-- Glacier Deep Archive: $0.00099/GB-month
-- Textract: $0.0015/page (forms / tables), $1.50 per 1,000 pages
-- Object Lock: no additional charge
-- S3 Intelligent-Tiering: monitoring fee $0.0025 per 1,000 objects
+**Pricing:** Consumption-based GB-month storage across Standard, Glacier IA, and Glacier Deep Archive tiers. Intelligent-Tiering automates lifecycle cost reduction. Textract charged per page. Object Lock at no additional charge. See Appendix for AWS reference.
 
 #### 3.7.3 Azure Blob Storage with Immutable Storage
 
 Microsoft's object storage with immutable blob policies and time-based retention.
 
-**Pricing:** LRS redundancy: $0.018/GB-month (Hot tier).
+**Pricing:** GB-month with hot/cool/archive tiers. See vendor pricing.
 
 #### 3.7.4 Alfresco / OpenText Content Services
 
 Enterprise Content Management (ECM) platforms with built-in document management, workflow, audit, and compliance modules.
 
-**Pricing:** License-based. Alfresco Enterprise: contact vendor, typically $50,000–$500,000+/year depending on users.
+**Pricing:** Enterprise license model - contact vendor for pricing.
 
 ---
 
@@ -341,9 +320,7 @@ Cloud-native BPMN 2.0 and DMN workflow engine. Available as SaaS (Camunda Cloud)
 - External task pattern: integrates with Spring Boot services via job workers
 - Operate and Tasklist UIs: operational visibility into running process instances
 
-**Pricing (indicative):**
-- Camunda 8 SaaS Professional: from $57,000/year (100,000 process instances/month)
-- Self-hosted: open source Zeebe core (Apache 2.0), Camunda Enterprise license for production support and Operate UI
+**Pricing:** SaaS subscription (per process instances/month) or self-hosted with open source Zeebe core (Apache 2.0). Enterprise support license available for production deployments. See Appendix for Camunda pricing reference.
 
 #### 3.8.3 AWS Step Functions
 
@@ -351,7 +328,7 @@ Serverless workflow orchestration using Amazon States Language (JSON-based state
 
 **Features:** Serverless - no cluster to manage, integrates natively with AWS services, supports long-running workflows with wait states, per-execution audit in CloudWatch.
 
-**Pricing:** Standard Workflows: $0.025 per 1,000 state transitions. Express Workflows: $1.00 per million state transitions + duration.
+**Pricing:** Consumption-based per state transition. See Appendix for AWS reference.
 
 #### 3.8.4 Temporal
 
@@ -360,12 +337,6 @@ Open-source durable workflow orchestration framework with SDKs for Java, Go, and
 **Features:** Code-defined workflows (no visual diagram), built-in retry and compensation, event-sourced execution history, strong consistency guarantees.
 
 **Pricing:** Temporal Cloud: consumption-based (per action). Self-hosted: open source (MIT).
-
-#### 3.8.5 jBPM / Activiti
-
-Legacy Java-based BPM platforms with BPMN 2.0 support.
-
-**Pricing:** Activiti: open source (Apache 2.0). jBPM (Red Hat PAM): enterprise license.
 
 ---
 
@@ -383,10 +354,7 @@ Serverless container orchestration on AWS. Tasks run on managed compute, no EC2 
 
 **Features:** No node management, per-service independent scaling policies, native IAM task roles (no credential management), ALB integration, CloudWatch logging, VPC isolation.
 
-**Pricing (indicative):**
-- $0.04048/vCPU/hour + $0.004445/GB-memory/hour
-- 1 vCPU + 2GB task running 24x7: ~$35/month per task
-- 10 service types × 3 replicas × $35: ~$1,050/month base compute
+**Pricing:** vCPU-hour and GB-memory-hour billing. No EC2 node management overhead. See Appendix for AWS reference.
 
 #### 3.9.3 Amazon EKS (Kubernetes)
 
@@ -394,10 +362,7 @@ AWS-managed Kubernetes control plane with worker node groups or Fargate profile.
 
 **Features:** Full Kubernetes API, Karpenter for intelligent auto-provisioning, Horizontal Pod Autoscaler, Cluster Autoscaler, broader ecosystem (service meshes, GitOps with ArgoCD, Helm).
 
-**Pricing (indicative):**
-- EKS cluster: $0.10/hour (~$72/month)
-- Worker nodes: EC2 instance cost, m5.xlarge ~$0.192/hour
-- Karpenter: free
+**Pricing:** Cluster management fee plus EC2 worker node costs. Karpenter auto-provisioning is free. See Appendix for AWS reference.
 
 ---
 
@@ -407,7 +372,7 @@ AWS-managed Kubernetes control plane with worker node groups or Fargate profile.
 
 Single-page application (SPA) using the React component model. Vite provides fast HMR for development. Rendered entirely client-side.
 
-**Pricing:** Open source (MIT). Hosting: S3 + CloudFront ~$0.01/GB served.
+**Pricing:** Open source (MIT). Hosting via S3 + CloudFront.
 
 #### 3.10.2 React 18 + Next.js (App Router)
 
@@ -415,7 +380,7 @@ Adds server-side rendering (SSR) and static site generation (SSG) on top of the 
 
 **Features:** Hybrid SSR / SSG per page, faster first-contentful-paint, SEO-ready for public pages, edge rendering via AWS Amplify or Vercel, file-based routing, API routes.
 
-**Pricing:** Open source (MIT). Vercel Pro: $20/month. AWS Amplify: $0.01/build-minute + hosting.
+**Pricing:** Open source (MIT). Deployable on Vercel or AWS Amplify.
 
 #### 3.10.3 React Native
 
@@ -439,19 +404,19 @@ Prometheus scrapes metrics from `/actuator/prometheus` endpoints (Spring Boot Ac
 
 OpenTelemetry provides vendor-neutral distributed tracing instrumentation. AWS X-Ray receives and stores traces, providing service maps and latency analysis.
 
-**Pricing:** AWS X-Ray: $5.00 per million traces recorded, first 100,000 free each month.
+**Pricing:** Consumption-based per trace with a free monthly tier. See Appendix for AWS reference.
 
 #### 3.11.3 ELK Stack (Elasticsearch + Logstash + Kibana)
 
 Log aggregation and full-text search across all service instances. Logstash ingests, Elasticsearch indexes, Kibana visualizes.
 
-**Pricing:** Open source. Elastic Cloud: from $95/month (standard). AWS OpenSearch Service: $0.10/hour per instance.
+**Pricing:** Open source (self-hosted) or managed via Elastic Cloud / AWS OpenSearch Service.
 
 #### 3.11.4 PagerDuty
 
 On-call incident management platform with escalation policies, on-call schedules, and bidirectional CloudWatch Alarms integration.
 
-**Pricing:** Professional plan: $21/user/month.
+**Pricing:** Per-user subscription. See vendor pricing.
 
 ---
 
@@ -461,31 +426,31 @@ On-call incident management platform with escalation policies, on-call schedules
 
 Managed WAF with AWS-curated rule groups covering OWASP Top 10, known bad inputs, and bot protection. Applied at the Application Load Balancer.
 
-**Pricing:** $5.00/month per Web ACL + $1.00/month per rule + $0.60 per million HTTP requests.
+**Pricing:** Per Web ACL and per HTTP request. See Appendix for AWS reference.
 
 #### 3.12.2 AWS Shield Advanced
 
 Enhanced DDoS protection with SRT (Shield Response Team) access and cost protection.
 
-**Pricing:** $3,000/month per organization (covers all resources).
+**Pricing:** Flat monthly fee per organization, covering all protected resources. See Appendix for AWS reference.
 
 #### 3.12.3 AWS KMS + Secrets Manager
 
 KMS manages encryption keys for Aurora, S3, and EBS volumes. Secrets Manager stores database passwords, API keys, and OAuth secrets with automatic rotation.
 
-**Pricing:** KMS: $1.00/month per customer-managed key + $0.03 per 10,000 API calls. Secrets Manager: $0.40/secret/month + $0.05 per 10,000 API calls.
+**Pricing:** Per key and per secret monthly, plus API call costs. See Appendix for AWS reference.
 
 #### 3.12.4 SonarQube + OWASP Dependency-Check
 
 SAST (Static Application Security Testing) integrated into CI/CD. SonarQube detects code quality issues and security hotspots. OWASP Dependency-Check identifies vulnerable open-source dependencies.
 
-**Pricing:** SonarQube Community: free. Developer Edition: from $150/year.
+**Pricing:** Community edition free. Developer and Enterprise editions available.
 
 #### 3.12.5 Trivy + AWS Inspector
 
 Trivy scans container images for known CVEs in CI/CD. AWS Inspector performs continuous vulnerability assessments on running ECS tasks and ECR images.
 
-**Pricing:** Trivy: open source. AWS Inspector: $0.00015/image-scan.
+**Pricing:** Trivy: open source. AWS Inspector: per image scan. See Appendix for AWS reference.
 
 ---
 
@@ -494,57 +459,48 @@ Trivy scans container images for known CVEs in CI/CD. AWS Inspector performs con
 #### 3.13.1 Business Intelligence and Analytics
 
 **Amazon QuickSight Enterprise**
-- Self-service BI with role-based access
-- Pricing: $24/user/month for authors, $0.30/session for readers
-- ML-powered insights and forecasting
+- Self-service BI with role-based access and ML-powered insights
+- Per-user author and per-session reader model. See vendor pricing.
 
 **Tableau (Alternative)**
-- Advanced data visualization and self-service analytics
-- Pricing: $75/user/month (Creator license)
-- Strong insurance industry adoption
+- Advanced data visualization with strong insurance industry adoption
+- Per-user creator license model. See vendor pricing.
 
 #### 3.13.2 Communication and Collaboration
 
 **Microsoft Teams / Slack Enterprise**
-- Internal communication and workflow notifications
-- Pricing: Teams: $22.50/user/month, Slack Enterprise: $15/user/month
-- Bot integrations for claim alerts
+- Internal communication and workflow notifications with bot integrations for claim alerts
+- Per-user subscription. See vendor pricing.
 
 **Twilio Flex (Contact Center)**
-- Customer support phone integration
-- Pricing: $200/agent/month + usage fees
-- Integrates with claim system for context
+- Customer support phone integration with claim system context
+- Per-agent subscription. See vendor pricing.
 
 #### 3.13.3 Testing and Quality Assurance
 
 **Selenium Grid + BrowserStack**
-- Cross-browser automated testing
-- Pricing: BrowserStack: $39/user/month
-- Critical for customer portal compatibility
+- Cross-browser automated testing critical for customer portal compatibility
+- Per-user subscription. See vendor pricing.
 
 **Postman Enterprise**
-- API testing and documentation
-- Pricing: $29/user/month
-- Essential for microservice integration testing
+- API testing and documentation essential for microservice integration testing
+- Per-user subscription. See vendor pricing.
 
 #### 3.13.4 Performance and Load Testing
 
 **k6 Cloud**
-- Cloud-based load testing platform
-- Pricing: $49/month for 10,000 VU-hours
-- Validates 5000ms SLA requirements
+- Cloud-based load testing platform for validating 5000ms SLA requirements
+- Consumption-based (VU-hours). See vendor pricing.
 
 **AWS Load Testing Solution**
-- Managed load testing service
-- Pricing: Pay-per-use based on load generators
-- Integrates with CloudWatch for metrics
+- Managed load testing service integrating with CloudWatch for metrics
+- Pay-per-use based on load generators. See Appendix for AWS reference.
 
 #### 3.13.5 Backup and Archive
 
 **Veeam Backup for AWS**
-- Enterprise backup solution with advanced features
-- Pricing: $0.16/GB/month for backup storage
-- Insurance-grade backup retention policies
+- Enterprise backup solution with insurance-grade retention policies
+- GB-month storage pricing. See vendor pricing.
 
 **Iron Mountain Digital**
 - Long-term archival and compliance
@@ -557,7 +513,7 @@ Trivy scans container images for known CVEs in CI/CD. AWS Inspector performs con
 
 ### 4.1 Evaluation Criteria and Point Matrix
 
-Each candidate is scored 1–5 against six attributes relevant to the eClaims NFR. Higher scores are better.
+Each candidate is scored 1-5 against six attributes relevant to the eClaims NFR. Higher scores are better.
 
 | Evaluation Criterion     | Weight | Description                                                              |
 |--------------------------|--------|--------------------------------------------------------------------------|
@@ -630,7 +586,7 @@ Each candidate is scored 1–5 against six attributes relevant to the eClaims NF
 | **Camunda 8 (SaaS)**           | **5** | **5** | **5** | **5** | **3** | **5** | **4.8** |
 | AWS Step Functions             | 5   | 3   | 4   | 5   | 4   | 4   | 4.2 |
 | Temporal                       | 5   | 3   | 4   | 3   | 4   | 4   | 3.9 |
-| jBPM / Activiti                | 3   | 4   | 4   | 1   | 3   | 3   | 3.0 |
+
 
 **Recommendation:** Camunda 8 - score 4.8.
 
@@ -862,7 +818,7 @@ Each candidate is scored 1–5 against six attributes relevant to the eClaims NF
 
 ### 5.2 Phased Adoption Roadmap
 
-**Phase 1 — Production Web Launch (Months 1–6):**
+**Phase 1 - Production Web Launch (Months 1–6):**
 - Deploy POC modular monolith to ECS Fargate (immediate production path, lowest risk)
 - Replace Docker Compose infra with managed AWS services (Aurora, ElastiCache, MSK, S3, Cognito)
 - Add AWS WAF, WAF OWASP rules, Secrets Manager, KMS encryption
@@ -870,14 +826,14 @@ Each candidate is scored 1–5 against six attributes relevant to the eClaims NF
 - Integrate Camunda 8 for claim workflow (extract from custom state machine)
 - Migrate document storage to S3 + Object Lock
 
-**Phase 2 — Microservice Extraction (Months 7–12):**
+**Phase 2 - Microservice Extraction (Months 7–12):**
 - Extract highest-load modules first: claims-service, notification-service, reporting-service
 - Add Confluent Schema Registry, migrate to Amazon MSK provisioned
 - Migrate to Amazon EKS with Karpenter when service count exceeds 15
 - Launch React Native mobile app (iOS + Android)
 - Add Next.js SSR to customer portal
 
-**Phase 3 — Advanced Capabilities (Months 13–18):**
+**Phase 3 - Advanced Capabilities (Months 13–18):**
 - AWS Textract integration for automated OCR on claim documents
 - Amazon Fraud Detector / SageMaker for ML-based fraud scoring
 - Redshift + QuickSight for executive dashboards
@@ -888,36 +844,14 @@ Each candidate is scored 1–5 against six attributes relevant to the eClaims NF
 
 #### 5.3.1 Monthly Infrastructure Cost Breakdown (Production)
 
-> Estimates based on 8 microservices at production scale. Cognito cost reflects active staff/internal users only for initial go-live; customer MAU cost subject to enterprise pricing negotiation.
+> Infrastructure is right-sized for Phase 1 (8 microservices on ECS Fargate using Serverless compute and managed AWS services). Detailed TCO will be produced during Phase A once load testing validates actual service sizing and commercial agreements are in place. For per-service pricing references, see Section 8 Appendix.
 
-| Component Category | Service/Technology | Estimated Monthly Cost | Justification |
-|-------------------|-------------------|----------------------|---------------|
-| **Compute** |
-| ECS Fargate (8 services × 2-3 replicas) | ~$840 | 1vCPU/2GB tasks running 24x7 |
-| Lambda (notifications, webhooks) | ~$100 | ~5M executions/month |
-| API Gateway | ~$175 | ~5M API calls/month |
-| **Database** |
-| Aurora PostgreSQL Multi-AZ (writer + reader) | ~$700 | db.r6g.large Multi-AZ |
-| **Storage & Content** |
-| S3 (documents, backups) | ~$50 | ~2TB multi-tier storage (year 1) |
-| CloudFront CDN | ~$50 | Static asset delivery |
-| **Messaging & Events** |
-| MSK Serverless (Kafka) | ~$300 | Variable load, scales to demand |
-| ElastiCache Redis | ~$150 | cache.r6g.medium, primary + replica |
-| SES + SNS (notifications) | ~$50 | ~1M messages/month |
-| **Security & Identity** |
-| Cognito (staff + active claimants) | ~$500 | ~100K active MAU initially |
-| KMS + Secrets Manager | ~$100 | Key management and rotation |
-| WAF | ~$200 | OWASP rule groups on ALB |
-| **Monitoring & Operations** |
-| CloudWatch + X-Ray | ~$150 | Logs, metrics, tracing |
-| **Third-party SaaS** |
-| Camunda 8 (SaaS Starter or Step Functions alt) | ~$500-4,750 | Workflow engine - see note below |
-| GitHub Actions + ECR | ~$100 | CI/CD and container registry |
-| **Total Estimated Monthly Cost** | **~$3,965 - $8,215** | Depending on Camunda tier |
-| **Annual Cost Estimate** | **~$48K - $99K** | Production infrastructure year 1 |
-
-> **Camunda 8 note:** Camunda 8 SaaS Professional ($57K/year) provides BPMN 2.0 visibility and timer-based claim escalations which directly address the ageing matrix requirement. AWS Step Functions ($300/month estimate) is a lower-cost alternative if BPMN audit visibility is not mandated. Both options are evaluated in section 4.6.
+Key sizing assumptions for Phase 1:
+- 8 microservices with 2-3 replicas each (ECS Fargate, Serverless)
+- Aurora PostgreSQL Multi-AZ writer + read replica
+- MSK Serverless for variable Kafka load
+- Cognito scoped to active staff and active claimants (not total registered base)
+- Camunda 8 or AWS Step Functions for workflow (evaluated in section 4.6)
 
 #### 5.3.2 Cost Optimization Strategies
 
@@ -935,12 +869,12 @@ Each candidate is scored 1–5 against six attributes relevant to the eClaims NF
 | Metric | Current Manual Process | Proposed Digital Solution | Improvement |
 |--------|----------------------|---------------------------|-------------|
 | **Claim Processing Time** | 45-60 days | 10-15 days | 75% faster |
-| **Processing Cost/Claim** | ~$850 (est.) | Target <$200 | Significant reduction |
+| **Processing Cost/Claim** | Baseline (est.) | Significant reduction target | To be quantified in Phase A |
 | **Customer Satisfaction** | 2.1/5 | 4.5/5 target | 114% improvement |
 | **Fraud Detection Rate** | 15% | 85% with ML | 467% improvement |
 | **Annual Claims Volume** | 4-10M claims (est.) | 4-10M claims | Same volume |
 | **Total Annual Savings** | - | To be quantified in Phase A | Based on confirmed claim volumes |
-| **Technology Investment** | - | $2.0M (project) + ~$99K/year infra | Governed by project budget |
+| **Technology Investment** | - | 14-18 month phased delivery | Governed by Phase A scoping |
 
 > ROI figures are indicative targets. Actual savings depend on confirmed claim volume (to be validated in Phase A) and YCompany internal cost benchmarks.
 
@@ -1029,7 +963,7 @@ Each candidate is scored 1–5 against six attributes relevant to the eClaims NF
 
 ---
 
-## 8. Appendix — References
+## 8. Appendix - References
 
 - Amazon Aurora PostgreSQL pricing: https://aws.amazon.com/rds/aurora/pricing/
 - Amazon MSK pricing: https://aws.amazon.com/msk/pricing/
@@ -1070,7 +1004,7 @@ The recommended technology stack is architected specifically to serve 200+ milli
 | Metric | Current State | Target State | Business Value |
 |--------|---------------|--------------|----------------|
 | **Claim Processing Time** | 45-60 days | 10-15 days | 75% reduction, improved customer retention |
-| **Processing Cost** | ~$850/claim (est.) | Target <$200/claim | Savings to be quantified in Phase A |
+| **Processing Cost** | Baseline (to be established in Phase A) | Significant reduction target | Savings to be quantified in Phase A |
 | **System Availability** | 95% (manual dependencies) | 99.99% | Reduced business disruption |
 | **Fraud Detection** | 15% accuracy | 85% with ML | Prevented fraud savings TBD |
 | **Customer Satisfaction** | 2.1/5 rating | 4.5/5 target | Competitive advantage retention |
@@ -1079,8 +1013,8 @@ The recommended technology stack is architected specifically to serve 200+ milli
 
 ### 9.4 Technology Investment Justification
 
-**Total Project Investment:** $2.0M (14-month delivery, 12-person team)
-**Annual Infrastructure Cost (post go-live):** ~$48K - $99K/year
+**Team Composition:** 12-15 engineers over 14-18 months (phased delivery)
+**Infrastructure Approach:** Right-sized Serverless compute (ECS Fargate) and managed AWS services - TCO to be confirmed following Phase A load testing and commercial negotiations
 **Payback Period:** Subject to Phase A ROI analysis using confirmed claim volumes and YCompany cost benchmarks.
 
 The proposed architecture prioritizes right-sizing for the actual workload while ensuring the platform can scale as claim volumes grow post-launch.

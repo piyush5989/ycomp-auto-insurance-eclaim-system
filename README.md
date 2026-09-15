@@ -19,7 +19,40 @@ All architecture diagrams (System Context, Solution Architecture, Deployment, CI
 
 ---
 
-## 1. What you are running
+## 1. POC Scope - What is Implemented vs. Deferred
+
+The design documents describe the full production-grade system for 200M+ users. The table below maps each design document feature to its POC status.
+
+| Design Document Feature | POC Status | Notes |
+|------------------------|------------|-------|
+| Claims lifecycle - submit, assign, survey, adjudicate, approve, reject, pay, settle | - Implemented | Full state machine with all transitions |
+| Customer portal - submit claim, track status, select workshop, upload documents, pay | - Implemented | All screens working end-to-end |
+| Internal portal - surveyor, adjustor, case manager, auditor views | - Implemented | Role-based access enforced via Keycloak |
+| Workshop portal - work orders, repair status updates, payment tracking | - Implemented | Full workshop workflow |
+| Auto-assignment of surveyor and adjustor by ZIP and workload | - Implemented | Rule-based assignment via workflow module |
+| Case manager delegation, override, reassignment | - Implemented | Audited with endorsement trail |
+| Email and in-app notifications on all status changes | - Implemented | Mailhog captures all emails locally |
+| Document upload and storage | - Implemented | MinIO (S3-compatible) with local fallback |
+| Fraud detection - rule-based | - Implemented | 4 rules: THEFT without police report, repeat vehicle claims, amount thresholds |
+| Reporting - KPI dashboards, fraud ageing, regional and management reports | - Implemented | Pre-aggregated read model with scheduled refresh |
+| Electronic payment with idempotency | - Implemented | Mock gateway; Redis idempotency key store |
+| Rental vehicle selection | - Stub | Module and UI exist; booking API is a stub (Phase 2) |
+| SMS notifications | - Stub | Port defined; console adapter used locally; Twilio adapter wired when `TWILIO_ENABLED=true` |
+| Fraud detection - ML-based (SageMaker) | - Deferred | Phase 2; rule engine covers Phase 1 |
+| AWS Cognito for customer identity (200M users) | - Deferred | Keycloak used for POC; same OAuth2/JWT contract, swap is adapter-only |
+| AWS API Gateway, WAF, Shield | - Deferred | Nginx reverse proxy used locally; production topology described in deployment-diagram.svg |
+| Amazon MSK (managed Kafka) | - Deferred | Redpanda (Kafka-compatible) used locally; no application code change needed to switch |
+| Aurora PostgreSQL Multi-AZ, Redshift, DynamoDB | - Deferred | PostgreSQL 16 used locally; schema and query design are production-compatible |
+| Camunda 8 BPMN workflow engine | - Deferred | Auto-assignment service implements the same process logic; Camunda integration is Phase 2 |
+| AWS Textract OCR for document analysis | - Deferred | Phase 2; upload and storage are fully implemented |
+| Enterprise SSO / Active Directory federation | - Deferred | Phase 2; Keycloak supports AD federation via identity brokering |
+| Mobile app (React Native) | - Deferred | Customer portal is a PWA; React Native app is Phase 2 |
+| Push notifications (FCM / APNs) | - Deferred | Phase 2; notification port is defined and extensible |
+| AWS CDK / Terraform infrastructure code | - Deferred | Production deployment topology described in design documents |
+
+---
+
+## 2. What you are running
 
 The solution is a **modular monolith** with two main parts:
 
@@ -154,16 +187,35 @@ Wait until Keycloak is healthy (**about 30 to 60 seconds** after start).
 
 ### 6.2 Run the backend
 
+#### Option A: Recommended - Using PowerShell script (Windows)
+
+```powershell
+cd eclaims-backend
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\restart-backend.ps1
+```
+
+This script automatically:
+- Stops any existing backend process on port 8090
+- Installs all required modules
+- Starts the backend with proper profile configuration
+- Handles PowerShell parameter parsing issues
+
+#### Option B: Direct Maven command
+
+If you prefer running Maven directly or are on Linux/macOS:
+
 ```bash
 cd eclaims-backend
 
-# On Windows PowerShell:
-.\mvnw.cmd spring-boot:run -pl app/eclaims-api -am -Dspring-boot.run.profiles=local
+# On Windows PowerShell (escape the parameter):
+.\mvnw.cmd spring-boot:run -pl app/eclaims-api -am "-Dspring-boot.run.profiles=local"
 
 # On Linux/macOS:
 chmod +x mvnw
 ./mvnw spring-boot:run -pl app/eclaims-api -am -Dspring-boot.run.profiles=local
 ```
+
+**Note for Windows users**: If you encounter parameter parsing errors with the direct Maven command, use Option A (PowerShell script) which handles these issues automatically.
 
 Leave this terminal open. The API listens on **http://localhost:8090**.
 
@@ -248,6 +300,7 @@ cd eclaims-backend
 | Keycloak or API not ready | Wait longer; check `docker compose ps` and container logs |
 | Database connection errors | Use database reset script: `.\reset-db-simple.ps1` |
 | Permission denied errors (Windows) | Run PowerShell as Administrator |
+| Maven parameter parsing errors (Windows) | Use the PowerShell script: `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\restart-backend.ps1` |
 | `mvnw` permission denied (Linux/macOS) | Run `chmod +x mvnw` |
 | `npm install` fails | Use **Node 20**; delete `node_modules` and retry |
 | "Failed to load claim" errors | Reset Keycloak realm: `.\scripts\reset-keycloak-realm.ps1` |
@@ -268,6 +321,13 @@ cd eclaims-backend
 - Keycloak takes 1-2 minutes to become healthy after Postgres is ready
 - Check container logs: `docker compose logs keycloak` or `docker compose logs eclaims-backend`
 - Ensure at least 8GB RAM is available for Docker
+
+**Backend startup issues (Windows):**
+- PowerShell can have issues parsing Maven `-D` parameters, causing "Unknown lifecycle phase" errors
+- The PowerShell script (`.\scripts\restart-backend.ps1`) resolves these issues and also:
+  - Automatically stops conflicting processes on port 8090
+  - Ensures all modules are properly installed before starting
+  - Handles UTF-8 encoding and profile configuration correctly
 
 ---
 

@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Shield, UserPlus, CheckCircle, AlertCircle } from 'lucide-react'
 import axios from 'axios'
+import { saveCustomerClaimPrefill } from '@/features/claims/config/demoCustomerClaimPrefill'
 
 const schema = z.object({
   policyNumber: z
@@ -60,6 +61,11 @@ export default function RegisterPage() {
         { headers: { 'Content-Type': 'application/json' } }
       )
       if (resp.data.data) {
+        saveCustomerClaimPrefill({
+          email: data.email,
+          policyNumber: data.policyNumber,
+          vehicleRegistration: data.vehicleRegistration,
+        })
         setSuccess(true)
         setTimeout(() => navigate('/login'), 3000)
       }

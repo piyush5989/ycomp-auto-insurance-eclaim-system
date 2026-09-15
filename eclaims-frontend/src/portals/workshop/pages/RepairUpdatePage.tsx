@@ -82,8 +82,47 @@ export default function RepairUpdatePage() {
 
       return response
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['workshop', 'my-work-orders'] })
+    onSuccess: async (response) => {
+      const updated = response?.data
+      if (updated) {
+        queryClient.setQueryData<{ data: any[] }>(
+          ['workshop', 'my-work-orders'],
+          (old) => {
+            if (!old?.data) return old
+            return {
+              ...old,
+              data: old.data.map((wo: any) =>
+                wo.workOrderId === workOrderId
+                  ? {
+                      ...wo,
+                      repairStatus: updated.repairStatus,
+                      finalCost: updated.finalCost ?? wo.finalCost,
+                      estimatedCompletionDate: updated.estimatedCompletionDate ?? wo.estimatedCompletionDate,
+                      updatedAt: updated.updatedAt ?? new Date().toISOString(),
+                    }
+                  : wo
+              ),
+            }
+          }
+        )
+        queryClient.setQueryData(['work-order', workOrderId], updated)
+        if (updated.claimId) {
+          queryClient.setQueryData(['work-order', updated.claimId], {
+            status: 'success',
+            data: updated,
+          })
+          void queryClient.invalidateQueries({ queryKey: ['work-order', updated.claimId] })
+          void queryClient.invalidateQueries({ queryKey: ['work-order-history', workOrderId] })
+          void queryClient.invalidateQueries({ queryKey: ['claim', updated.claimId] })
+        }
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['workshop', 'my-work-orders'] }),
+        queryClient.invalidateQueries({ queryKey: ['work-order', workOrderId] }),
+        queryClient.invalidateQueries({ queryKey: ['work-order'] }),
+      ])
+
       setWorkshopRepairFlash()
       navigate('/workshop/work-orders')
     },

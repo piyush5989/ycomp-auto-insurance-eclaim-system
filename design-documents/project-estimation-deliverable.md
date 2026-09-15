@@ -62,12 +62,14 @@ This document provides project estimation for implementing the YCompany eClaims 
 | Lead Java Developer | 1 | 1.5 | $18,000 | $27,000 |
 | DevOps Engineer | 1 | 0.5 | $18,000 | $9,000 |
 | Lead BA (overlap) | 1 | 1 | $15,000 | $15,000 |
+| UX/UI Designer (wireframes + prototypes) | 1 | 2.5 | $14,000 | $35,000 |
 | **Tools & Overhead** |
 | Design and collaboration tools | - | 3 | $1,000 | $3,000 |
-| **Contingency (10%)** | - | - | - | $16,400 |
-| **PHASE 1 TOTAL** | | | | **$180,400** |
+| Infrastructure & environment setup | - | - | - | $10,000 |
+| **Contingency (10%)** | - | - | - | $20,900 |
+| **PHASE 1 TOTAL** | | | | **$229,900** |
 
-> Note: Phase A and Phase B overlap. Architect runs for 3 months total. Total Phase 1 budget including rounding: **~$230K**
+> Note: Phase A and Phase B overlap. Architect runs for 3 months total. Phase 1 total is **~$230K**.
 
 #### 2.1.3 Key Milestones
 
@@ -164,8 +166,6 @@ This document provides project estimation for implementing the YCompany eClaims 
 
 | Role | Quantity | Months | Rate ($/month) | Total Cost |
 |------|----------|--------|----------------|------------|
-| **Test Management** |
-| QA Lead | 1 | 2 | $16,000 | $32,000 |
 | **Functional Testing** |
 | QA Engineer | 1 | 2 | $12,000 | $24,000 |
 | **Automation & Performance** |
@@ -175,10 +175,10 @@ This document provides project estimation for implementing the YCompany eClaims 
 | **Infrastructure & Tools** |
 | Test environment (AWS) | - | 2 | $1,500 | $3,000 |
 | Testing tools (k6, etc.) | - | 2 | $500 | $1,000 |
-| **Contingency (10%)** | - | - | - | $10,600 |
-| **PHASE 3 TOTAL** | | | | **$116,600** |
+| **Contingency (10%)** | - | - | - | $7,400 |
+| **PHASE 3 TOTAL** | | | | **$81,400** |
 
-> Note: Phase 3 budget adjusted to **$85K** as some QA capacity is already included in Phase 2 (QA Lead joins month 8 during development).
+> Note: QA Lead oversight is included in the Phase 2 budget (QA Lead joins month 8 and runs through month 11). Phase 3 testing is executed by the QA Engineer and Automation Engineer, with QA Lead providing governance only. Phase 3 total rounds to **~$85K**.
 
 #### 2.3.3 Testing Schedule
 
@@ -206,11 +206,12 @@ This document provides project estimation for implementing the YCompany eClaims 
 | Role | Quantity | Months | Rate ($/month) | Total Cost |
 |------|----------|--------|----------------|------------|
 | Business Analyst | 1 | 1.5 | $15,000 | $22,500 |
-| Developer (fixes) | 1 | 1.5 | $18,000 × 50% | $13,500 |
+| Developer (UAT fixes, full-time) | 1 | 1.5 | $18,000 | $27,000 |
 | QA Engineer | 1 | 1.5 | $12,000 | $18,000 |
-| UAT environment (AWS) | - | 1.5 | $1,500 | $2,250 |
-| **Contingency (10%)** | - | - | - | $5,625 |
-| **PHASE 4 TOTAL** | | | | **$61,875** |
+| UAT environment (AWS) | - | 1.5 | $2,000 | $3,000 |
+| UAT facilitation and stakeholder coordination | - | - | - | $3,000 |
+| **Contingency (10%)** | - | - | - | $7,500 |
+| **PHASE 4 TOTAL** | | | | **$81,000** |
 
 #### 2.4.3 UAT Timeline
 
@@ -506,7 +507,7 @@ Phase F: Project Management
 | Annual Operational Savings | TBD | 200M customers × claim rate × cost delta per claim |
 | Customer Satisfaction | Measurable improvement | Real-time tracking, digital payments, faster settlement |
 
-> Detailed ROI will be quantified in Phase A once baseline operational metrics are confirmed with YCompany. At 0.1% annual claim rate (200K claims/year), even a modest $500/claim processing cost reduction represents $100M+ annual savings against a $2M investment.
+> Detailed ROI will be quantified in Phase A once baseline operational metrics are confirmed with YCompany. At a conservative 1% annual claim rate (~2M claims/year), a $500/claim processing cost reduction represents ~$1B in potential annual savings - demonstrating a compelling return on a $2M project investment even at the lower end of the realistic claim volume range.
 
 ---
 
